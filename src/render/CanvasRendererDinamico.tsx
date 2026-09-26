@@ -2,32 +2,61 @@
  * Igual que CanvasRenderer.tsx (mismo bucle de dibujo propio, mismo
  * principio de posiciones fuera de React), pero las posiciones vienen del
  * Worker de física dinámica vía useSimulacionWorker en vez de un ref
- * sincronizado solo por arrastre.
+ * sincronizado solo por arrastre. El arrastre y la alternativa por teclado /
+ * toque comparten hooks/useInteraccionEscena.ts; aquí "colocar" es
+ * `moverCarga` del Worker (fija la velocidad en 0).
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import { useSimulacionStore } from "../store/simulacionStore";
 import { useSimulacionDinamicaStore } from "../store/simulacionDinamicaStore";
+import { useSeleccionStore } from "../store/seleccionStore";
 import { useSimulacionWorker } from "../hooks/useSimulacionWorker";
 import type { PuntoCarga } from "../fisica/coulomb";
-import { dibujarCargas, RADIO_CARGA } from "./dibujarCargas";
-import { dibujarVectores } from "./dibujarVectores";
-import { dibujarLineasCampo } from "./dibujarLineasCampo";
-import { dibujarMapaPotencial } from "./dibujarMapaPotencial";
-
-const RADIO_ARRASTRE = RADIO_CARGA + 6;
+import { useEscalaCss } from "../hooks/useEscalaCss";
+import { useInteraccionEscena } from "../hooks/useInteraccionEscena";
+import { describirEscena } from "../ui/textosEscena";
+import type { ControladorEscena } from "./controladorEscena";
+import { ALTO_ESCENA, ANCHO_ESCENA } from "./dimensiones";
+import { dibujarEscena } from "./dibujarEscena";
+import { crearDibujanteLeyenda } from "./dibujarLeyendaEscala";
 
 interface Props {
   ancho?: number;
   alto?: number;
+  /** Ref donde publicar el controlador (leer/mover cargas) para el teclado y el panel. */
+  controladorRef?: RefObject<ControladorEscena | null>;
 }
 
-export function CanvasRendererDinamico({ ancho = 700, alto = 500 }: Props) {
+export function CanvasRendererDinamico({
+  ancho = ANCHO_ESCENA,
+  alto = ALTO_ESCENA,
+  controladorRef,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const arrastrandoIdRef = useRef<string | null>(null);
+  const escalaCssRef = useEscalaCss(canvasRef, ancho);
+  const seleccionRef = useRef<string | null>(null);
 
   const cargas = useSimulacionDinamicaStore((s) => s.cargas);
   const modoVista = useSimulacionStore((s) => s.modoVista);
+  const unidadCarga = useSimulacionStore((s) => s.unidadCarga);
+  const seleccionadaId = useSeleccionStore((s) => s.seleccionadaId);
+  const colocarConToque = useSeleccionStore((s) => s.colocarConToque);
   const { posicionesRef, moverCarga } = useSimulacionWorker(cargas, ancho, alto);
+
+  useEffect(() => {
+    seleccionRef.current = seleccionadaId;
+  }, [seleccionadaId]);
+
+  useInteraccionEscena({
+    canvasRef,
+    ancho,
+    alto,
+    escalaCssRef,
+    ids: cargas.map((c) => c.id),
+    posicion: (id) => posicionesRef.current[id],
+    colocar: moverCarga,
+    controladorRef,
+  });
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -41,75 +70,38 @@ export function CanvasRendererDinamico({ ancho = 700, alto = 500 }: Props) {
       });
     }
 
+    const leyenda = crearDibujanteLeyenda();
+
     let idFrame: number;
     function frame() {
       if (!ctx) return;
-      const puntos = puntosCarga();
-
-      if (modoVista === "potencial") {
-        dibujarMapaPotencial(ctx, puntos, ancho, alto);
-      } else {
-        ctx.clearRect(0, 0, ancho, alto);
-        if (modoVista === "vectores") dibujarVectores(ctx, puntos, ancho, alto);
-        else if (modoVista === "lineas") dibujarLineasCampo(ctx, puntos, ancho, alto);
-      }
-      dibujarCargas(ctx, puntos);
-
+      dibujarEscena(ctx, {
+        puntos: puntosCarga(),
+        modoVista,
+        ancho,
+        alto,
+        escalaCss: escalaCssRef.current,
+        leyenda,
+        indiceSeleccionada: cargas.findIndex((c) => c.id === seleccionRef.current),
+      });
       idFrame = requestAnimationFrame(frame);
     }
     idFrame = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(idFrame);
-  }, [cargas, modoVista, ancho, alto, posicionesRef]);
-
-  function coordenadasDesdeEvento(e: React.PointerEvent<HTMLCanvasElement>) {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const escalaX = ancho / rect.width;
-    const escalaY = alto / rect.height;
-    return { x: (e.clientX - rect.left) * escalaX, y: (e.clientY - rect.top) * escalaY };
-  }
-
-  function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
-    const p = coordenadasDesdeEvento(e);
-    for (const c of cargas) {
-      const pos = posicionesRef.current[c.id];
-      if (pos && Math.hypot(p.x - pos.x, p.y - pos.y) < RADIO_ARRASTRE) {
-        arrastrandoIdRef.current = c.id;
-        e.currentTarget.setPointerCapture(e.pointerId);
-        break;
-      }
-    }
-  }
-
-  function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
-    const id = arrastrandoIdRef.current;
-    if (!id) return;
-    const p = coordenadasDesdeEvento(e);
-    moverCarga(id, Math.max(20, Math.min(ancho - 20, p.x)), Math.max(20, Math.min(alto - 20, p.y)));
-  }
-
-  function onPointerUp() {
-    arrastrandoIdRef.current = null;
-  }
+  }, [cargas, modoVista, ancho, alto, posicionesRef, escalaCssRef]);
 
   return (
     <canvas
       ref={canvasRef}
+      className="lienzo"
       width={ancho}
       height={alto}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      role="img"
+      aria-label={describirEscena(cargas, unidadCarga, modoVista)}
       style={{
-        width: "100%",
-        maxWidth: ancho,
-        height: "auto",
         aspectRatio: `${ancho} / ${alto}`,
-        display: "block",
-        background: "#0b1020",
-        borderRadius: 8,
-        touchAction: "none",
-        cursor: "grab",
+        ["--lienzo-ratio" as string]: ancho / alto,
+        cursor: colocarConToque ? "crosshair" : "grab",
       }}
     />
   );

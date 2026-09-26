@@ -12,7 +12,7 @@ export function ControlesReproduccion() {
         {enPausa ? "Reanudar" : "Pausar"}
       </button>
       <label className="control-velocidad">
-        Velocidad
+        <span>Velocidad</span>
         <input
           type="range"
           min={0.25}
@@ -21,7 +21,7 @@ export function ControlesReproduccion() {
           value={velocidadSimulacion}
           onChange={(e) => setVelocidadSimulacion(Number(e.target.value))}
         />
-        <span>{velocidadSimulacion.toFixed(2)}×</span>
+        <output>{velocidadSimulacion.toFixed(2)}×</output>
       </label>
     </div>
   );

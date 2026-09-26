@@ -28,3 +28,4 @@ dist-ssr
 # Claude Code (local, no se versiona)
 .claude/
 CLAUDE.md
+skills-lock.json

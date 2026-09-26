@@ -14,6 +14,7 @@
  * transferible, que es lo que de verdad cruza el límite del hilo cada tick.
  */
 import { K_VISUAL, SOFTENING2 } from "../fisica/coulomb";
+import { RADIO_CARGA_PX } from "../fisica/escala";
 
 // Anula la firma de postMessage heredada de lib.dom (pensada para
 // Window.postMessage con targetOrigin) por la firma real de un Worker.
@@ -22,7 +23,6 @@ declare const postMessage: (message: unknown, transfer?: Transferable[]) => void
 const DT_FISICA = 1 / 120; // timestep fijo, independiente del framerate de pantalla
 const INTERVALO_MS = 1000 / 120;
 const INTERVALO_ENERGIA_MS = 250; // ~4Hz
-const RADIO_CARGA = 14; // debe calzar con render/dibujarCargas.ts
 const UMBRAL_DERIVA_ENERGIA = 0.08; // 8% de deriva relativa => señal de inestabilidad numérica
 
 interface CargaEntrante {
@@ -78,7 +78,7 @@ function calcularFuerzas(): { fx: number[]; fy: number[] } {
  * skills: sin paredes, cargas del mismo signo saldrían del encuadre por
  * repulsión pura y no volverían nunca. */
 function reflejarEnBordes(i: number) {
-  const r = RADIO_CARGA;
+  const r = RADIO_CARGA_PX;
   if (x[i] < r) {
     x[i] = r;
     vx[i] = Math.abs(vx[i]);
@@ -214,6 +214,10 @@ addEventListener("message", (evento: MessageEvent) => {
         vx[i] = 0;
         vy[i] = 0;
       }
+      // Arrastrar es trabajo externo del usuario (cambia U y anula la
+      // velocidad, o sea K): no es deriva numérica. Se recalibra la energía de
+      // referencia para que el aviso de deriva (>8 %) no salte por esta causa.
+      energiaInicial = energiaTotal();
       break;
     }
     case "pausa":

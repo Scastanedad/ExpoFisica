@@ -6,48 +6,66 @@
  *
  * `cargas` (la lista, agregar/quitar) y `modoVista` sí son estado de React
  * vía el store de Zustand -- cambian poco. Las POSICIONES de cada carga, en
- * cambio, viven en `posicionesRef` y nunca pasan por setState: tanto el
- * arrastre con mouse/touch como (en fases futuras) el Worker de física
- * dinámica escriben directo a ese ref, y el bucle de dibujo lee de ahí cada
- * frame.
+ * cambio, viven en `posicionesRef` y nunca pasan por setState: el arrastre
+ * (hooks/useInteraccionEscena.ts) y el teclado (vía `controladorRef`) escriben
+ * directo a ese ref, y el bucle de dibujo lee de ahí cada frame.
+ *
+ * Por defecto lee `cargas` y `modoVista` del store compartido de la estación
+ * "Cargas en reposo". El hero de Home pasa las suyas por props para quedar
+ * aislado: así no refleja las cargas que el visitante añade en la estación.
  */
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type RefObject } from "react";
 import { useSimulacionStore } from "../store/simulacionStore";
+import { useSeleccionStore } from "../store/seleccionStore";
 import type { PuntoCarga } from "../fisica/coulomb";
-import { dibujarCargas, RADIO_CARGA } from "./dibujarCargas";
-import { dibujarVectores } from "./dibujarVectores";
-import { dibujarLineasCampo } from "./dibujarLineasCampo";
-import { dibujarMapaPotencial } from "./dibujarMapaPotencial";
-
-interface Posicion {
-  x: number;
-  y: number;
-}
-
-const RADIO_ARRASTRE = RADIO_CARGA + 6;
-
-function posicionesIniciales(n: number, ancho: number, alto: number): Posicion[] {
-  const cx = ancho / 2;
-  const cy = alto / 2;
-  const radio = Math.min(ancho, alto) * 0.25;
-  return Array.from({ length: n }, (_, i) => {
-    const angulo = (i / Math.max(n, 1)) * Math.PI * 2 - Math.PI / 2;
-    return { x: cx + Math.cos(angulo) * radio, y: cy + Math.sin(angulo) * radio };
-  });
-}
+import type { CargaMeta, ModoVista } from "../types/simulacion";
+import { useEscalaCss } from "../hooks/useEscalaCss";
+import { useInteraccionEscena } from "../hooks/useInteraccionEscena";
+import { describirEscena } from "../ui/textosEscena";
+import type { ControladorEscena, Posicion } from "./controladorEscena";
+import { SEPARACION_OBJETIVO_EN_RADIOS, elegirPosicionNueva, posicionesEnAnillo } from "./colocacion";
+import { radioAgarre } from "./geometriaCargas";
+import { ALTO_ESCENA, ANCHO_ESCENA } from "./dimensiones";
+import { dibujarEscena } from "./dibujarEscena";
+import { crearDibujanteLeyenda } from "./dibujarLeyendaEscala";
 
 interface Props {
   ancho?: number;
   alto?: number;
+  /** Dibuja la barra de escala (la cuadrícula siempre se dibuja). Por defecto sí. */
+  mostrarEscala?: boolean;
+  /** Cargas propias (aisladas del store). Por defecto, las de la estación "Cargas en reposo". */
+  cargas?: CargaMeta[];
+  /** Modo de vista propio (aislado del store). */
+  modoVista?: ModoVista;
+  /** Ref donde publicar el controlador (leer/mover cargas) para el teclado y el panel. */
+  controladorRef?: RefObject<ControladorEscena | null>;
 }
 
-export function CanvasRenderer({ ancho = 700, alto = 500 }: Props) {
+export function CanvasRenderer({
+  ancho = ANCHO_ESCENA,
+  alto = ALTO_ESCENA,
+  mostrarEscala = true,
+  cargas: cargasProp,
+  modoVista: modoVistaProp,
+  controladorRef,
+}: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const escalaCssRef = useEscalaCss(canvasRef, ancho);
   const posicionesRef = useRef<Record<string, Posicion>>({});
-  const arrastrandoIdRef = useRef<string | null>(null);
+  const seleccionRef = useRef<string | null>(null);
 
-  const cargas = useSimulacionStore((s) => s.cargas);
-  const modoVista = useSimulacionStore((s) => s.modoVista);
+  const cargasStore = useSimulacionStore((s) => s.cargas);
+  const modoVistaStore = useSimulacionStore((s) => s.modoVista);
+  const unidadCarga = useSimulacionStore((s) => s.unidadCarga);
+  const seleccionadaId = useSeleccionStore((s) => s.seleccionadaId);
+  const colocarConToque = useSeleccionStore((s) => s.colocarConToque);
+  const cargas = cargasProp ?? cargasStore;
+  const modoVista = modoVistaProp ?? modoVistaStore;
+
+  useEffect(() => {
+    seleccionRef.current = seleccionadaId;
+  }, [seleccionadaId]);
 
   // Sincroniza posicionesRef con altas/bajas de cargas. No pasa por setState.
   useEffect(() => {
@@ -55,14 +73,40 @@ export function CanvasRenderer({ ancho = 700, alto = 500 }: Props) {
     for (const id of Object.keys(posicionesRef.current)) {
       if (!idsActuales.has(id)) delete posicionesRef.current[id];
     }
-    const faltan = cargas.some((c) => !(c.id in posicionesRef.current));
-    if (faltan) {
-      const iniciales = posicionesIniciales(cargas.length, ancho, alto);
+    const nuevas = cargas.filter((c) => !(c.id in posicionesRef.current));
+    if (nuevas.length === 0) return;
+    if (Object.keys(posicionesRef.current).length === 0) {
+      // Primer lote (recuadro vacío): reparto simétrico en anillo.
+      const anillo = posicionesEnAnillo(cargas.length, ancho, alto);
       cargas.forEach((c, i) => {
-        if (!(c.id in posicionesRef.current)) posicionesRef.current[c.id] = iniciales[i];
+        posicionesRef.current[c.id] = anillo[i];
       });
+    } else {
+      // Con cargas ya colocadas (quizá arrastradas): cada nueva va al hueco más despejado.
+      const distanciaObjetivo = SEPARACION_OBJETIVO_EN_RADIOS * radioAgarre(escalaCssRef.current);
+      for (const c of nuevas) {
+        posicionesRef.current[c.id] = elegirPosicionNueva(
+          Object.values(posicionesRef.current),
+          ancho,
+          alto,
+          distanciaObjetivo,
+        );
+      }
     }
-  }, [cargas, ancho, alto]);
+  }, [cargas, ancho, alto, escalaCssRef]);
+
+  useInteraccionEscena({
+    canvasRef,
+    ancho,
+    alto,
+    escalaCssRef,
+    ids: cargas.map((c) => c.id),
+    posicion: (id) => posicionesRef.current[id],
+    colocar: (id, x, y) => {
+      posicionesRef.current[id] = { x, y };
+    },
+    controladorRef,
+  });
 
   // Bucle de dibujo propio.
   useEffect(() => {
@@ -77,78 +121,39 @@ export function CanvasRenderer({ ancho = 700, alto = 500 }: Props) {
       });
     }
 
+    const leyenda = mostrarEscala ? crearDibujanteLeyenda() : null;
+
     let idFrame: number;
     function frame() {
       if (!ctx) return;
-      const puntos = puntosCarga();
-
-      if (modoVista === "potencial") {
-        dibujarMapaPotencial(ctx, puntos, ancho, alto);
-      } else {
-        ctx.clearRect(0, 0, ancho, alto);
-        if (modoVista === "vectores") dibujarVectores(ctx, puntos, ancho, alto);
-        else if (modoVista === "lineas") dibujarLineasCampo(ctx, puntos, ancho, alto);
-      }
-      dibujarCargas(ctx, puntos);
-
+      dibujarEscena(ctx, {
+        puntos: puntosCarga(),
+        modoVista,
+        ancho,
+        alto,
+        escalaCss: escalaCssRef.current,
+        leyenda,
+        indiceSeleccionada: cargas.findIndex((c) => c.id === seleccionRef.current),
+      });
       idFrame = requestAnimationFrame(frame);
     }
     idFrame = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(idFrame);
-  }, [cargas, modoVista, ancho, alto]);
-
-  function coordenadasDesdeEvento(e: React.PointerEvent<HTMLCanvasElement>): Posicion {
-    const rect = e.currentTarget.getBoundingClientRect();
-    const escalaX = ancho / rect.width;
-    const escalaY = alto / rect.height;
-    return { x: (e.clientX - rect.left) * escalaX, y: (e.clientY - rect.top) * escalaY };
-  }
-
-  function onPointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
-    const p = coordenadasDesdeEvento(e);
-    for (const c of cargas) {
-      const pos = posicionesRef.current[c.id];
-      if (pos && Math.hypot(p.x - pos.x, p.y - pos.y) < RADIO_ARRASTRE) {
-        arrastrandoIdRef.current = c.id;
-        e.currentTarget.setPointerCapture(e.pointerId);
-        break;
-      }
-    }
-  }
-
-  function onPointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
-    const id = arrastrandoIdRef.current;
-    if (!id) return;
-    const p = coordenadasDesdeEvento(e);
-    posicionesRef.current[id] = {
-      x: Math.max(20, Math.min(ancho - 20, p.x)),
-      y: Math.max(20, Math.min(alto - 20, p.y)),
-    };
-  }
-
-  function onPointerUp() {
-    arrastrandoIdRef.current = null;
-  }
+  }, [cargas, modoVista, ancho, alto, mostrarEscala, escalaCssRef]);
 
   return (
     <canvas
       ref={canvasRef}
+      className="lienzo"
       width={ancho}
       height={alto}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      role="img"
+      aria-label={describirEscena(cargas, unidadCarga, modoVista)}
       style={{
-        width: "100%",
-        maxWidth: ancho,
-        height: "auto",
         aspectRatio: `${ancho} / ${alto}`,
-        display: "block",
-        background: "#0b1020",
-        borderRadius: 8,
-        touchAction: "none",
-        cursor: "grab",
+        // Proporción numérica para que `.lienzo` calcule el ancho máximo desde la altura del viewport.
+        ["--lienzo-ratio" as string]: ancho / alto,
+        cursor: colocarConToque ? "crosshair" : "grab",
       }}
     />
   );

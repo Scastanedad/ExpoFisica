@@ -1,8 +1,8 @@
 import type { UnidadCarga } from "../types/simulacion";
 
 /**
- * 1 unidad de carga normalizada = 1 microCoulomb, por convención (ver
- * fisica/coulomb.ts). El toggle de unidad solo cambia cómo se etiqueta el
+ * 1 unidad de carga normalizada = 1 microCoulomb, por convención
+ * (`C_POR_UNIDAD` en fisica/escala.ts, junto con 1 cuadro = 1 cm). El toggle de unidad solo cambia cómo se etiqueta el
  * número en la UI, nunca el valor numérico interno — así el mismo modelo
  * sirve tanto para lectura rápida ("carga: 1") como para lectura físicamente
  * precisa ("carga: +1 µC").
