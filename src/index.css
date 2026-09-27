@@ -500,6 +500,11 @@ a {
   color: var(--text-dim);
 }
 
+/* Toggle "Mostrar líneas de campo", visible solo en modo equipotenciales. */
+.selector-modo-toggle-lineas {
+  margin-top: 4px;
+}
+
 /* ---------- Controles del modo dinámico ---------- */
 
 .controles-reproduccion {

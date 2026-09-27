@@ -1,9 +1,10 @@
 /**
  * Capa en caché de la escena (cuadrícula + campo), E2.3 §8. Cada canvas crea la
  * suya: un canvas offscreen del mismo tamaño donde se dibuja la cuadrícula y el
- * modo de vista (vectores, líneas de campo o equipotenciales + líneas) y que
- * cada frame se copia con un solo `drawImage`. Las cargas, la leyenda y el
- * anillo de selección se pintan encima en cada frame (ver dibujarEscena.ts).
+ * modo de vista (vectores, líneas de campo o equipotenciales, opcionalmente con
+ * las líneas de campo encima — toggle "Mostrar líneas de campo") y que cada
+ * frame se copia con un solo `drawImage`. Las cargas, la leyenda y el anillo de
+ * selección se pintan encima en cada frame (ver dibujarEscena.ts).
  *
  * Recalcular solo cuando algo cambió (firma = posiciones y magnitudes de las
  * cargas, tamaño, modo, calidad, escala CSS y unidad de la etiqueta): en la
@@ -46,6 +47,13 @@ export interface EntradaCapa {
    * ya a esa misma resolución). Por defecto 1 (bitmap a resolución lógica, comportamiento previo).
    */
   resolucion?: number;
+  /**
+   * En modo "equipotenciales", si además se calculan y dibujan las líneas de campo
+   * blancas (toggle "Mostrar líneas de campo" en SelectorModoVista.tsx). Por defecto
+   * `true` (comportamiento previo). Sin efecto en modo "lineas": ahí siempre se
+   * muestran.
+   */
+  mostrarLineasEnEquipotenciales?: boolean;
 }
 
 export interface OpcionesCapa {
@@ -114,6 +122,10 @@ export function crearCapaCampo(opciones: OpcionesCapa = {}): CapaCampo {
   function reconstruir(c: CanvasRenderingContext2D, e: EntradaCapa): number {
     const nivel = gestor.nivel();
     const { puntos, ancho, alto, escalaCss, modoVista } = e;
+    const mostrarLineas = e.mostrarLineasEnEquipotenciales ?? true;
+    // En "lineas" siempre se muestran (ese modo no tiene toggle); en "equipotenciales"
+    // depende del toggle "Mostrar líneas de campo".
+    const conLineas = modoVista === "lineas" || (modoVista === "equipotenciales" && mostrarLineas);
     c.clearRect(0, 0, ancho, alto);
 
     // 1. Cálculo (física pura).
@@ -135,7 +147,7 @@ export function crearCapaCampo(opciones: OpcionesCapa = {}): CapaCampo {
       }
       return w;
     };
-    if (modoVista === "lineas" || modoVista === "equipotenciales") {
+    if (conLineas) {
       lineas = trazarLineasCampo(puntos, ancho, alto, { paso: nivel.paso, presupuesto: nivel.presupuesto });
     }
     if (modoVista === "equipotenciales") {
@@ -158,7 +170,7 @@ export function crearCapaCampo(opciones: OpcionesCapa = {}): CapaCampo {
       dibujarVectores(c, puntos, ancho, alto, escalaCss);
     } else {
       if (curvas) dibujarEquipotenciales(c, curvas, escalaCss);
-      dibujarLineasCampo(c, lineas, puntos, escalaCss);
+      if (conLineas) dibujarLineasCampo(c, lineas, puntos, escalaCss);
       if (curvas) dibujarRotulos(c, rotulos, medir, escalaCss);
     }
     const t2 = performance.now();
@@ -184,6 +196,7 @@ export function crearCapaCampo(opciones: OpcionesCapa = {}): CapaCampo {
       ultimoFrame = ahora;
 
       const resolucion = e.resolucion ?? 1;
+      const mostrarLineas = e.mostrarLineasEnEquipotenciales ?? true;
       const datos = {
         puntos: e.puntos,
         ancho: e.ancho,
@@ -193,6 +206,7 @@ export function crearCapaCampo(opciones: OpcionesCapa = {}): CapaCampo {
         calidad: gestor.indice(),
         unidad: e.unidadCarga,
         resolucion,
+        mostrarLineas,
       };
       const cambio = firma.comparar(datos);
       const debe =

@@ -65,6 +65,7 @@ export function CanvasRendererDinamico({
   const editandoRef = useRef<string | null>(null);
   const unidadRef = useRef<UnidadCarga>("microC");
   const mostrarFuerzasRef = useRef(false);
+  const mostrarLineasRef = useRef(true);
   // Las cargas se mueven siempre: la capa recalcula el campo a ≤ 30 Hz y reutiliza la imagen el resto de frames.
   const [capa] = useState(() => crearCapaCampo({ intervaloMinMs: INTERVALO_CAPA_MS }));
 
@@ -72,6 +73,7 @@ export function CanvasRendererDinamico({
   const modoVista = useSimulacionStore((s) => s.modoVista);
   const unidadCarga = useSimulacionStore((s) => s.unidadCarga);
   const mostrarFuerzas = useSimulacionStore((s) => s.mostrarFuerzas);
+  const mostrarLineasEnEquipotenciales = useSimulacionStore((s) => s.mostrarLineasEnEquipotenciales);
   const seleccionadaId = useSeleccionStore((s) => s.seleccionadaId);
   const colocarConToque = useSeleccionStore((s) => s.colocarConToque);
   const arrastrando = useSeleccionStore((s) => s.arrastrando);
@@ -95,6 +97,9 @@ export function CanvasRendererDinamico({
   useEffect(() => {
     mostrarFuerzasRef.current = mostrarFuerzas;
   }, [mostrarFuerzas]);
+  useEffect(() => {
+    mostrarLineasRef.current = mostrarLineasEnEquipotenciales;
+  }, [mostrarLineasEnEquipotenciales]);
 
   useInteraccionEscena({
     canvasRef,
@@ -157,6 +162,7 @@ export function CanvasRendererDinamico({
         alto,
         escalaCss: escalaCssRef.current,
         resolucion: factorResolucionRef.current,
+        mostrarLineasEnEquipotenciales: mostrarLineasRef.current,
         capa,
         leyenda,
         indiceSeleccionada: cargas.findIndex((c) => c.id === seleccionRef.current),

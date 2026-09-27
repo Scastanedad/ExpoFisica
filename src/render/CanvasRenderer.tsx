@@ -81,11 +81,13 @@ export function CanvasRenderer({
   const activoRef = useRef(false);
   const signoQ0Ref = useRef<1 | -1>(1);
   const mostrarFuerzasRef = useRef(false);
+  const mostrarLineasRef = useRef(true);
 
   const cargasStore = useSimulacionStore((s) => s.cargas);
   const modoVistaStore = useSimulacionStore((s) => s.modoVista);
   const unidadCarga = useSimulacionStore((s) => s.unidadCarga);
   const mostrarFuerzas = useSimulacionStore((s) => s.mostrarFuerzas);
+  const mostrarLineasEnEquipotenciales = useSimulacionStore((s) => s.mostrarLineasEnEquipotenciales);
   const seleccionadaId = useSeleccionStore((s) => s.seleccionadaId);
   const colocarConToque = useSeleccionStore((s) => s.colocarConToque);
   const arrastrando = useSeleccionStore((s) => s.arrastrando);
@@ -116,6 +118,9 @@ export function CanvasRenderer({
   useEffect(() => {
     mostrarFuerzasRef.current = mostrarFuerzas;
   }, [mostrarFuerzas]);
+  useEffect(() => {
+    mostrarLineasRef.current = mostrarLineasEnEquipotenciales;
+  }, [mostrarLineasEnEquipotenciales]);
 
   // Sincroniza posicionesRef con altas/bajas de cargas. No pasa por setState.
   useEffect(() => {
@@ -239,6 +244,7 @@ export function CanvasRenderer({
         alto,
         escalaCss: escalaCssRef.current,
         resolucion: factorResolucionRef.current,
+        mostrarLineasEnEquipotenciales: mostrarLineasRef.current,
         capa,
         leyenda,
         indiceSeleccionada: cargas.findIndex((c) => c.id === seleccionRef.current),

@@ -39,6 +39,12 @@ export interface EscenaParaDibujar {
    * bitmap offscreen tenga la misma resolución. Por defecto 1.
    */
   resolucion?: number;
+  /**
+   * En modo "equipotenciales", si además se muestran las líneas de campo blancas
+   * (toggle "Mostrar líneas de campo"). Por defecto `true`. Sin efecto en modo
+   * "lineas" (ahí siempre se muestran).
+   */
+  mostrarLineasEnEquipotenciales?: boolean;
   /** Capa en caché propia de este canvas (`crearCapaCampo`). */
   capa: CapaCampo;
   leyenda: DibujanteLeyenda | null;
@@ -63,6 +69,7 @@ export function dibujarEscena(ctx: CanvasRenderingContext2D, escena: EscenaParaD
     alto,
     escalaCss,
     resolucion,
+    mostrarLineasEnEquipotenciales = true,
     capa,
     leyenda,
     indiceSeleccionada = -1,
@@ -73,7 +80,16 @@ export function dibujarEscena(ctx: CanvasRenderingContext2D, escena: EscenaParaD
     sonda,
   } = escena;
   ctx.clearRect(0, 0, ancho, alto);
-  capa.pintar(ctx, { puntos, modoVista, ancho, alto, escalaCss, unidadCarga, resolucion });
+  capa.pintar(ctx, {
+    puntos,
+    modoVista,
+    ancho,
+    alto,
+    escalaCss,
+    unidadCarga,
+    resolucion,
+    mostrarLineasEnEquipotenciales,
+  });
   leyenda?.(ctx, ancho, alto, escalaCss, puntos);
   dibujarCargas(ctx, puntos, { escalaCss, indiceSeleccionada, indiceEditada, unidadCarga, ancho });
   if (mostrarFuerzas && fuerzas) dibujarFuerzas(ctx, puntos, fuerzas, escalaCss);

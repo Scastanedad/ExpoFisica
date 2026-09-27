@@ -23,6 +23,8 @@ const OPCIONES: { valor: ModoVista; etiqueta: string; descripcion: string }[] = 
 export function SelectorModoVista() {
   const modoVista = useSimulacionStore((s) => s.modoVista);
   const setModoVista = useSimulacionStore((s) => s.setModoVista);
+  const mostrarLineas = useSimulacionStore((s) => s.mostrarLineasEnEquipotenciales);
+  const setMostrarLineas = useSimulacionStore((s) => s.setMostrarLineasEnEquipotenciales);
   const botonesRef = useRef<Array<HTMLButtonElement | null>>([]);
 
   function elegir(indice: number) {
@@ -93,6 +95,16 @@ export function SelectorModoVista() {
       <p className="selector-modo-descripcion" aria-hidden="true">
         {activa.descripcion.charAt(0).toUpperCase() + activa.descripcion.slice(1)}.
       </p>
+      {modoVista === "equipotenciales" && (
+        <label className="panel-sonda-check selector-modo-toggle-lineas">
+          <input
+            type="checkbox"
+            checked={mostrarLineas}
+            onChange={(e) => setMostrarLineas(e.target.checked)}
+          />
+          Mostrar líneas de campo
+        </label>
+      )}
     </div>
   );
 }

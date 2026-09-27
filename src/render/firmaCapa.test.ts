@@ -62,6 +62,18 @@ describe("firma de la capa en caché", () => {
     expect(f.comparar(base(dos(), { resolucion: 1 }))).toBe("igual");
   });
 
+  it("cambiar el toggle de líneas en equipotenciales: estructura", () => {
+    const f = crearFirma();
+    f.guardar(base(dos(), { mostrarLineas: true }));
+    expect(f.comparar(base(dos(), { mostrarLineas: false }))).toBe("estructura");
+  });
+
+  it("sin `mostrarLineas` explícito, se asume `true` en ambos lados (compatibilidad)", () => {
+    const f = crearFirma();
+    f.guardar(base(dos()));
+    expect(f.comparar(base(dos(), { mostrarLineas: true }))).toBe("igual");
+  });
+
   it("un cambio de estructura y de posición a la vez cuenta como estructura", () => {
     const f = crearFirma();
     f.guardar(base(dos()));

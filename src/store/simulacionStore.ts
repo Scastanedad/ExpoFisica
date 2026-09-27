@@ -15,6 +15,13 @@ interface EstadoSimulacion {
   unidadCarga: UnidadCarga;
   /** Muestra el vector de fuerza neta sobre cada carga (E3.2). Compartido por las dos estaciones. */
   mostrarFuerzas: boolean;
+  /**
+   * En modo "equipotenciales", además de las curvas ámbar, muestra las líneas de campo
+   * blancas de fondo. Solo tiene efecto en ese modo (en "lineas" siempre se muestran).
+   * Por defecto `true` para no cambiar el comportamiento previo. Compartido por las dos
+   * estaciones (mismo store).
+   */
+  mostrarLineasEnEquipotenciales: boolean;
 
   agregarCarga: (q: number) => void;
   quitarCarga: (id: string) => void;
@@ -23,6 +30,7 @@ interface EstadoSimulacion {
   setModoVista: (modo: ModoVista) => void;
   toggleUnidadCarga: () => void;
   setMostrarFuerzas: (valor: boolean) => void;
+  setMostrarLineasEnEquipotenciales: (valor: boolean) => void;
 }
 
 let contadorId = 2;
@@ -35,6 +43,7 @@ export const useSimulacionStore = create<EstadoSimulacion>((set) => ({
   modoVista: "vectores",
   unidadCarga: "microC",
   mostrarFuerzas: false,
+  mostrarLineasEnEquipotenciales: true,
 
   agregarCarga: (q) =>
     set((estado) => {
@@ -63,4 +72,6 @@ export const useSimulacionStore = create<EstadoSimulacion>((set) => ({
     })),
 
   setMostrarFuerzas: (valor) => set({ mostrarFuerzas: valor }),
+
+  setMostrarLineasEnEquipotenciales: (valor) => set({ mostrarLineasEnEquipotenciales: valor }),
 }));
