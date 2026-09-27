@@ -14,11 +14,11 @@
  * "Cargas en reposo". El hero de Home pasa las suyas por props para quedar
  * aislado: así no refleja las cargas que el visitante añade en la estación.
  */
-import { useEffect, useRef, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { useSimulacionStore } from "../store/simulacionStore";
 import { useSeleccionStore } from "../store/seleccionStore";
 import type { PuntoCarga } from "../fisica/coulomb";
-import type { CargaMeta, ModoVista } from "../types/simulacion";
+import type { CargaMeta, ModoVista, UnidadCarga } from "../types/simulacion";
 import { useEscalaCss } from "../hooks/useEscalaCss";
 import { useInteraccionEscena } from "../hooks/useInteraccionEscena";
 import { describirEscena } from "../ui/textosEscena";
@@ -26,6 +26,7 @@ import type { ControladorEscena, Posicion } from "./controladorEscena";
 import { SEPARACION_OBJETIVO_EN_RADIOS, elegirPosicionNueva, posicionesEnAnillo } from "./colocacion";
 import { radioAgarre } from "./geometriaCargas";
 import { ALTO_ESCENA, ANCHO_ESCENA } from "./dimensiones";
+import { crearCapaCampo } from "./capaCampo";
 import { dibujarEscena } from "./dibujarEscena";
 import { crearDibujanteLeyenda } from "./dibujarLeyendaEscala";
 
@@ -54,18 +55,30 @@ export function CanvasRenderer({
   const escalaCssRef = useEscalaCss(canvasRef, ancho);
   const posicionesRef = useRef<Record<string, Posicion>>({});
   const seleccionRef = useRef<string | null>(null);
+  const editandoRef = useRef<string | null>(null);
+  const unidadRef = useRef<UnidadCarga>("microC");
+  // Capa en caché (cuadrícula + campo) propia de este canvas; conserva su calidad medida entre cambios de cargas.
+  const [capa] = useState(() => crearCapaCampo());
 
   const cargasStore = useSimulacionStore((s) => s.cargas);
   const modoVistaStore = useSimulacionStore((s) => s.modoVista);
   const unidadCarga = useSimulacionStore((s) => s.unidadCarga);
   const seleccionadaId = useSeleccionStore((s) => s.seleccionadaId);
   const colocarConToque = useSeleccionStore((s) => s.colocarConToque);
+  const arrastrando = useSeleccionStore((s) => s.arrastrando);
+  const editandoId = useSeleccionStore((s) => s.editandoId);
   const cargas = cargasProp ?? cargasStore;
   const modoVista = modoVistaProp ?? modoVistaStore;
 
   useEffect(() => {
     seleccionRef.current = seleccionadaId;
   }, [seleccionadaId]);
+  useEffect(() => {
+    editandoRef.current = editandoId;
+  }, [editandoId]);
+  useEffect(() => {
+    unidadRef.current = unidadCarga;
+  }, [unidadCarga]);
 
   // Sincroniza posicionesRef con altas/bajas de cargas. No pasa por setState.
   useEffect(() => {
@@ -132,14 +145,17 @@ export function CanvasRenderer({
         ancho,
         alto,
         escalaCss: escalaCssRef.current,
+        capa,
         leyenda,
         indiceSeleccionada: cargas.findIndex((c) => c.id === seleccionRef.current),
+        indiceEditada: cargas.findIndex((c) => c.id === editandoRef.current),
+        unidadCarga: unidadRef.current,
       });
       idFrame = requestAnimationFrame(frame);
     }
     idFrame = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(idFrame);
-  }, [cargas, modoVista, ancho, alto, mostrarEscala, escalaCssRef]);
+  }, [cargas, modoVista, ancho, alto, mostrarEscala, escalaCssRef, capa]);
 
   return (
     <canvas
@@ -153,7 +169,7 @@ export function CanvasRenderer({
         aspectRatio: `${ancho} / ${alto}`,
         // Proporción numérica para que `.lienzo` calcule el ancho máximo desde la altura del viewport.
         ["--lienzo-ratio" as string]: ancho / alto,
-        cursor: colocarConToque ? "crosshair" : "grab",
+        cursor: arrastrando ? "grabbing" : colocarConToque ? "crosshair" : "grab",
       }}
     />
   );

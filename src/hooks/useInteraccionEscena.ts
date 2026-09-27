@@ -13,6 +13,13 @@
  *  3. Alternativa de un toque al arrastre: con una carga "armada" en el
  *     `PanelCargas`, tocar el canvas la coloca en ese punto (WCAG 2.5.7). El
  *     teclado se resuelve en el panel a través del `ControladorEscena`.
+ *  4. "Empujón" (solo estación dinámica, E2.5 §4): si la página pasa
+ *     `alAgarrar`/`alSoltar`, al agarrar la carga se avisa (queda anclada al
+ *     puntero) y al soltar se entrega la velocidad del puntero (regresión por
+ *     mínimos cuadrados en los últimos 100 ms, en px lógicos por s de reloj, sin
+ *     tope: el Worker aplica zona muerta, tope y conversión). Cancelar el
+ *     gesto suelta con velocidad 0: nunca queda una carga anclada de por vida.
+ *     Teclado y "tocar el destino" NO pasan por aquí: recolocan en reposo.
  *
  * Todas las conversiones de coordenadas usan `getBoundingClientRect()` en el
  * momento del evento, así que son correctas a cualquier tamaño CSS del canvas.
@@ -25,10 +32,14 @@ import {
   type Posicion,
 } from "../render/controladorEscena";
 import { indiceCargaBajo } from "../render/geometriaCargas";
+import { estimarVelocidadPuntero, type MuestraPuntero } from "../fisica/empujon";
 import { useSeleccionStore } from "../store/seleccionStore";
 
 /** Un toque que se desplaza más que esto (px CSS) es un gesto, no un "toque para colocar". */
 const UMBRAL_TOQUE_CSS = 10;
+/** Las muestras del puntero más viejas que esto (ms) se descartan: solo cuentan los últimos 100 ms. */
+const HISTORIAL_PUNTERO_MS = 250;
+const MUESTRAS_MAX = 64;
 
 export interface OpcionesInteraccion {
   canvasRef: RefObject<HTMLCanvasElement | null>;
@@ -42,6 +53,10 @@ export interface OpcionesInteraccion {
   colocar: (id: string, x: number, y: number) => void;
   /** Si se pasa, se publica aquí el controlador para los controles externos. */
   controladorRef?: RefObject<ControladorEscena | null>;
+  /** El puntero sujeta la carga `id` (estación dinámica: queda anclada). */
+  alAgarrar?: (id: string) => void;
+  /** El puntero suelta la carga con velocidad `v` (px lógicos/s de pantalla, sin tope); (0, 0) si se cancela. */
+  alSoltar?: (id: string, v: { vx: number; vy: number }) => void;
 }
 
 export function useInteraccionEscena(opciones: OpcionesInteraccion) {
@@ -75,6 +90,27 @@ export function useInteraccionEscena(opciones: OpcionesInteraccion) {
     let arrastrandoId: string | null = null;
     let seleccionPrevia: { id: string | null; armada: boolean } | null = null;
     let toque: { pointerId: number; clientX: number; clientY: number } | null = null;
+    /** Muestras del puntero mientras se arrastra (solo se usan si hay `alSoltar`). */
+    let muestras: MuestraPuntero[] = [];
+
+    function registrarMuestra(t: number, p: Posicion) {
+      muestras.push({ t, x: p.x, y: p.y });
+      if (muestras.length > MUESTRAS_MAX || muestras[0].t < t - HISTORIAL_PUNTERO_MS) {
+        muestras = muestras.filter((m) => m.t >= t - HISTORIAL_PUNTERO_MS).slice(-MUESTRAS_MAX);
+      }
+    }
+
+    /** Termina el arrastre y devuelve la selección previa; suelta la carga con la velocidad dada. */
+    function terminarArrastre(v: { vx: number; vy: number }) {
+      const id = arrastrandoId;
+      arrastrandoId = null;
+      muestras = [];
+      if (id) opcionesRef.current.alSoltar?.(id, v);
+      const previa = seleccionPrevia;
+      seleccionPrevia = null;
+      useSeleccionStore.getState().seleccionar(previa?.id ?? null, previa?.armada ?? false);
+      useSeleccionStore.getState().setArrastrando(false);
+    }
 
     function aLogicas(clientX: number, clientY: number): Posicion {
       const rect = canvas!.getBoundingClientRect();
@@ -116,8 +152,12 @@ export function useInteraccionEscena(opciones: OpcionesInteraccion) {
         seleccionPrevia = { id: s.seleccionadaId, armada: s.colocarConToque };
         arrastrandoId = id;
         toque = null;
+        muestras = [];
         canvas!.setPointerCapture(e.pointerId);
         s.seleccionar(id, false); // muestra el anillo mientras se arrastra
+        s.setArrastrando(true);
+        opcionesRef.current.alAgarrar?.(id);
+        registrarMuestra(e.timeStamp, limitar(p));
       } else {
         toque = { pointerId: e.pointerId, clientX: e.clientX, clientY: e.clientY };
       }
@@ -127,6 +167,7 @@ export function useInteraccionEscena(opciones: OpcionesInteraccion) {
       if (arrastrandoId) {
         const p = limitar(aLogicas(e.clientX, e.clientY));
         opcionesRef.current.colocar(arrastrandoId, p.x, p.y);
+        registrarMuestra(e.timeStamp, p);
       } else if (
         toque &&
         toque.pointerId === e.pointerId &&
@@ -138,10 +179,18 @@ export function useInteraccionEscena(opciones: OpcionesInteraccion) {
 
     function onPointerUp(e: PointerEvent) {
       if (arrastrandoId) {
-        arrastrandoId = null;
-        const previa = seleccionPrevia;
-        seleccionPrevia = null;
-        useSeleccionStore.getState().seleccionar(previa?.id ?? null, previa?.armada ?? false);
+        let v = { vx: 0, vy: 0 };
+        if (opcionesRef.current.alSoltar) {
+          // La posición final del puntero puede diferir de la última muestra: se coloca antes de soltar.
+          const p = limitar(aLogicas(e.clientX, e.clientY));
+          const ultima = muestras[muestras.length - 1];
+          if (!ultima || ultima.x !== p.x || ultima.y !== p.y) {
+            opcionesRef.current.colocar(arrastrandoId, p.x, p.y);
+          }
+          // No se añade una muestra en pointerup: así se detecta que el usuario se detuvo.
+          v = estimarVelocidadPuntero(muestras, e.timeStamp);
+        }
+        terminarArrastre(v);
         return;
       }
       if (toque && toque.pointerId === e.pointerId) {
@@ -155,13 +204,9 @@ export function useInteraccionEscena(opciones: OpcionesInteraccion) {
       }
     }
 
+    // Gesto cancelado o captura perdida: la carga se suelta en reposo.
     function onPointerCancel() {
-      if (arrastrandoId) {
-        arrastrandoId = null;
-        const previa = seleccionPrevia;
-        seleccionPrevia = null;
-        useSeleccionStore.getState().seleccionar(previa?.id ?? null, previa?.armada ?? false);
-      }
+      if (arrastrandoId) terminarArrastre({ vx: 0, vy: 0 });
       toque = null;
     }
 
@@ -170,13 +215,17 @@ export function useInteraccionEscena(opciones: OpcionesInteraccion) {
     canvas.addEventListener("pointermove", onPointerMove);
     canvas.addEventListener("pointerup", onPointerUp);
     canvas.addEventListener("pointercancel", onPointerCancel);
+    canvas.addEventListener("lostpointercapture", onPointerCancel);
     return () => {
+      if (arrastrandoId) opcionesRef.current.alSoltar?.(arrastrandoId, { vx: 0, vy: 0 });
       canvas.removeEventListener("touchstart", onTouchStart);
       canvas.removeEventListener("pointerdown", onPointerDown);
       canvas.removeEventListener("pointermove", onPointerMove);
       canvas.removeEventListener("pointerup", onPointerUp);
       canvas.removeEventListener("pointercancel", onPointerCancel);
+      canvas.removeEventListener("lostpointercapture", onPointerCancel);
       useSeleccionStore.getState().seleccionar(null);
+      useSeleccionStore.getState().setArrastrando(false);
     };
   }, [canvasRef, ancho, alto]);
 }

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { K_VISUAL, SOFTENING2, campoEn, potencialEn, type PuntoCarga } from "./coulomb";
+import { SOFTENING2_ESTATICO, factoresSim, potencialSI } from "./escala";
 
 const magnitud = ([ex, ey]: [number, number]) => Math.hypot(ex, ey);
 
@@ -64,5 +65,61 @@ describe("superposición", () => {
   it("sin cargas el campo y el potencial son cero", () => {
     expect(campoEn(1, 2, [])).toEqual([0, 0]);
     expect(potencialEn(1, 2, [])).toBe(0);
+  });
+});
+
+describe("T-a — E = −∇V con el mismo softening", () => {
+  const cargas: PuntoCarga[] = [
+    { x: 180, y: 120, q: 1 },
+    { x: 420, y: 300, q: -2 },
+    { x: 300, y: 400, q: 1.5 },
+  ];
+  // Generador determinista (mulberry32).
+  function aleatorio(semilla: number): () => number {
+    let a = semilla >>> 0;
+    return () => {
+      a = (a + 0x6d2b79f5) >>> 0;
+      let t = a;
+      t = Math.imul(t ^ (t >>> 15), t | 1);
+      t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+  for (const soft2 of [0, 1, 100]) {
+    it(`soft2 = ${soft2}: ‖E + ∇V‖/‖E‖ < 1e-5 en 200 puntos (diferencias centrales, paso 0.01 px)`, () => {
+      const azar = aleatorio(11);
+      const h = 0.01;
+      let peor = 0;
+      for (let i = 0; i < 200; i++) {
+        const x = azar() * 700;
+        const y = azar() * 500;
+        // Con ε = 0 el error de truncación de la diferencia central crece como (h/r)²: se omiten los
+        // puntos a < 5 px de una carga (a 2.7 px da 1.2e-5; a ≥ 5 px queda < 4e-6).
+        if (cargas.some((c) => Math.hypot(x - c.x, y - c.y) < 5)) continue;
+        const [ex, ey] = campoEn(x, y, cargas, soft2);
+        const gx = (potencialEn(x + h, y, cargas, soft2) - potencialEn(x - h, y, cargas, soft2)) / (2 * h);
+        const gy = (potencialEn(x, y + h, cargas, soft2) - potencialEn(x, y - h, cargas, soft2)) / (2 * h);
+        peor = Math.max(peor, Math.hypot(ex + gx, ey + gy) / Math.hypot(ex, ey));
+      }
+      expect(peor).toBeLessThan(1e-5);
+    });
+  }
+});
+
+describe("T-coh — coherencia dibujo/lecturas", () => {
+  const una: PuntoCarga[] = [{ x: 0, y: 0, q: 1 }];
+  const factor = factoresSim(K_VISUAL).potencial;
+  const dif = (r: number, soft2: number) => {
+    const dibujo = potencialEn(r, 0, una, soft2) * factor;
+    const lectura = potencialSI(r, 0, una) as number;
+    return Math.abs(dibujo - lectura) / lectura;
+  };
+  it("con SOFTENING2_ESTATICO el potencial dibujado coincide con potencialSI: < 0.3 % a 14 px y < 0.03 % desde 50 px", () => {
+    expect(dif(14, SOFTENING2_ESTATICO)).toBeLessThan(0.003);
+    for (const r of [50, 100, 250, 500]) expect(dif(r, SOFTENING2_ESTATICO)).toBeLessThan(3e-4);
+  });
+  it("con SOFTENING2 (100) la diferencia a 14 px es ≈ 18.6 %: por eso el dibujo no lo usa", () => {
+    expect(dif(14, SOFTENING2)).toBeGreaterThan(0.18);
+    expect(dif(14, SOFTENING2)).toBeLessThan(0.19);
   });
 });

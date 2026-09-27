@@ -10,6 +10,7 @@ import type { UnidadCarga } from "../types/simulacion";
 export function formatCarga(q: number, unidad: UnidadCarga): string {
   const signo = q >= 0 ? "+" : "−";
   const magnitud = Math.abs(q);
-  const texto = Number.isInteger(magnitud) ? String(magnitud) : magnitud.toFixed(2);
+  // Sin ceros sobrantes: "+0.5 µC", "+1 µC", "+1.25 µC" (2 decimales como máximo).
+  const texto = Number(magnitud.toFixed(2)).toString();
   return unidad === "microC" ? `${signo}${texto} µC` : `${signo}${texto}`;
 }

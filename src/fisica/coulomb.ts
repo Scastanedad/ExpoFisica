@@ -10,8 +10,9 @@
  * viven en fisica/escala.ts (no dependen de K_VISUAL ni del softening).
  *
  * Papel de K_VISUAL en la app:
- *  - Dibujo (flechas, líneas, mapa): solo fija cuán largas se ven las flechas y
- *    cuán intensos los colores (V_REF está calibrado contra ella).
+ *  - Dibujo (flechas, líneas de campo, equipotenciales): usa SOFTENING2_ESTATICO
+ *    (ε = 1 px) y solo fija cuán largas se ven las flechas; las equipotenciales
+ *    se rotulan en volts SI, así que no dependen de esta constante.
  *  - Estación dinámica: el Worker la usa TAMBIÉN como constante de la ley de
  *    fuerza (con masa de simulación 1), así que fija la escala de tiempo del
  *    movimiento (cámara lenta), no la física: cambiarla equivale a reescalar

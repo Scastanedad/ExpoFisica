@@ -11,7 +11,7 @@ export function ControlesReproduccion() {
       <button type="button" className="boton-pausa" onClick={togglePausa}>
         {enPausa ? "Reanudar" : "Pausar"}
       </button>
-      <label className="control-velocidad">
+      <label className="control-deslizador">
         <span>Velocidad</span>
         <input
           type="range"

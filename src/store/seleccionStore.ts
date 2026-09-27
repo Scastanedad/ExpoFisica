@@ -12,12 +12,33 @@ interface EstadoSeleccion {
   seleccionadaId: string | null;
   /** true: tocar el canvas coloca la carga seleccionada allí. */
   colocarConToque: boolean;
+  /**
+   * true mientras el puntero arrastra una carga (fase 2 §C: `cursor: grabbing`).
+   * Cambia solo al empezar/terminar el gesto (pointerdown/up), no por frame.
+   */
+  arrastrando: boolean;
+  /**
+   * Última carga elegida (chip enfocado, tocado o arrastrado): la que muestra el
+   * control de magnitud y lleva el anillo discontinuo tenue en el lienzo (fase 2
+   * §B3). A diferencia de `seleccionadaId`, NUNCA se borra sola (ni al perder el
+   * foco ni al deseleccionar): solo cambia cuando se elige OTRA carga. Así "qué
+   * carga se edita" queda siempre claro, incluso con el foco en el editor.
+   */
+  editandoId: string | null;
   seleccionar: (id: string | null, colocarConToque?: boolean) => void;
+  setArrastrando: (valor: boolean) => void;
 }
 
 export const useSeleccionStore = create<EstadoSeleccion>((set) => ({
   seleccionadaId: null,
   colocarConToque: false,
+  arrastrando: false,
+  editandoId: null,
   seleccionar: (id, colocarConToque = false) =>
-    set({ seleccionadaId: id, colocarConToque: id !== null && colocarConToque }),
+    set((estado) => ({
+      seleccionadaId: id,
+      colocarConToque: id !== null && colocarConToque,
+      editandoId: id ?? estado.editandoId,
+    })),
+  setArrastrando: (valor) => set({ arrastrando: valor }),
 }));

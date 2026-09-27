@@ -1,14 +1,15 @@
 /**
  * Gestiona el Worker del motor físico dinámico: lo crea una sola vez, le
- * manda altas/bajas de cargas de forma incremental (sin recrearlo), y
- * expone `posicionesRef` -- actualizado directamente por el listener del
- * Worker, nunca por setState -- para que el componente de renderizado lo
- * lea en su propio requestAnimationFrame (ver
+ * manda altas/bajas y cambios de magnitud de cargas de forma incremental (sin
+ * recrearlo), y expone `posicionesRef` -- actualizado directamente por el
+ * listener del Worker, nunca por setState -- para que el componente de
+ * renderizado lo lea en su propio requestAnimationFrame (ver
  * .claude/skills/arquitectura-simulaciones-web/references/gestion_estado.md).
  */
 import { useEffect, useRef } from "react";
 import type { CargaConfig } from "../store/simulacionDinamicaStore";
 import { useSimulacionDinamicaStore } from "../store/simulacionDinamicaStore";
+import type { MensajeAlWorker, MensajeDelWorker } from "../worker/protocolo";
 
 interface Posicion {
   x: number;
@@ -23,7 +24,11 @@ export function useSimulacionWorker(cargas: CargaConfig[], ancho: number, alto: 
 
   const enPausa = useSimulacionDinamicaStore((s) => s.enPausa);
   const velocidadSimulacion = useSimulacionDinamicaStore((s) => s.velocidadSimulacion);
-  const actualizarEnergiaTotal = useSimulacionDinamicaStore((s) => s.actualizarEnergiaTotal);
+  const actualizarEnergia = useSimulacionDinamicaStore((s) => s.actualizarEnergia);
+
+  function enviar(mensaje: MensajeAlWorker) {
+    workerRef.current?.postMessage(mensaje);
+  }
 
   // Crear el Worker una sola vez.
   useEffect(() => {
@@ -32,31 +37,32 @@ export function useSimulacionWorker(cargas: CargaConfig[], ancho: number, alto: 
     });
     workerRef.current = worker;
 
-    worker.onmessage = (evento: MessageEvent) => {
+    worker.onmessage = (evento: MessageEvent<MensajeDelWorker>) => {
       const datos = evento.data;
       if (datos.tipo === "orden") {
         ordenIdsRef.current = datos.ids;
       } else if (datos.tipo === "frame") {
-        const ids: string[] = ordenIdsRef.current;
-        const pos: Float32Array = datos.posiciones;
+        const ids = ordenIdsRef.current;
+        const pos = datos.posiciones;
         const nuevo: Record<string, Posicion> = {};
         for (let i = 0; i < ids.length; i++) {
           nuevo[ids[i]] = { x: pos[i * 2], y: pos[i * 2 + 1] };
         }
         posicionesRef.current = nuevo;
-      } else if (datos.tipo === "energia") {
-        actualizarEnergiaTotal(datos.valor);
+      } else {
+        // Un solo objeto por mensaje (~4 Hz): un solo re-render del panel de energía.
+        actualizarEnergia(datos);
       }
     };
 
-    worker.postMessage({ tipo: "init", ancho, alto, cargas });
+    worker.postMessage({ tipo: "init", ancho, alto, cargas } satisfies MensajeAlWorker);
     cargasAnterioresRef.current = new Map(cargas.map((c) => [c.id, c]));
 
     return () => worker.terminate();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // el Worker se crea una sola vez, igual que en la plantilla de la skill
 
-  // Diff incremental de altas/bajas de cargas -- no recrea el Worker.
+  // Diff incremental de altas/bajas y cambios de magnitud -- no recrea el Worker.
   useEffect(() => {
     const worker = workerRef.current;
     if (!worker) return;
@@ -64,27 +70,40 @@ export function useSimulacionWorker(cargas: CargaConfig[], ancho: number, alto: 
     const actuales = new Map(cargas.map((c) => [c.id, c]));
 
     for (const [id] of anteriores) {
-      if (!actuales.has(id)) worker.postMessage({ tipo: "quitarCarga", id });
+      if (!actuales.has(id)) enviar({ tipo: "quitarCarga", id });
     }
     for (const [id, c] of actuales) {
-      if (!anteriores.has(id)) worker.postMessage({ tipo: "agregarCarga", id, q: c.q, masa: c.masa });
+      const previa = anteriores.get(id);
+      if (!previa) enviar({ tipo: "agregarCarga", id, q: c.q, masa: c.masa });
+      else if (previa.q !== c.q) enviar({ tipo: "cambiarCarga", id, q: c.q });
     }
     cargasAnterioresRef.current = actuales;
   }, [cargas]);
 
   useEffect(() => {
-    workerRef.current?.postMessage({ tipo: "pausa", valor: enPausa });
+    enviar({ tipo: "pausa", valor: enPausa });
   }, [enPausa]);
 
   useEffect(() => {
-    workerRef.current?.postMessage({ tipo: "velocidad", valor: velocidadSimulacion });
+    enviar({ tipo: "velocidad", valor: velocidadSimulacion });
   }, [velocidadSimulacion]);
 
+  /** Coloca la carga con v = 0 SIN anclarla (teclado, "tocar el destino", muestras del arrastre). */
   function moverCarga(id: string, x: number, y: number) {
-    workerRef.current?.postMessage({ tipo: "moverCarga", id, x, y });
+    enviar({ tipo: "moverCarga", id, x, y });
     // Feedback visual inmediato mientras el worker confirma en el próximo frame.
     posicionesRef.current[id] = { x, y };
   }
 
-  return { posicionesRef, moverCarga };
+  /** El puntero sujeta la carga: queda anclada (v = 0) y sigue empujando a las demás. */
+  function agarrarCarga(id: string) {
+    enviar({ tipo: "agarrarCarga", id });
+  }
+
+  /** Suelta la carga con la velocidad del puntero (px lógicos/s de pantalla; el Worker aplica tope y ÷σ). */
+  function soltarCarga(id: string, vx: number, vy: number) {
+    enviar({ tipo: "soltarCarga", id, vx, vy });
+  }
+
+  return { posicionesRef, moverCarga, agarrarCarga, soltarCarga };
 }

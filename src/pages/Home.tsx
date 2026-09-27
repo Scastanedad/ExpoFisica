@@ -17,7 +17,7 @@ const ESTACIONES: Estacion[] = [
     etiqueta: "Tú las mueves",
     titulo: "Cargas en reposo",
     descripcion:
-      "Tú mueves las cargas y ves el campo eléctrico que crean: en vectores, líneas de campo o mapa de potencial.",
+      "Tú mueves las cargas y ves el campo eléctrico que crean: en vectores, líneas de campo o curvas de igual potencial.",
     ruta: "/cargas-en-reposo",
   },
   {
@@ -37,8 +37,8 @@ const ESTACIONES: Estacion[] = [
  * del canvas, como en las estaciones (constante de módulo: referencia estable).
  */
 const CARGAS_HERO: CargaMeta[] = [
-  { id: "hero-0", q: 1, anclada: false },
-  { id: "hero-1", q: -1, anclada: false },
+  { id: "hero-0", q: 1 },
+  { id: "hero-1", q: -1 },
 ];
 
 export function Home() {

@@ -20,7 +20,7 @@
  */
 import type { PuntoCarga } from "../fisica/coulomb";
 import { geometriaLeyenda, PX_POR_CUADRO, type GeometriaLeyenda } from "../fisica/escala";
-import { radioVisualCarga } from "./geometriaCargas";
+import { RADIO_VISUAL_MAX } from "./geometriaCargas";
 
 const FUENTE = 'ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace';
 const COLOR_TEXTO = "#e5e7eb"; // --text
@@ -127,7 +127,8 @@ export type DibujanteLeyenda = (
 
 /** ¿Alguna carga (con su radio visual) toca la caja de la leyenda? */
 function hayCargaDentro(prep: Preparada, puntos: PuntoCarga[], escalaCss: number): boolean {
-  const radio = radioVisualCarga(escalaCss) + 4 * (1 / (escalaCss > 0 ? escalaCss : 1));
+  // Peor caso: el disco de la carga máxima (E2.1: el radio visual depende de q).
+  const radio = RADIO_VISUAL_MAX + 4 * (1 / (escalaCss > 0 ? escalaCss : 1));
   const { cajaX, cajaY, cajaAncho, cajaAlto } = prep;
   for (const p of puntos) {
     const dx = Math.max(cajaX - p.x, 0, p.x - (cajaX + cajaAncho));
@@ -151,7 +152,7 @@ export function crearDibujanteLeyenda(): DibujanteLeyenda {
 
     ctx.save();
     if (hayCargaDentro(prep, puntos, escalaCss)) ctx.globalAlpha = ALFA_CON_CARGA_DENTRO;
-    // Fondo semitransparente para que se lea sobre el mapa rojo/azul saturado.
+    // Fondo semitransparente para que se lea sobre las curvas y líneas de campo.
     rectRedondeado(ctx, cajaX, cajaY, cajaAncho, cajaAlto, RADIO_ESQUINA);
     ctx.fillStyle = COLOR_FONDO;
     ctx.fill();
