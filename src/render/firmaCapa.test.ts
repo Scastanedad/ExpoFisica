@@ -36,7 +36,7 @@ describe("firma de la capa en caché", () => {
     expect(f.comparar(base(p))).toBe("posiciones");
   });
 
-  it("cambiar magnitud, modo, tamaño, calidad, escala, unidad o el número de cargas: estructura", () => {
+  it("cambiar magnitud, modo, tamaño, calidad, escala, resolución, unidad o el número de cargas: estructura", () => {
     const f = crearFirma();
     f.guardar(base(dos()));
     const q = dos();
@@ -48,6 +48,18 @@ describe("firma de la capa en caché", () => {
     expect(f.comparar(base(dos(), { escalaCss: 0.5 }))).toBe("estructura");
     expect(f.comparar(base(dos(), { unidad: "normalizada" }))).toBe("estructura");
     expect(f.comparar(base([...dos(), { x: 1, y: 1, q: 1 }]))).toBe("estructura");
+  });
+
+  it("cambiar la resolución del bitmap (DPR o cambio de monitor): estructura", () => {
+    const f = crearFirma();
+    f.guardar(base(dos(), { resolucion: 1 }));
+    expect(f.comparar(base(dos(), { resolucion: 2 }))).toBe("estructura");
+  });
+
+  it("sin `resolucion` explícita, se asume 1 en ambos lados (compatibilidad)", () => {
+    const f = crearFirma();
+    f.guardar(base(dos()));
+    expect(f.comparar(base(dos(), { resolucion: 1 }))).toBe("igual");
   });
 
   it("un cambio de estructura y de posición a la vez cuenta como estructura", () => {

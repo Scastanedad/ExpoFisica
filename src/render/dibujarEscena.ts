@@ -21,6 +21,12 @@ export interface EscenaParaDibujar {
   alto: number;
   /** (ancho CSS)/(ancho lógico) del canvas. */
   escalaCss: number;
+  /**
+   * Factor total (escalaCss * devicePixelRatio acotado) al que está el bitmap real del
+   * `<canvas>` (hooks/useEscalaCss.ts). Se lo pasa a la capa en caché para que su propio
+   * bitmap offscreen tenga la misma resolución. Por defecto 1.
+   */
+  resolucion?: number;
   /** Capa en caché propia de este canvas (`crearCapaCampo`). */
   capa: CapaCampo;
   leyenda: DibujanteLeyenda | null;
@@ -39,6 +45,7 @@ export function dibujarEscena(ctx: CanvasRenderingContext2D, escena: EscenaParaD
     ancho,
     alto,
     escalaCss,
+    resolucion,
     capa,
     leyenda,
     indiceSeleccionada = -1,
@@ -46,7 +53,7 @@ export function dibujarEscena(ctx: CanvasRenderingContext2D, escena: EscenaParaD
     unidadCarga = "microC",
   } = escena;
   ctx.clearRect(0, 0, ancho, alto);
-  capa.pintar(ctx, { puntos, modoVista, ancho, alto, escalaCss, unidadCarga });
+  capa.pintar(ctx, { puntos, modoVista, ancho, alto, escalaCss, unidadCarga, resolucion });
   leyenda?.(ctx, ancho, alto, escalaCss, puntos);
   dibujarCargas(ctx, puntos, { escalaCss, indiceSeleccionada, indiceEditada, unidadCarga, ancho });
 }

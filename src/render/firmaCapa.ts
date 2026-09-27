@@ -1,10 +1,11 @@
 /**
  * Firma de lo que dibuja la capa en caché del campo (E2.3 §8): posiciones y
- * magnitud de cada carga, tamaño del canvas, modo, calidad, escala CSS y unidad
- * de la etiqueta. Si la firma no cambia, no se recalcula nada y se reutiliza la
- * capa. Se separa en dos partes para poder limitar la frecuencia de recálculo
- * cuando solo cambian las POSICIONES (estación dinámica: ≤ 30 Hz) sin retrasar
- * los cambios de estructura (modo, magnitud, tamaño, calidad, altas/bajas).
+ * magnitud de cada carga, tamaño del canvas, modo, calidad, escala CSS,
+ * resolución real del bitmap y unidad de la etiqueta. Si la firma no cambia, no
+ * se recalcula nada y se reutiliza la capa. Se separa en dos partes para poder
+ * limitar la frecuencia de recálculo cuando solo cambian las POSICIONES
+ * (estación dinámica: ≤ 30 Hz) sin retrasar los cambios de estructura (modo,
+ * magnitud, tamaño, calidad, resolución, altas/bajas).
  *
  * Compara arrays tipados, sin construir cadenas: se llama en cada frame. Pura,
  * sin DOM.
@@ -19,6 +20,12 @@ export interface DatosFirma {
   modo: string;
   calidad: number;
   unidad: string;
+  /**
+   * Factor total (escalaCss * devicePixelRatio acotado) que fija la resolución real
+   * del bitmap offscreen (ver capaCampo.ts / hooks/useEscalaCss.ts). Opcional (por
+   * defecto 1) para no romper firmas existentes que no dibujan a otra resolución.
+   */
+  resolucion?: number;
 }
 
 export type CambioFirma = "igual" | "posiciones" | "estructura";
@@ -43,32 +50,35 @@ export function crearFirma(): FirmaCapa {
     out[2] = Math.round(d.escalaCss * 1000);
     out[3] = d.calidad;
     out[4] = d.puntos.length;
-    for (let i = 0; i < d.puntos.length; i++) out[5 + i] = d.puntos[i].q;
+    out[5] = Math.round((d.resolucion ?? 1) * 1000);
+    for (let i = 0; i < d.puntos.length; i++) out[6 + i] = d.puntos[i].q;
   }
 
   return {
     comparar(d) {
       if (!valida || modo !== d.modo || unidad !== d.unidad) return "estructura";
-      const n = 5 + d.puntos.length;
+      const n = 6 + d.puntos.length;
       if (estructura.length !== n) return "estructura";
       const escala = Math.round(d.escalaCss * 1000);
+      const resolucion = Math.round((d.resolucion ?? 1) * 1000);
       if (
         estructura[0] !== d.ancho ||
         estructura[1] !== d.alto ||
         estructura[2] !== escala ||
         estructura[3] !== d.calidad ||
-        estructura[4] !== d.puntos.length
+        estructura[4] !== d.puntos.length ||
+        estructura[5] !== resolucion
       ) {
         return "estructura";
       }
-      for (let i = 0; i < d.puntos.length; i++) if (estructura[5 + i] !== d.puntos[i].q) return "estructura";
+      for (let i = 0; i < d.puntos.length; i++) if (estructura[6 + i] !== d.puntos[i].q) return "estructura";
       for (let i = 0; i < d.puntos.length; i++) {
         if (posiciones[2 * i] !== d.puntos[i].x || posiciones[2 * i + 1] !== d.puntos[i].y) return "posiciones";
       }
       return "igual";
     },
     guardar(d) {
-      const n = 5 + d.puntos.length;
+      const n = 6 + d.puntos.length;
       if (estructura.length !== n) estructura = new Float64Array(n);
       if (posiciones.length !== 2 * d.puntos.length) posiciones = new Float64Array(2 * d.puntos.length);
       estructuraDe(d, estructura);

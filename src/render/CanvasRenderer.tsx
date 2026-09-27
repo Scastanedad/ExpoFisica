@@ -52,7 +52,7 @@ export function CanvasRenderer({
   controladorRef,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const escalaCssRef = useEscalaCss(canvasRef, ancho);
+  const { escalaCssRef, factorResolucionRef } = useEscalaCss(canvasRef, ancho, alto);
   const posicionesRef = useRef<Record<string, Posicion>>({});
   const seleccionRef = useRef<string | null>(null);
   const editandoRef = useRef<string | null>(null);
@@ -145,6 +145,7 @@ export function CanvasRenderer({
         ancho,
         alto,
         escalaCss: escalaCssRef.current,
+        resolucion: factorResolucionRef.current,
         capa,
         leyenda,
         indiceSeleccionada: cargas.findIndex((c) => c.id === seleccionRef.current),
@@ -155,7 +156,7 @@ export function CanvasRenderer({
     }
     idFrame = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(idFrame);
-  }, [cargas, modoVista, ancho, alto, mostrarEscala, escalaCssRef, capa]);
+  }, [cargas, modoVista, ancho, alto, mostrarEscala, escalaCssRef, factorResolucionRef, capa]);
 
   return (
     <canvas

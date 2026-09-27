@@ -41,7 +41,7 @@ export function CanvasRendererDinamico({
   controladorRef,
 }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const escalaCssRef = useEscalaCss(canvasRef, ancho);
+  const { escalaCssRef, factorResolucionRef } = useEscalaCss(canvasRef, ancho, alto);
   const seleccionRef = useRef<string | null>(null);
   const editandoRef = useRef<string | null>(null);
   const unidadRef = useRef<UnidadCarga>("microC");
@@ -107,6 +107,7 @@ export function CanvasRendererDinamico({
         ancho,
         alto,
         escalaCss: escalaCssRef.current,
+        resolucion: factorResolucionRef.current,
         capa,
         leyenda,
         indiceSeleccionada: cargas.findIndex((c) => c.id === seleccionRef.current),
@@ -117,7 +118,7 @@ export function CanvasRendererDinamico({
     }
     idFrame = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(idFrame);
-  }, [cargas, modoVista, ancho, alto, posicionesRef, escalaCssRef, capa]);
+  }, [cargas, modoVista, ancho, alto, posicionesRef, escalaCssRef, factorResolucionRef, capa]);
 
   return (
     <canvas

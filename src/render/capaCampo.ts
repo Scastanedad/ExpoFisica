@@ -39,6 +39,13 @@ export interface EntradaCapa {
   alto: number;
   escalaCss: number;
   unidadCarga: UnidadCarga;
+  /**
+   * Factor total (escalaCss * devicePixelRatio acotado, ver hooks/useEscalaCss.ts) al que se
+   * dibuja el bitmap offscreen de esta capa, para que la cuadrícula, las equipotenciales y las
+   * líneas de campo se vean tan nítidas como las cargas (dibujadas directo en el ctx principal,
+   * ya a esa misma resolución). Por defecto 1 (bitmap a resolución lógica, comportamiento previo).
+   */
+  resolucion?: number;
 }
 
 export interface OpcionesCapa {
@@ -83,16 +90,24 @@ export function crearCapaCampo(opciones: OpcionesCapa = {}): CapaCampo {
   const estadisticas: EstadisticasCapa = { reconstrucciones: 0, calidad: "alta", calculoMs: 0, dibujoMs: 0 };
   const anchosTexto = new Map<string, number>();
 
-  function asegurarCanvas(ancho: number, alto: number): CanvasRenderingContext2D | null {
+  function asegurarCanvas(ancho: number, alto: number, resolucion: number): CanvasRenderingContext2D | null {
     if (!canvas) {
       canvas = document.createElement("canvas");
       lctx = null;
     }
-    if (canvas.width !== ancho || canvas.height !== alto) {
-      canvas.width = ancho;
-      canvas.height = alto;
+    const anchoBitmap = Math.round(ancho * resolucion);
+    const altoBitmap = Math.round(alto * resolucion);
+    if (canvas.width !== anchoBitmap || canvas.height !== altoBitmap) {
+      canvas.width = anchoBitmap;
+      canvas.height = altoBitmap;
+      lctx = null; // el resize resetea la transformación: hay que reaplicar el escalado
     }
-    if (!lctx) lctx = canvas.getContext("2d");
+    if (!lctx) {
+      lctx = canvas.getContext("2d");
+      // Los dibujar*.ts de esta capa siguen en coordenadas lógicas (0..ancho, 0..alto);
+      // este escalado hace que caigan en el lugar correcto sobre el bitmap de mayor resolución.
+      lctx?.setTransform(resolucion, 0, 0, resolucion, 0, 0);
+    }
     return lctx;
   }
 
@@ -168,6 +183,7 @@ export function crearCapaCampo(opciones: OpcionesCapa = {}): CapaCampo {
       }
       ultimoFrame = ahora;
 
+      const resolucion = e.resolucion ?? 1;
       const datos = {
         puntos: e.puntos,
         ancho: e.ancho,
@@ -176,13 +192,14 @@ export function crearCapaCampo(opciones: OpcionesCapa = {}): CapaCampo {
         modo: e.modoVista,
         calidad: gestor.indice(),
         unidad: e.unidadCarga,
+        resolucion,
       };
       const cambio = firma.comparar(datos);
       const debe =
         SIN_CACHE ||
         cambio === "estructura" ||
         (cambio === "posiciones" && ahora - ultimaConstruccion >= intervaloMinMs);
-      const c = asegurarCanvas(e.ancho, e.alto);
+      const c = asegurarCanvas(e.ancho, e.alto, resolucion);
       if (!c || !canvas) return;
       if (debe) {
         const ms = reconstruir(c, e);
@@ -192,7 +209,11 @@ export function crearCapaCampo(opciones: OpcionesCapa = {}): CapaCampo {
         estadisticas.calidad = gestor.nivel().nombre;
         if (ctx.canvas.dataset.calidad !== estadisticas.calidad) ctx.canvas.dataset.calidad = estadisticas.calidad;
       }
-      ctx.drawImage(canvas, 0, 0);
+      // 4 argumentos: el destino se especifica en tamaño LÓGICO (ancho x alto). El `ctx`
+      // principal ya está escalado (ver hooks/useEscalaCss.ts) y el bitmap offscreen está a
+      // `resolucion` px de dispositivo por unidad lógica -- con la forma de 2 argumentos
+      // (tamaño natural del bitmap) el escalado se aplicaría dos veces.
+      ctx.drawImage(canvas, 0, 0, e.ancho, e.alto);
     },
     estadisticas: () => ({ ...estadisticas }),
   };
