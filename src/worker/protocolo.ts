@@ -31,4 +31,12 @@ export type MensajeAlWorker =
 export type MensajeDelWorker =
   | { tipo: "orden"; ids: string[] }
   | { tipo: "frame"; posiciones: Float32Array }
-  | ({ tipo: "energia" } & EnergiaDinamica);
+  | ({ tipo: "energia" } & EnergiaDinamica)
+  /**
+   * Fuerza neta sobre cada carga (E3.2 §3), alineada con el último mensaje
+   * "orden": `[fx0,fy0,fx1,fy1,…]` en unidades de SIMULACIÓN (K_VISUAL,
+   * SOFTENING2). Es una LECTURA de `SistemaDinamico.fx/fy` ya calculada por
+   * `calcularFuerzas`: no se computa nada nuevo. Cada ~100 ms (10 Hz), igual
+   * que "energia" pero sin esperar su intervalo de 250 ms.
+   */
+  | { tipo: "fuerzas"; fuerzasSim: Float32Array };

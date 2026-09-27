@@ -5,8 +5,15 @@
  * `PanelCargas` (que la selecciona) y el canvas (que dibuja el anillo y coloca
  * la carga al tocar). Solo hay una estación montada a la vez, así que un
  * único store basta; los ids de cada estación no colisionan.
+ *
+ * La sonda q₀ (E3.1, `PanelSondaQ0.tsx`) REUTILIZA este mismo store para su
+ * alternativa al arrastre (mismo id reservado `ID_SONDA_Q0` que ya conoce
+ * `ControladorEscena`), pero no tiene editor de magnitud: `seleccionar` no
+ * actualiza `editandoId` para ese id, así elegir q₀ no le "roba" el anillo
+ * discontinuo de "última carga editada" a una carga real.
  */
 import { create } from "zustand";
+import { ID_SONDA_Q0 } from "../render/controladorEscena";
 
 interface EstadoSeleccion {
   seleccionadaId: string | null;
@@ -38,7 +45,7 @@ export const useSeleccionStore = create<EstadoSeleccion>((set) => ({
     set((estado) => ({
       seleccionadaId: id,
       colocarConToque: id !== null && colocarConToque,
-      editandoId: id ?? estado.editandoId,
+      editandoId: id && id !== ID_SONDA_Q0 ? id : estado.editandoId,
     })),
   setArrastrando: (valor) => set({ arrastrando: valor }),
 }));

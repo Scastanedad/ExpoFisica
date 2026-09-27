@@ -6,6 +6,8 @@ import { SelectorModoVista } from "../ui/SelectorModoVista";
 import { LeyendaVista } from "../ui/LeyendaVista";
 import { NotasCampo } from "../ui/NotasCampo";
 import { PanelCargas } from "../ui/PanelCargas";
+import { PanelSondaQ0 } from "../ui/PanelSondaQ0";
+import { LecturaFuerza } from "../ui/LecturaFuerza";
 import { useSimulacionStore } from "../store/simulacionStore";
 
 export function CargasEnReposo() {
@@ -39,7 +41,7 @@ export function CargasEnReposo() {
       </p>
       <div className="simulador">
         <div className="simulador-lienzo">
-          <CanvasRenderer controladorRef={controladorRef} />
+          <CanvasRenderer controladorRef={controladorRef} conSondaQ0 />
           <LeyendaVista cargas={cargas} />
         </div>
         <div className="simulador-lateral">
@@ -50,6 +52,8 @@ export function CargasEnReposo() {
             alCambiarMagnitud={cambiarMagnitud}
             controladorRef={controladorRef}
           />
+          <LecturaFuerza />
+          <PanelSondaQ0 controladorRef={controladorRef} />
           <details className="notas-modelo">
             <summary>Notas sobre el modelo</summary>
             <ul>
@@ -58,6 +62,14 @@ export function CargasEnReposo() {
               <li>
                 Cambiar la carga a mano es solo un control del simulador: en la realidad la carga no se
                 crea ni se destruye.
+              </li>
+              <li>
+                Las fuerzas mostradas son exactas (ley de Coulomb sin ningún suavizado): dos cargas nunca
+                se ejercen fuerza a sí mismas, y la que ves sobre cada una es la suma de todas las demás.
+              </li>
+              <li>
+                q₀ (la sonda con mira) no tiene masa: no se mueve sola, la colocas tú, y no está en la
+                lista de cargas del dibujo (no las empuja ni las atrae).
               </li>
             </ul>
           </details>

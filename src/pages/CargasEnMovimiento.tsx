@@ -7,6 +7,7 @@ import { ControlesReproduccion } from "../ui/ControlesReproduccion";
 import { LeyendaVista } from "../ui/LeyendaVista";
 import { NotasCampo } from "../ui/NotasCampo";
 import { PanelCargas } from "../ui/PanelCargas";
+import { LecturaFuerza } from "../ui/LecturaFuerza";
 import { IndicadorEnergia } from "../ui/IndicadorEnergia";
 import { useSimulacionDinamicaStore } from "../store/simulacionDinamicaStore";
 
@@ -60,6 +61,7 @@ export function CargasEnMovimiento() {
             colocaEnReposo
             controladorRef={controladorRef}
           />
+          <LecturaFuerza />
           {/* Las notas son muchas: plegadas por defecto para que la columna de controles no obligue a hacer scroll. */}
           <details className="notas-modelo">
             <summary>Notas sobre el modelo</summary>
@@ -89,6 +91,11 @@ export function CargasEnMovimiento() {
               <li>
                 Con cargas grandes todo ocurre más rápido: usa el deslizador de velocidad si lo
                 necesitas.
+              </li>
+              <li>
+                La flecha de fuerza (si la activas) es la que de verdad mueve cada carga en la
+                simulación: muy cerca de un cruce casi frontal es un poco menor que la que daría 1/r²
+                exacto, por el mismo suavizado numérico que ya se explica arriba para el campo.
               </li>
               <li className="notas-subtitulo" aria-hidden="true">
                 Energía

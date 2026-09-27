@@ -868,6 +868,220 @@ a {
   color: var(--text-dim);
 }
 
+/* ---------- Fuerza por carga (E3.2) ---------- */
+
+.panel-fuerza {
+  font-family: var(--mono);
+  font-size: 14px;
+  border-top: 1px solid var(--borde);
+  padding-top: 10px;
+}
+
+.panel-fuerza-lectura {
+  margin: 6px 0 0;
+  color: var(--text-dim);
+}
+
+/* ---------- Carga de prueba q₀ (E3.1) ---------- */
+
+.panel-sonda {
+  border-top: 1px solid var(--borde);
+  padding-top: 10px;
+}
+
+.panel-sonda-cuerpo {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel-sonda-ayuda {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.panel-sonda-nota {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.panel-sonda-lecturas {
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-family: var(--mono);
+}
+
+.panel-sonda-lecturas > div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 12px;
+}
+
+.panel-sonda-lecturas dt {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.panel-sonda-lecturas dd {
+  margin: 0;
+  font-size: 15px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.panel-sonda-deltav {
+  padding: 10px 12px;
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  background: rgba(34, 211, 238, 0.05);
+}
+
+.panel-sonda-deltav h3 {
+  margin: 0 0 8px;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+/* Resultado (ΔV/trabajo): mismo `dl` que E/V/F pero con fondo tenue y una franja lateral
+   cian, para que se distinga a simple vista del bloque de lectura en vivo (revisión UI). */
+.panel-sonda-lecturas--resultado {
+  padding: 8px 10px;
+  border-left: 2px solid var(--accent);
+  border-radius: 4px;
+  background: rgba(34, 211, 238, 0.07);
+}
+
+.panel-sonda-ab {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.panel-sonda-ab button {
+  min-width: 44px;
+  min-height: 44px;
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--borde);
+  background: rgba(11, 16, 32, 0.5);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.panel-sonda-ab button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.panel-sonda-ab button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Chip de q0 para la alternativa al arrastre (WCAG 2.1.1/2.5.7): mismo patrón visual que
+   `.carga-chip`, pero sin color de polaridad (q0 no es una carga fuente). */
+.sonda-chip {
+  display: inline-flex;
+  align-items: center;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(30, 41, 59, 0.55);
+  box-shadow: 0 2px 0 rgba(148, 163, 184, 0.28);
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.sonda-chip:hover {
+  border-color: var(--accent);
+  background: rgba(34, 211, 238, 0.08);
+}
+
+.sonda-chip.seleccionada {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent), 0 2px 0 var(--accent);
+}
+
+.panel-sonda-chip-fila {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-sonda-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 14px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.panel-sonda-check input {
+  width: 20px;
+  height: 20px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.panel-sonda-camino {
+  margin-top: 8px;
+  border-top: 1px dashed var(--borde);
+  padding-top: 6px;
+}
+
+.panel-sonda-camino summary {
+  padding: 4px 0;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.panel-sonda-camino-cuerpo {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 4px;
+}
+
+.panel-sonda-caminos {
+  margin: 4px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
 .notas-modelo {
   border-top: 1px solid var(--borde);
   padding-top: 8px;

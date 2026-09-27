@@ -23,6 +23,7 @@ import {
   agarrarCarga,
   agregarCarga,
   aplicarCambioCarga,
+  calcularFuerzas,
   crearSistema,
   derivaNormalizada,
   energias,
@@ -42,6 +43,8 @@ declare const postMessage: (message: unknown, transfer?: Transferable[]) => void
 
 const INTERVALO_TICK_MS = 8; // despertador; la física NO depende de él
 const INTERVALO_ENERGIA_MS = 250; // ~4 Hz, medido con performance.now()
+/** Fuerza por carga (E3.2 §3): 10 Hz, LECTURA de sis.fx/fy ya calculada -- no computa nada nuevo. */
+const INTERVALO_FUERZAS_MS = 100;
 const PRESUPUESTO_TICK_MS = 12; // salvaguarda de CPU: si se supera, se descarta el remanente
 
 const sis = crearSistema(700, 500);
@@ -51,6 +54,7 @@ let acumSim = 0;
 let sucio = true;
 let ultimoTickMs = performance.now();
 let ultimaEnergiaMs = ultimoTickMs;
+let ultimaFuerzaMs = ultimoTickMs;
 /** Rearmado tras cada intervención: la referencia de energía cambió (evaluarAviso). */
 let aviso = { armado: true };
 // Contadores de diagnóstico (?debug) desde el último mensaje de energía.
@@ -73,6 +77,23 @@ function enviarFrame() {
     posiciones[i * 2 + 1] = sis.y[i];
   }
   enviar({ tipo: "frame", posiciones }, [posiciones.buffer]);
+}
+
+/**
+ * Fuerza sobre cada carga, alineada con el último "orden" enviado (E3.2 §3):
+ * pura lectura de `sis.fx/fy` (recalculadas por FSAL en cada `pasoAvance`).
+ * Si quedaron invalidadas por una intervención sin que corriera ningún paso
+ * todavía (p. ej. en pausa), se recalculan aquí para no enviar valores viejos.
+ */
+function enviarFuerzas() {
+  if (!sis.fuerzasValidas) calcularFuerzas(sis);
+  const n = sis.fx.length;
+  const fuerzasSim = new Float32Array(n * 2);
+  for (let i = 0; i < n; i++) {
+    fuerzasSim[i * 2] = sis.fx[i];
+    fuerzasSim[i * 2 + 1] = sis.fy[i];
+  }
+  enviar({ tipo: "fuerzas", fuerzasSim }, [fuerzasSim.buffer]);
 }
 
 function publicarEnergia(ahora: number) {
@@ -139,6 +160,10 @@ function tick() {
   if (ahora - ultimaEnergiaMs >= INTERVALO_ENERGIA_MS) {
     publicarEnergia(ahora);
     ultimaEnergiaMs = ahora;
+  }
+  if (ahora - ultimaFuerzaMs >= INTERVALO_FUERZAS_MS && sis.ids.length > 0) {
+    enviarFuerzas();
+    ultimaFuerzaMs = ahora;
   }
 }
 

@@ -13,6 +13,8 @@ interface EstadoSimulacion {
   cargas: CargaMeta[];
   modoVista: ModoVista;
   unidadCarga: UnidadCarga;
+  /** Muestra el vector de fuerza neta sobre cada carga (E3.2). Compartido por las dos estaciones. */
+  mostrarFuerzas: boolean;
 
   agregarCarga: (q: number) => void;
   quitarCarga: (id: string) => void;
@@ -20,6 +22,7 @@ interface EstadoSimulacion {
   cambiarMagnitud: (id: string, q: number) => void;
   setModoVista: (modo: ModoVista) => void;
   toggleUnidadCarga: () => void;
+  setMostrarFuerzas: (valor: boolean) => void;
 }
 
 let contadorId = 2;
@@ -31,6 +34,7 @@ export const useSimulacionStore = create<EstadoSimulacion>((set) => ({
   ],
   modoVista: "vectores",
   unidadCarga: "microC",
+  mostrarFuerzas: false,
 
   agregarCarga: (q) =>
     set((estado) => {
@@ -57,4 +61,6 @@ export const useSimulacionStore = create<EstadoSimulacion>((set) => ({
     set((estado) => ({
       unidadCarga: estado.unidadCarga === "microC" ? "normalizada" : "microC",
     })),
+
+  setMostrarFuerzas: (valor) => set({ mostrarFuerzas: valor }),
 }));

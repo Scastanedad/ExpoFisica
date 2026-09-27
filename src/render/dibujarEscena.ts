@@ -9,10 +9,22 @@
  * sin cambiar todas las llamadas.
  */
 import type { PuntoCarga } from "../fisica/coulomb";
+import type { VectorFuerzaSI } from "../fisica/fuerzas";
 import type { ModoVista, UnidadCarga } from "../types/simulacion";
 import type { CapaCampo } from "./capaCampo";
 import { dibujarCargas } from "./dibujarCargas";
+import { dibujarFuerzas } from "./dibujarFuerzas";
+import { dibujarSondaQ0, type PuntoLogico } from "./dibujarSondaQ0";
 import type { DibujanteLeyenda } from "./dibujarLeyendaEscala";
+
+/** Carga de prueba q₀ (E3.1), solo en "Cargas en reposo"; `undefined`/`null` = sin sonda. */
+export interface SondaParaDibujar {
+  x: number;
+  y: number;
+  signo: 1 | -1;
+  /** Traza en curso (mientras se registra un camino, E3.1 §6, modo 2), en px lógicos. */
+  traza?: readonly PuntoLogico[];
+}
 
 export interface EscenaParaDibujar {
   puntos: PuntoCarga[];
@@ -36,6 +48,11 @@ export interface EscenaParaDibujar {
   indiceEditada?: number;
   /** Cómo se escribe la etiqueta de magnitud de cada carga. Por defecto "microC". */
   unidadCarga?: UnidadCarga;
+  /** Fuerza neta sobre cada carga (E3.2), alineada con `puntos`, en N; null si `mostrarFuerzas` es false. */
+  fuerzas?: ReadonlyArray<VectorFuerzaSI | null> | null;
+  mostrarFuerzas?: boolean;
+  /** Carga de prueba q₀ (E3.1), solo en "Cargas en reposo". */
+  sonda?: SondaParaDibujar | null;
 }
 
 export function dibujarEscena(ctx: CanvasRenderingContext2D, escena: EscenaParaDibujar) {
@@ -51,9 +68,14 @@ export function dibujarEscena(ctx: CanvasRenderingContext2D, escena: EscenaParaD
     indiceSeleccionada = -1,
     indiceEditada = -1,
     unidadCarga = "microC",
+    fuerzas,
+    mostrarFuerzas = false,
+    sonda,
   } = escena;
   ctx.clearRect(0, 0, ancho, alto);
   capa.pintar(ctx, { puntos, modoVista, ancho, alto, escalaCss, unidadCarga, resolucion });
   leyenda?.(ctx, ancho, alto, escalaCss, puntos);
   dibujarCargas(ctx, puntos, { escalaCss, indiceSeleccionada, indiceEditada, unidadCarga, ancho });
+  if (mostrarFuerzas && fuerzas) dibujarFuerzas(ctx, puntos, fuerzas, escalaCss);
+  if (sonda) dibujarSondaQ0(ctx, sonda.x, sonda.y, sonda.signo, escalaCss, sonda.traza);
 }

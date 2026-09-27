@@ -16,9 +16,21 @@ interface Posicion {
   y: number;
 }
 
+interface FuerzaSim {
+  fx: number;
+  fy: number;
+}
+
 export function useSimulacionWorker(cargas: CargaConfig[], ancho: number, alto: number) {
   const workerRef = useRef<Worker | null>(null);
   const posicionesRef = useRef<Record<string, Posicion>>({});
+  /**
+   * Fuerza neta sobre cada carga (E3.2 §3), en unidades de SIMULACIÓN, tal
+   * como la publica el Worker cada ~100 ms (mensaje "fuerzas"): una LECTURA
+   * de `SistemaDinamico.fx/fy`, no un cálculo nuevo. `render/CanvasRendererDinamico.tsx`
+   * la convierte a N con `factoresSim(K_VISUAL).fuerza` al dibujar/leer.
+   */
+  const fuerzasRef = useRef<Record<string, FuerzaSim>>({});
   const ordenIdsRef = useRef<string[]>([]);
   const cargasAnterioresRef = useRef<Map<string, CargaConfig>>(new Map());
 
@@ -49,6 +61,14 @@ export function useSimulacionWorker(cargas: CargaConfig[], ancho: number, alto: 
           nuevo[ids[i]] = { x: pos[i * 2], y: pos[i * 2 + 1] };
         }
         posicionesRef.current = nuevo;
+      } else if (datos.tipo === "fuerzas") {
+        const ids = ordenIdsRef.current;
+        const f = datos.fuerzasSim;
+        const nuevo: Record<string, FuerzaSim> = {};
+        for (let i = 0; i < ids.length; i++) {
+          nuevo[ids[i]] = { fx: f[i * 2], fy: f[i * 2 + 1] };
+        }
+        fuerzasRef.current = nuevo;
       } else {
         // Un solo objeto por mensaje (~4 Hz): un solo re-render del panel de energía.
         actualizarEnergia(datos);
@@ -105,5 +125,5 @@ export function useSimulacionWorker(cargas: CargaConfig[], ancho: number, alto: 
     enviar({ tipo: "soltarCarga", id, vx, vy });
   }
 
-  return { posicionesRef, moverCarga, agarrarCarga, soltarCarga };
+  return { posicionesRef, fuerzasRef, moverCarga, agarrarCarga, soltarCarga };
 }

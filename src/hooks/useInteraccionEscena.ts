@@ -12,7 +12,10 @@
  *     (preventDefault) solo cuando el toque empieza sobre una carga.
  *  3. Alternativa de un toque al arrastre: con una carga "armada" en el
  *     `PanelCargas`, tocar el canvas la coloca en ese punto (WCAG 2.5.7). El
- *     teclado se resuelve en el panel a través del `ControladorEscena`.
+ *     teclado se resuelve en el panel a través del `ControladorEscena`. La
+ *     sonda q₀ (E3.1) usa el mismo mecanismo: el `ControladorEscena` enruta
+ *     el id reservado `ID_SONDA_Q0` a `opciones.sonda` en vez de a la lista
+ *     de cargas (corrección post revisión UI, antes q₀ solo se arrastraba).
  *  4. "Empujón" (solo estación dinámica, E2.5 §4): si la página pasa
  *     `alAgarrar`/`alSoltar`, al agarrar la carga se avisa (queda anclada al
  *     puntero) y al soltar se entrega la velocidad del puntero (regresión por
@@ -27,11 +30,12 @@
 import { useEffect, useRef, type RefObject } from "react";
 import { emitirCargaColocada } from "../render/eventosEscena";
 import {
+  ID_SONDA_Q0,
   limitarPosicion,
   type ControladorEscena,
   type Posicion,
 } from "../render/controladorEscena";
-import { indiceCargaBajo } from "../render/geometriaCargas";
+import { indiceCargaBajo, radioAgarre } from "../render/geometriaCargas";
 import { estimarVelocidadPuntero, type MuestraPuntero } from "../fisica/empujon";
 import { useSeleccionStore } from "../store/seleccionStore";
 
@@ -57,6 +61,23 @@ export interface OpcionesInteraccion {
   alAgarrar?: (id: string) => void;
   /** El puntero suelta la carga con velocidad `v` (px lógicos/s de pantalla, sin tope); (0, 0) si se cancela. */
   alSoltar?: (id: string, v: { vx: number; vy: number }) => void;
+  /**
+   * Carga de prueba q₀ (E3.1), solo "Cargas en reposo": una segunda entidad
+   * arrastrable, independiente de `ids`/`posicion`/`colocar` (nunca está en la
+   * lista de cargas reales). Se arrastra con la misma zona de agarre
+   * (`radioAgarre`) que una carga real; si el puntero no cae ni sobre una
+   * carga real ni sobre la sonda, sigue el flujo normal ("tocar el destino").
+   * Con `controladorRef`, también se mueve con teclado/"tocar el destino" bajo
+   * el id reservado `ID_SONDA_Q0` (`PanelSondaQ0.tsx` es quien la selecciona).
+   */
+  sonda?: {
+    posicion: () => Posicion;
+    colocar: (x: number, y: number) => void;
+    /** Cada muestra (px lógicos) mientras se arrastra, para grabar una traza (E3.1 §6). */
+    alMuestrear?: (p: Posicion) => void;
+    /** Al terminar el gesto (soltar o cancelar). */
+    alSoltar?: () => void;
+  };
 }
 
 export function useInteraccionEscena(opciones: OpcionesInteraccion) {
@@ -66,16 +87,20 @@ export function useInteraccionEscena(opciones: OpcionesInteraccion) {
     opcionesRef.current = opciones;
   });
 
-  // Publica el controlador para teclado / controles externos.
+  // Publica el controlador para teclado / controles externos. Mover q₀ por aquí (teclado o
+  // "tocar el destino") NUNCA llama a `sonda.alMuestrear`: no participa en "Registrar el
+  // camino" (E3.1 §6), que necesita una traza continua desde un arrastre real.
   useEffect(() => {
     if (!controladorRef) return;
     controladorRef.current = {
       ancho,
       alto,
-      posicion: (id) => opcionesRef.current.posicion(id),
+      posicion: (id) =>
+        id === ID_SONDA_Q0 ? opcionesRef.current.sonda?.posicion() : opcionesRef.current.posicion(id),
       mover: (id, x, y) => {
         const p = limitarPosicion(x, y, ancho, alto);
-        opcionesRef.current.colocar(id, p.x, p.y);
+        if (id === ID_SONDA_Q0) opcionesRef.current.sonda?.colocar(p.x, p.y);
+        else opcionesRef.current.colocar(id, p.x, p.y);
       },
     };
     return () => {
@@ -88,6 +113,8 @@ export function useInteraccionEscena(opciones: OpcionesInteraccion) {
     if (!canvas) return;
 
     let arrastrandoId: string | null = null;
+    /** true mientras se arrastra la sonda q₀ (E3.1), independiente de `arrastrandoId`. */
+    let arrastrandoSonda = false;
     let seleccionPrevia: { id: string | null; armada: boolean } | null = null;
     let toque: { pointerId: number; clientX: number; clientY: number } | null = null;
     /** Muestras del puntero mientras se arrastra (solo se usan si hay `alSoltar`). */
@@ -136,11 +163,20 @@ export function useInteraccionEscena(opciones: OpcionesInteraccion) {
       return i >= 0 ? o.ids[i] : null;
     }
 
-    // Scroll vertical con el dedo salvo que el toque empiece sobre una carga.
+    /** ¿El punto (px lógicos) cae dentro de la zona de agarre de la sonda q₀? */
+    function sondaBajo(p: Posicion): boolean {
+      const sonda = opcionesRef.current.sonda;
+      if (!sonda) return false;
+      const actual = sonda.posicion();
+      return Math.hypot(p.x - actual.x, p.y - actual.y) <= radioAgarre(opcionesRef.current.escalaCssRef.current);
+    }
+
+    // Scroll vertical con el dedo salvo que el toque empiece sobre una carga o sobre la sonda.
     function onTouchStart(e: TouchEvent) {
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
-      if (cargaBajo(aLogicas(t.clientX, t.clientY)) !== null && e.cancelable) e.preventDefault();
+      const p = aLogicas(t.clientX, t.clientY);
+      if ((cargaBajo(p) !== null || sondaBajo(p)) && e.cancelable) e.preventDefault();
     }
 
     function onPointerDown(e: PointerEvent) {
@@ -158,9 +194,18 @@ export function useInteraccionEscena(opciones: OpcionesInteraccion) {
         s.setArrastrando(true);
         opcionesRef.current.alAgarrar?.(id);
         registrarMuestra(e.timeStamp, limitar(p));
-      } else {
-        toque = { pointerId: e.pointerId, clientX: e.clientX, clientY: e.clientY };
+        return;
       }
+      if (sondaBajo(p)) {
+        const destino = limitar(p);
+        arrastrandoSonda = true;
+        toque = null;
+        canvas!.setPointerCapture(e.pointerId);
+        opcionesRef.current.sonda?.colocar(destino.x, destino.y);
+        opcionesRef.current.sonda?.alMuestrear?.(destino);
+        return;
+      }
+      toque = { pointerId: e.pointerId, clientX: e.clientX, clientY: e.clientY };
     }
 
     function onPointerMove(e: PointerEvent) {
@@ -168,6 +213,10 @@ export function useInteraccionEscena(opciones: OpcionesInteraccion) {
         const p = limitar(aLogicas(e.clientX, e.clientY));
         opcionesRef.current.colocar(arrastrandoId, p.x, p.y);
         registrarMuestra(e.timeStamp, p);
+      } else if (arrastrandoSonda) {
+        const p = limitar(aLogicas(e.clientX, e.clientY));
+        opcionesRef.current.sonda?.colocar(p.x, p.y);
+        opcionesRef.current.sonda?.alMuestrear?.(p);
       } else if (
         toque &&
         toque.pointerId === e.pointerId &&
@@ -193,20 +242,32 @@ export function useInteraccionEscena(opciones: OpcionesInteraccion) {
         terminarArrastre(v);
         return;
       }
+      if (arrastrandoSonda) {
+        const p = limitar(aLogicas(e.clientX, e.clientY));
+        opcionesRef.current.sonda?.colocar(p.x, p.y);
+        arrastrandoSonda = false;
+        opcionesRef.current.sonda?.alSoltar?.();
+        return;
+      }
       if (toque && toque.pointerId === e.pointerId) {
         toque = null;
         const { seleccionadaId, colocarConToque } = useSeleccionStore.getState();
         if (seleccionadaId && colocarConToque) {
           const p = limitar(aLogicas(e.clientX, e.clientY));
-          opcionesRef.current.colocar(seleccionadaId, p.x, p.y);
+          if (seleccionadaId === ID_SONDA_Q0) opcionesRef.current.sonda?.colocar(p.x, p.y);
+          else opcionesRef.current.colocar(seleccionadaId, p.x, p.y);
           emitirCargaColocada({ id: seleccionadaId, x: p.x, y: p.y });
         }
       }
     }
 
-    // Gesto cancelado o captura perdida: la carga se suelta en reposo.
+    // Gesto cancelado o captura perdida: la carga (o la sonda) se suelta en reposo.
     function onPointerCancel() {
       if (arrastrandoId) terminarArrastre({ vx: 0, vy: 0 });
+      if (arrastrandoSonda) {
+        arrastrandoSonda = false;
+        opcionesRef.current.sonda?.alSoltar?.();
+      }
       toque = null;
     }
 

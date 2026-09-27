@@ -8,8 +8,18 @@
  * Es la alternativa al arrastre (WCAG 2.1.1 y 2.5.7): teclado (flechas) y
  * "seleccionar y tocar el destino". La Fase 2 puede ampliar esta interfaz
  * (magnitud, empujón con velocidad) sin cambiar a los consumidores.
+ *
+ * `ID_SONDA_Q0` (E3.1/T3.1, corrección post revisión UI): id reservado para
+ * que la carga de prueba q₀ use el MISMO `posicion`/`mover` que las cargas
+ * reales -- `useInteraccionEscena` enruta este id a `opciones.sonda` en vez
+ * de a la lista de cargas. Así q₀ gana teclado y "tocar el destino" sin
+ * duplicar la lógica de `moverPorTeclado`. Ninguna carga real puede tener
+ * este id: los stores generan `carga-0`, `carga-1`, ... (`simulacionStore.ts`
+ * / `simulacionDinamicaStore.ts`), nunca `__q0__`.
  */
 import { PX_POR_CUADRO } from "../fisica/escala";
+
+export const ID_SONDA_Q0 = "__q0__";
 
 export interface Posicion {
   x: number;
