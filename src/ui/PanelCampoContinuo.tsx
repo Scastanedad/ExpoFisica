@@ -215,9 +215,11 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
   function reiniciar() {
     controladorRef.current?.reiniciar();
     seleccionar(null);
-    anunciar(
-      `${objeto === "carga" ? "Carga libre" : "Dipolo"}${modoCampo === "puntual" ? " y carga fuente" : ""} restablecidos a su posición inicial.`,
-    );
+    // Concordancia: "Dipolo restablecido", "Carga libre restablecida", "… y carga fuente restablecidos/as".
+    const conFuente = modoCampo === "puntual";
+    const sujeto = `${objeto === "carga" ? "Carga libre" : "Dipolo"}${conFuente ? " y carga fuente" : ""}`;
+    const participio = `restablecid${objeto === "carga" ? "a" : "o"}${conFuente ? "s" : ""}`;
+    anunciar(`${sujeto} ${participio} a su posición inicial.`);
   }
 
   function cambiarPolaridad() {
