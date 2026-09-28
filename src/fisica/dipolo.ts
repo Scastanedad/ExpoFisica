@@ -30,9 +30,20 @@
  * cambia si el dipolo se traslada), no en |q| (a diferencia de
  * `dinamica.ts#subdivisionesPaso`).
  */
-import { campoEn, K_VISUAL, SOFTENING2, type PuntoCarga } from "./coulomb";
-import { sumarCampoExterno } from "./campoExterno";
+import { K_VISUAL, SOFTENING2, type PuntoCarga } from "./coulomb";
 import { ESCALA, RADIO_CARGA_PX, energiaParSI, factoresSim, pxAMetros, unidadesACoulomb, type ConfigEscala } from "./escala";
+import {
+  aplicarZonaExclusion,
+  camposActivos,
+  campoTotalEnPunto,
+  type ModoCampoEscena,
+} from "./campoEscena";
+
+// `camposActivos`/`campoTotalEnPunto` son genéricos (E5.1 -> extraídos a
+// `campoEscena.ts` para reutilizarlos en la Estación 03 "Campo continuo",
+// carga libre): se reexportan tal cual para que `fuerzasDipolo.ts` y
+// `dipolo.test.ts` sigan importándolos desde aquí sin cambios.
+export { camposActivos, campoTotalEnPunto } from "./campoEscena";
 
 // ---- Constantes calibradas (E5.1 §3.2, medidas con un prototipo en Node) ----
 
@@ -64,7 +75,7 @@ export const SUBPASOS_MAX_DIPOLO = 400;
 /** Umbral ω·h objetivo por sub-paso (spec §3.2/D3, el mismo régimen verificado sin deriva apreciable). */
 export const UMBRAL_OMEGA_DT = 0.05;
 
-export type ModoCampoDipolo = "uniforme" | "puntual";
+export type ModoCampoDipolo = ModoCampoEscena;
 
 // ---- Estado ----
 
@@ -107,15 +118,6 @@ export interface ParametrosDipolo {
   soft2?: number;
 }
 
-/** Qué fuentes de campo están realmente activas según `modoCampo` (evita que la UI tenga que "limpiar" el campo no usado). */
-export function camposActivos(params: ParametrosDipolo): {
-  cargasFuente: PuntoCarga[];
-  externoSim: readonly [number, number] | null;
-} {
-  if (params.modoCampo === "uniforme") return { cargasFuente: [], externoSim: params.externoSim };
-  return { cargasFuente: params.cargaFuente ? [params.cargaFuente] : [], externoSim: null };
-}
-
 // ---- Geometría del cuerpo rígido ----
 
 export interface ExtremosDipolo {
@@ -130,18 +132,6 @@ export function extremosDipolo(estado: EstadoDipolo, d: number): ExtremosDipolo 
   const hx = (d / 2) * Math.cos(estado.theta);
   const hy = (d / 2) * Math.sin(estado.theta);
   return { masX: estado.cx + hx, masY: estado.cy + hy, menosX: estado.cx - hx, menosY: estado.cy - hy };
-}
-
-/** Campo total (cargas fuente + externo uniforme si aplica) en un punto, unidades de simulación. */
-export function campoTotalEnPunto(
-  x: number,
-  y: number,
-  cargasFuente: readonly PuntoCarga[],
-  externoSim: readonly [number, number] | null,
-  soft2: number = SOFTENING2,
-): [number, number] {
-  const base = campoEn(x, y, cargasFuente as PuntoCarga[], soft2);
-  return externoSim ? sumarCampoExterno(base, externoSim) : base;
 }
 
 export interface FuerzaTorqueDipolo {
@@ -235,24 +225,16 @@ export function subpasosDipolo(estado: EstadoDipolo, params: ParametrosDipolo, d
  * se detiene la traslación radial hacia adentro, en vez de dejar que la
  * integración diverja (mismo espíritu que las paredes elásticas de "Cargas en
  * movimiento": una simplificación deliberada, no un error a corregir con más
- * precisión numérica).
+ * precisión numérica). `distMin = RADIO_CARGA_PX + d/2` (radio de la carga
+ * fuente + la mitad de la varilla del dipolo, el extremo más cercano posible
+ * al contacto). Delegada en `campoEscena.ts#aplicarZonaExclusion` (genérica,
+ * trabaja con x/y/vx/vy sueltos en vez de un `EstadoDipolo` concreto).
  */
-function aplicarZonaExclusion(estado: EstadoDipolo, params: ParametrosDipolo): EstadoDipolo {
+function aplicarZonaExclusionDipolo(estado: EstadoDipolo, params: ParametrosDipolo): EstadoDipolo {
   if (params.modoCampo !== "puntual" || !params.cargaFuente) return estado;
-  const fuente = params.cargaFuente;
   const distMin = RADIO_CARGA_PX + params.d / 2;
-  const dx = estado.cx - fuente.x;
-  const dy = estado.cy - fuente.y;
-  const dist = Math.hypot(dx, dy);
-  if (!(dist < distMin) || dist < 1e-6) return estado;
-  const nx = dx / dist;
-  const ny = dy / dist;
-  const cx = fuente.x + nx * distMin;
-  const cy = fuente.y + ny * distMin;
-  const vRad = estado.vx * nx + estado.vy * ny;
-  const vx = vRad < 0 ? estado.vx - vRad * nx : estado.vx;
-  const vy = vRad < 0 ? estado.vy - vRad * ny : estado.vy;
-  return { ...estado, cx, cy, vx, vy };
+  const r = aplicarZonaExclusion(estado.cx, estado.cy, estado.vx, estado.vy, params.cargaFuente, distMin);
+  return { ...estado, cx: r.x, cy: r.y, vx: r.vx, vy: r.vy };
 }
 
 function esFinito(e: EstadoDipolo): boolean {
@@ -301,7 +283,7 @@ export function pasoDipolo(estado: EstadoDipolo, params: ParametrosDipolo, h: nu
   }
 
   let intermedio: EstadoDipolo = { cx, cy, vx, vy, theta, omega };
-  intermedio = aplicarZonaExclusion(intermedio, params);
+  intermedio = aplicarZonaExclusionDipolo(intermedio, params);
 
   // Segundo half-kick de traslación (y de rotación, solo si zeta === 0: KDK completo).
   const ft1 = fuerzaYTorqueDipolo(intermedio, params.q, params.d, cargasFuente, externoSim, params.soft2);

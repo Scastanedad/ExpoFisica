@@ -153,7 +153,7 @@ export function calcularFuerzas(s: SistemaDinamico): void {
  * impulso `Δv = a₁·dt·(1 − 2f)` (f = fracción del paso hasta el contacto): lleva
  * el error del rebote de O(dt) a O(dt²). Devuelve [pos', vel'] si cruzó la pared.
  */
-function reflejarEje(
+export function reflejarEje(
   pos: number,
   pos0: number,
   vel: number,

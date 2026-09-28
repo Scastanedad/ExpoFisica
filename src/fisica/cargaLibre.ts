@@ -1,0 +1,286 @@
+/**
+ * Física del objeto "Carga puntual" de la Estación 03 (renombrada "Campo
+ * continuo"): UNA sola carga puntual libre con masa que se TRASLADA (nunca
+ * gira: no hay varilla, es un punto) bajo el campo externo activo (placas
+ * uniformes o una carga fuente puntual -- las mismas fuentes que ya modela
+ * `campoEscena.ts`, extraído de `dipolo.ts`). Es el segundo "objeto en el
+ * campo" de la estación, independiente del dipolo: con los MISMOS
+ * `ParametrosCargaLibre` (mismo `modoCampo`, `externoSim`/`cargaFuente`), su
+ * trayectoria no depende en absoluto del estado del dipolo -- no ejerce ni
+ * recibe fuerza de él, la misma simplificación deliberada que ya existe entre
+ * la fuente puntual y el dipolo (spec E5.1 §1: como mucho 3 cargas puntuales
+ * interactúan a la vez, nunca 4).
+ *
+ * Integrador: Velocity Verlet (KDK) para la traslación, EL MISMO esquema de
+ * tres líneas (medio-kick, drift, medio-kick) que usa `dipolo.ts#pasoDipolo`
+ * para su centro de masa -- se duplica aquí a propósito (ver la nota de estilo
+ * en el encabezado de `dipolo.ts` y en el prompt de la fase: "claridad de
+ * física sobre DRY estructural") en vez de forzar una abstracción compartida
+ * entre dos cuerpos de forma distinta (un cuerpo rígido de 2 cargas con
+ * rotación vs. un punto sin rotación).
+ *
+ * Sub-pasos adaptativos: a diferencia de `dipolo.ts#subpasosDipolo` (que usa
+ * la frecuencia de rotación, inexistente aquí), el criterio es puramente
+ * traslacional: acotar el DESPLAZAMIENTO esperado por sub-paso a una fracción
+ * del radio de una carga puntual (`RADIO_CARGA_PX`), para que un solo sub-paso
+ * nunca "salte" por encima de la zona de exclusión de la fuente o penetre de
+ * golpe una pared (ver `subpasosCargaLibre`).
+ */
+import { K_VISUAL, SOFTENING2, type PuntoCarga } from "./coulomb";
+import { potencialEn } from "./coulomb";
+import { potencialUniformeSim } from "./campoExterno";
+import { reflejarEje } from "./dinamica";
+import { ESCALA, RADIO_CARGA_PX, factoresSim, pxAMetros, unidadesACoulomb, type ConfigEscala } from "./escala";
+import { aplicarZonaExclusion, camposActivos, campoTotalEnPunto, type ModoCampoEscena } from "./campoEscena";
+
+// ---- Constantes calibradas ----
+
+/**
+ * Masa traslacional, unidades de simulación. Decisión: NO un valor propio
+ * decoplado (a diferencia de `J0_DIPOLO`, que escala un momento de inercia
+ * SIN equivalente físico real) sino el MISMO convenio que ya usa el resto de
+ * la app para masas traslacionales bajo la ley de Coulomb con `K_VISUAL`
+ * ("Cargas en movimiento": `masa = 1` por defecto en `dinamica.ts`;
+ * `MASA_DIPOLO = 1`): la masa de una carga puntual libre es directamente
+ * comparable a la de cualquier otra carga de la app (misma unidad de fuerza,
+ * mismo `K_VISUAL`), así que reusar `1` mantiene coherencia física entre
+ * estaciones y no introduce un factor de calibración oculto.
+ *
+ * Consecuencia aceptada (no un bug): en modo "uniforme" el campo en unidades
+ * de simulación es mucho más débil (`E_sim` ≈ 0.007–0.07 en el rango
+ * calibrado 30–300 kV, ver `campoUniformeASim`) que el de una carga fuente a
+ * distancia típica de escena (`E_sim` ≈ 0.2–1, ley 1/r² con `K_VISUAL = 5000`),
+ * así que la carga libre acelera visiblemente más lento bajo placas que cerca
+ * de una fuente puntual. Es una diferencia FÍSICA real de escala de campo,
+ * coherente con que esta app ya opera deliberadamente en "cámara lenta"
+ * (`coulomb.ts`). Si en la demo el modo uniforme se ve demasiado lento, la
+ * palanca correcta es subir `VOLTAJE_MIN_KV`/el rango de `q`, NO dar a este
+ * modo una masa distinta (eso sería una calibración oculta, inconsistente
+ * entre modos del mismo objeto).
+ */
+export const MASA_CARGA_LIBRE = 1;
+
+/** Tope de sub-pasos por paso lógico (mismo espíritu que `SUBPASOS_MAX_DIPOLO`/`SUBDIVISIONES_MAX`). */
+export const SUBPASOS_MAX_CARGA_LIBRE = 400;
+
+/**
+ * Desplazamiento máximo tolerado por sub-paso, como fracción de
+ * `RADIO_CARGA_PX`: con 0.5 (medio radio), un sub-paso nunca puede cruzar de
+ * lado a lado la zona de exclusión (`distMin = 2·RADIO_CARGA_PX`, ver abajo)
+ * ni penetrar una pared sin que `reflejarEje` la detecte en ese mismo
+ * sub-paso.
+ */
+export const FRACCION_DESPLAZAMIENTO_MAX = 0.5;
+
+/**
+ * Distancia mínima a la carga fuente (zona de exclusión, modo "puntual"):
+ * `2·RADIO_CARGA_PX`, la suma de los dos radios dibujados -- a diferencia del
+ * dipolo (`RADIO_CARGA_PX + d/2`, el radio de la fuente más el brazo de la
+ * varilla), aquí NO hay varilla: son dos cargas puntuales libres, así que se
+ * tratan como "en contacto" cuando sus dos círculos dibujados se tocan.
+ */
+export const DIST_MIN_EXCLUSION_CARGA_LIBRE = 2 * RADIO_CARGA_PX;
+
+// ---- Estado ----
+
+export interface EstadoCargaLibre {
+  /** px lógicos. */
+  x: number;
+  y: number;
+  /** px por segundo de simulación. */
+  vx: number;
+  vy: number;
+}
+
+export function estadoInicialCargaLibre(x: number, y: number, vx = 0, vy = 0): EstadoCargaLibre {
+  return { x, y, vx, vy };
+}
+
+// ---- Parámetros de un paso ----
+
+export interface ParametrosCargaLibre {
+  /** Carga (unidades de simulación, con signo; rango esperado [±Q_MIN, ±Q_MAX] de `carga.ts`). */
+  q: number;
+  /** Masa traslacional (unidades de simulación, > 0). */
+  masa: number;
+  modoCampo: ModoCampoEscena;
+  /** Campo externo uniforme, unidades de simulación (solo se usa si `modoCampo === "uniforme"`). */
+  externoSim: readonly [number, number] | null;
+  /** Carga puntual fuente, arrastrable (solo se usa si `modoCampo === "puntual"`). */
+  cargaFuente: PuntoCarga | null;
+  soft2?: number;
+}
+
+/** Límites rectangulares del canvas para el rebote elástico (paredes). */
+export interface LimitesCargaLibre {
+  ancho: number;
+  alto: number;
+  /** Radio de la carga dibujada (por defecto `RADIO_CARGA_PX`). */
+  radio?: number;
+}
+
+// ---- Fuerza ----
+
+/** `F = qE` con el campo total (fuente activa + externo si aplica), unidades de simulación. */
+export function fuerzaSobreCargaLibre(estado: EstadoCargaLibre, params: ParametrosCargaLibre): [number, number] {
+  const { cargasFuente, externoSim } = camposActivos(params);
+  const [ex, ey] = campoTotalEnPunto(estado.x, estado.y, cargasFuente, externoSim, params.soft2 ?? SOFTENING2);
+  return [params.q * ex, params.q * ey];
+}
+
+function esFinito(e: EstadoCargaLibre): boolean {
+  return Number.isFinite(e.x) && Number.isFinite(e.y) && Number.isFinite(e.vx) && Number.isFinite(e.vy);
+}
+
+// ---- Sub-pasos adaptativos ----
+
+/**
+ * `k` tal que el desplazamiento esperado en un sub-paso (cota superior
+ * `|v|·h + ½|a|·h²`, movimiento uniformemente acelerado) no exceda
+ * `FRACCION_DESPLAZAMIENTO_MAX · RADIO_CARGA_PX`. A diferencia de
+ * `subpasosDipolo` (criterio `ω·h`, rotacional), este es puramente
+ * traslacional: la cantidad relevante para no "saltarse" la zona de
+ * exclusión o un rebote de pared es cuánto se mueve el punto, no una
+ * frecuencia.
+ */
+export function subpasosCargaLibre(
+  estado: EstadoCargaLibre,
+  params: ParametrosCargaLibre,
+  dtLogico: number,
+  radio: number = RADIO_CARGA_PX,
+): number {
+  const [fx, fy] = fuerzaSobreCargaLibre(estado, params);
+  const M = params.masa > 0 ? params.masa : 1;
+  const aMag = Math.hypot(fx, fy) / M;
+  const vMag = Math.hypot(estado.vx, estado.vy);
+  const desplazamiento = vMag * dtLogico + 0.5 * aMag * dtLogico * dtLogico;
+  const limite = FRACCION_DESPLAZAMIENTO_MAX * radio;
+  const k = limite > 0 && desplazamiento > 0 ? Math.ceil(desplazamiento / limite) : 1;
+  return Math.min(SUBPASOS_MAX_CARGA_LIBRE, Math.max(1, k));
+}
+
+// ---- Integración ----
+
+/**
+ * Un sub-paso de tamaño `h`: Velocity Verlet (KDK) para la traslación --
+ * medio-kick con la fuerza inicial, drift, rebote elástico en las paredes
+ * (`dinamica.ts#reflejarEje`, reutilizada, no duplicada: reflexión especular
+ * con corrección de impulso O(dt²)), zona de exclusión frente a la fuente
+ * puntual si aplica, y el segundo medio-kick con la fuerza en la posición ya
+ * corregida (mismo patrón que `dipolo.ts#pasoDipolo` para su traslación).
+ */
+export function pasoCargaLibre(
+  estado: EstadoCargaLibre,
+  params: ParametrosCargaLibre,
+  h: number,
+  limites: LimitesCargaLibre,
+): EstadoCargaLibre {
+  const M = params.masa > 0 ? params.masa : 1;
+  const radio = limites.radio ?? RADIO_CARGA_PX;
+
+  // Traslación: kick-drift (mitad del kick con la fuerza inicial). Mismo
+  // esquema que la traslación de `dipolo.ts#pasoDipolo` (ver cabecera).
+  const [fx0, fy0] = fuerzaSobreCargaLibre(estado, params);
+  let vx = estado.vx + (fx0 / M) * (h / 2);
+  let vy = estado.vy + (fy0 / M) * (h / 2);
+  const x0 = estado.x;
+  const y0 = estado.y;
+  let x = estado.x + vx * h;
+  let y = estado.y + vy * h;
+
+  // Rebote elástico en los cuatro bordes del canvas.
+  const lo = radio;
+  const hx = limites.ancho - radio;
+  const hy = limites.alto - radio;
+  const ax0 = fx0 / M;
+  const ay0 = fy0 / M;
+  const rx = reflejarEje(x, x0, vx, ax0, h, lo, hx);
+  if (rx) {
+    x = rx[0];
+    vx = rx[1];
+  }
+  const ry = reflejarEje(y, y0, vy, ay0, h, lo, hy);
+  if (ry) {
+    y = ry[0];
+    vy = ry[1];
+  }
+
+  // Zona de exclusión cerca de la fuente puntual (modo "puntual").
+  let intermedio: EstadoCargaLibre = { x, y, vx, vy };
+  if (params.modoCampo === "puntual" && params.cargaFuente) {
+    const r = aplicarZonaExclusion(intermedio.x, intermedio.y, intermedio.vx, intermedio.vy, params.cargaFuente, DIST_MIN_EXCLUSION_CARGA_LIBRE);
+    intermedio = { x: r.x, y: r.y, vx: r.vx, vy: r.vy };
+  }
+
+  // Segundo half-kick de traslación, con la fuerza en la posición corregida.
+  const [fx1, fy1] = fuerzaSobreCargaLibre(intermedio, params);
+  vx = intermedio.vx + (fx1 / M) * (h / 2);
+  vy = intermedio.vy + (fy1 / M) * (h / 2);
+
+  return { x: intermedio.x, y: intermedio.y, vx, vy };
+}
+
+/**
+ * Un paso "de trabajo" de `dtLogico` segundos de simulación: se subdivide en
+ * `subpasosCargaLibre` sub-pasos de `pasoCargaLibre`. Nunca propaga
+ * NaN/Infinity (misma guarda que `dipolo.ts#pasoAvanceDipolo`): si un
+ * sub-paso produjera un estado no finito, se descarta y se conserva el
+ * último estado válido.
+ */
+export function pasoAvanceCargaLibre(
+  estado: EstadoCargaLibre,
+  params: ParametrosCargaLibre,
+  dtLogico: number,
+  limites: LimitesCargaLibre,
+): EstadoCargaLibre {
+  if (!(dtLogico > 0)) return estado;
+  const radio = limites.radio ?? RADIO_CARGA_PX;
+  const k = subpasosCargaLibre(estado, params, dtLogico, radio);
+  const h = dtLogico / k;
+  let e = estado;
+  for (let i = 0; i < k; i++) {
+    const siguiente = pasoCargaLibre(e, params, h, limites);
+    e = esFinito(siguiente) ? siguiente : e;
+  }
+  return e;
+}
+
+// ---- Lectura para la UI ----
+
+export interface LecturaCargaLibre {
+  /** m/s. */
+  rapidezMs: number;
+  /** N. */
+  fuerzaNetaN: number;
+  /** J: `U = qV` -- potencial de placas (`potencialUniformeSim`) en modo "uniforme",
+   * o potencial de la fuente (`potencialEn`) en modo "puntual" (nunca ambos:
+   * misma regla de `camposActivos`). Sin término cinético: al no rotar, esta
+   * lectura reusa exactamente las funciones de potencial ya existentes, sin
+   * inventar una conversión nueva de energía mecánica a SI.
+   */
+  energiaJ: number;
+}
+
+export function calcularLecturaCargaLibre(
+  estado: EstadoCargaLibre,
+  params: ParametrosCargaLibre,
+  esc: ConfigEscala = ESCALA,
+): LecturaCargaLibre {
+  const { cargasFuente, externoSim } = camposActivos(params);
+  const [fx, fy] = fuerzaSobreCargaLibre(estado, params);
+  const factores = factoresSim(K_VISUAL, esc);
+  const fuerzaNetaN = Math.hypot(fx, fy) * factores.fuerza;
+
+  const vPxS = Math.hypot(estado.vx, estado.vy);
+  const rapidezMs = pxAMetros(vPxS, esc); // px/s de simulación -> m/s (mismo factor de escala geométrica; el tiempo de simulación es el mismo reloj).
+
+  const vSim =
+    params.modoCampo === "uniforme" && externoSim
+      ? potencialUniformeSim(estado.x, estado.y, externoSim)
+      : potencialEn(estado.x, estado.y, cargasFuente, params.soft2 ?? SOFTENING2);
+  const vSI = vSim * factores.potencial;
+  const qC = unidadesACoulomb(params.q, esc);
+  const energiaJ = qC * vSI;
+
+  return { rapidezMs, fuerzaNetaN, energiaJ };
+}
