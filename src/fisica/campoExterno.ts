@@ -1,6 +1,6 @@
 /**
  * Campo eléctrico externo uniforme (especificación E5.0): capacitor de placas
- * paralelas ideal, `E₀ = U/d`. Módulo compartido por la Estación 03 (Dipolos,
+ * paralelas ideal, `E₀ = U/d`. Módulo compartido por la Estación 03 (Campo continuo, antes "Dipolos";
  * E5.1) y, más adelante, la Estación 04 (Conductores/aislantes, E5.2).
  *
  * Deliberadamente NO toca `coulomb.ts` ni `dinamica.ts`: un campo uniforme es
@@ -40,7 +40,7 @@ export type OrientacionPlacas = "horizontal" | "vertical";
  * comentario y de la especificación E5.0 §1 tenían las etiquetas +/−
  * invertidas en la prosa -- error de redacción, no del cálculo: esta
  * función nunca asignó una carga a ninguna placa, solo devuelve el vector
- * de campo. El render (`dibujarPlacas.ts`) y el texto de `PanelDipolo.tsx`
+ * de campo. El render (`dibujarPlacas.ts`) y el texto de `PanelCampoContinuo.tsx`
  * ya usaban la asignación físicamente correcta descrita arriba.)
  */
 export function campoPlacas(

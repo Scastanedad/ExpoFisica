@@ -2,11 +2,11 @@
  * Dibujo del cuerpo rígido del dipolo (E5.1): la varilla que une +q y −q, el
  * anillo de selección y el asa cian del centro (punto de referencia para
  * TRASLADARLO -- cian, el único acento interactivo de la app; girar el dipolo
- * es siempre por botones, ver `ui/PanelDipolo.tsx`). Las dos cargas de los
+ * es siempre por botones, ver `ui/PanelCampoContinuo.tsx`). Las dos cargas de los
  * extremos se dibujan con `dibujarCargas.ts` (mismo rojo/azul que las cargas
  * fuente de las otras estaciones): este módulo solo pinta lo demás.
  *
- * Orden de dibujo (lo decide `CanvasDipolo.tsx`): varilla (+ anillo si está
+ * Orden de dibujo (lo decide `CanvasCampoContinuo.tsx`): varilla (+ anillo si está
  * elegido) -> cargas -> asa. El asa va DESPUÉS de las cargas: con la separación
  * mínima los discos se solapan sobre el centro y la taparían.
  *

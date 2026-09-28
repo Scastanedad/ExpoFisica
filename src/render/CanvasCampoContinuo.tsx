@@ -1,20 +1,36 @@
 /**
- * Canvas de la Estación 03 (Dipolos): su propio `requestAnimationFrame`,
+ * Canvas de la Estación 03 (Campo continuo): su propio `requestAnimationFrame`,
  * totalmente separado del ciclo de renderizado de React -- mismo principio
  * que `CanvasRenderer.tsx`/`CanvasRendererDinamico.tsx`.
  *
+ * Un "objeto en el campo" a la vez (`objeto` del store): el dipolo
+ * (`fisica/dipolo.ts`) o una carga puntual libre (`fisica/cargaLibre.ts`).
+ * Solo se integra y dibuja el objeto activo; el otro conserva su estado en su
+ * ref (congelado) hasta que se vuelva a elegir. El fondo (placas o carga
+ * fuente) es el mismo para los dos.
+ *
  * Decisión de arquitectura (ver cabecera de `fisica/dipolo.ts`): NO hay Web
- * Worker aquí. El estado del cuerpo rígido (`EstadoDipolo`) y la posición de
- * la carga fuente arrastrable viven en refs, actualizados directamente por
- * este bucle y por los manejadores de puntero/teclado -- nunca pasan por
- * `useState`/Zustand. Solo la LECTURA derivada (p, τ, F_neta, U) se publica al
- * store a ~10 Hz, para que el panel la muestre sin re-renderizar el canvas.
+ * Worker aquí. El estado del dipolo (`EstadoDipolo`), el de la carga libre
+ * (`EstadoCargaLibre`) y la posición de la carga fuente arrastrable viven en
+ * refs, actualizados directamente por este bucle y por los manejadores de
+ * puntero/teclado -- nunca pasan por `useState`/Zustand. Solo la LECTURA
+ * derivada del objeto activo se publica al store a ~10 Hz, para que el panel
+ * la muestre sin re-renderizar el canvas.
  * La selección (`seleccionStore`) y las opciones de UI se copian a refs para
  * que el bucle de dibujo las lea sin pasar por React.
  */
 import { useEffect, useRef, type RefObject } from "react";
 import { campoPlacas, campoUniformeASim } from "../fisica/campoExterno";
 import type { PuntoCarga } from "../fisica/coulomb";
+import {
+  calcularLecturaCargaLibre,
+  estadoInicialCargaLibre,
+  MASA_CARGA_LIBRE,
+  pasoAvanceCargaLibre,
+  type EstadoCargaLibre,
+  type LimitesCargaLibre,
+  type ParametrosCargaLibre,
+} from "../fisica/cargaLibre";
 import {
   calcularLecturaDipolo,
   estadoInicialDipolo,
@@ -26,7 +42,7 @@ import {
 } from "../fisica/dipolo";
 import { pxAMetros } from "../fisica/escala";
 import { trazarLineasCampo, type LineaCampo } from "../fisica/lineasCampo";
-import { useDipoloStore } from "../store/dipoloStore";
+import { useCampoContinuoStore } from "../store/campoContinuoStore";
 import { useSeleccionStore } from "../store/seleccionStore";
 import { useEscalaCss } from "../hooks/useEscalaCss";
 import { dibujarCargas } from "./dibujarCargas";
@@ -37,12 +53,13 @@ import { dibujarLineasCampo } from "./dibujarLineasCampo";
 import { dibujarPlacas } from "./dibujarPlacas";
 import { ALTO_ESCENA, ANCHO_ESCENA } from "./dimensiones";
 import { emitirCargaColocada } from "./eventosEscena";
+import { fuerzaCargaLibreParaDibujar } from "./fuerzasCargaLibre";
 import { fuerzasDipoloParaDibujar } from "./fuerzasDipolo";
 import { radioAgarre } from "./geometriaCargas";
-import { ID_CARGA_FUENTE, ID_DIPOLO, type ControladorDipolo } from "./controladorDipolo";
+import { ID_CARGA_FUENTE, ID_CARGA_LIBRE, ID_DIPOLO, type ControladorCampoContinuo } from "./controladorCampoContinuo";
 import { limitarPosicion, type Posicion } from "./controladorEscena";
 
-/** Cadencia de publicación de la lectura (p, τ, F_neta, U) al store: ~10 Hz, igual que q₀/fuerza. */
+/** Cadencia de publicación de la lectura (dipolo: p, τ, F_neta, U; carga libre: v, F, K, U) al store: ~10 Hz, igual que q₀/fuerza. */
 const INTERVALO_LECTURA_MS = 100;
 /** Recorte del tiempo real por frame (pestañas dormidas): mismo espíritu que `MAX_DT_REAL_S` de dinamica.ts. */
 const MAX_DT_FRAME_S = 0.05;
@@ -53,18 +70,24 @@ const PRESUPUESTO_LINEAS_FUENTE = 24;
 
 const DIPOLO_INICIAL = { cx: ANCHO_ESCENA / 2, cy: ALTO_ESCENA / 2 + 70, theta: 0.3 };
 const FUENTE_INICIAL: Posicion = { x: ANCHO_ESCENA / 2, y: 120 };
+/** A un lado y por debajo de la fuente: en los dos modos tiene recorrido libre antes de chocar con algo. */
+const CARGA_LIBRE_INICIAL: Posicion = { x: ANCHO_ESCENA / 2 - 150, y: ALTO_ESCENA / 2 };
+/** Paredes de la carga libre: los bordes del lienzo (rebote elástico, `dinamica.ts#reflejarEje`). */
+const LIMITES_CARGA_LIBRE: LimitesCargaLibre = { ancho: ANCHO_ESCENA, alto: ALTO_ESCENA };
 
-/** Coloca el dipolo (en reposo) o la carga fuente en (x, y), limitado a la zona de arrastre. */
-function colocarEn(
-  dipoloRef: RefObject<EstadoDipolo>,
-  fuenteRef: RefObject<Posicion>,
-  id: string,
-  x: number,
-  y: number,
-): void {
+interface RefsObjetos {
+  dipoloRef: RefObject<EstadoDipolo>;
+  cargaLibreRef: RefObject<EstadoCargaLibre>;
+  fuenteRef: RefObject<Posicion>;
+}
+
+/** Coloca el dipolo o la carga libre (en reposo) o la carga fuente en (x, y), limitado a la zona de arrastre. */
+function colocarEn({ dipoloRef, cargaLibreRef, fuenteRef }: RefsObjetos, id: string, x: number, y: number): void {
   const p = limitarPosicion(x, y, ANCHO_ESCENA, ALTO_ESCENA);
   if (id === ID_DIPOLO) {
     dipoloRef.current = { ...dipoloRef.current, cx: p.x, cy: p.y, vx: 0, vy: 0 };
+  } else if (id === ID_CARGA_LIBRE) {
+    cargaLibreRef.current = estadoInicialCargaLibre(p.x, p.y);
   } else if (id === ID_CARGA_FUENTE) {
     fuenteRef.current = p;
   }
@@ -80,52 +103,64 @@ function distanciaASegmento(px: number, py: number, ax: number, ay: number, bx: 
 }
 
 interface Props {
-  controladorRef?: RefObject<ControladorDipolo | null>;
+  controladorRef?: RefObject<ControladorCampoContinuo | null>;
 }
 
-export function CanvasDipolo({ controladorRef }: Props) {
+export function CanvasCampoContinuo({ controladorRef }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const { escalaCssRef, factorResolucionRef } = useEscalaCss(canvasRef, ANCHO_ESCENA, ALTO_ESCENA);
 
   const dipoloRef = useRef<EstadoDipolo>(estadoInicialDipolo(DIPOLO_INICIAL.cx, DIPOLO_INICIAL.cy, DIPOLO_INICIAL.theta));
+  const cargaLibreRef = useRef<EstadoCargaLibre>(estadoInicialCargaLibre(CARGA_LIBRE_INICIAL.x, CARGA_LIBRE_INICIAL.y));
   const fuenteRef = useRef<Posicion>({ ...FUENTE_INICIAL });
+  const refsObjetos: RefsObjetos = { dipoloRef, cargaLibreRef, fuenteRef };
   const ultimoTiempoRef = useRef(performance.now());
   /**
-   * true mientras el puntero arrastra el cuerpo del dipolo (mismo espíritu que
-   * `anclada` en `fisica/dinamica.ts`): el bucle de física deja de integrar la
-   * traslación/rotación para no "pelear" con cada `pointermove`. Compartido
+   * true mientras el puntero arrastra el objeto activo (dipolo o carga libre;
+   * mismo espíritu que `anclada` en `fisica/dinamica.ts`): el bucle de física
+   * deja de integrarlo para no "pelear" con cada `pointermove`. Compartido
    * entre el efecto de interacción y el de física+dibujo.
    */
-  const arrastrandoDipoloRef = useRef(false);
+  const arrastrandoObjetoRef = useRef(false);
   /** Líneas de campo de la carga fuente, recalculadas solo cuando ella cambia (posición o carga). */
   const lineasFuenteRef = useRef<{ clave: string; lineas: LineaCampo[] }>({ clave: "", lineas: [] });
 
   // Copias en ref del estado de UI (Zustand) para leerlas dentro del rAF sin causar re-render por frame.
-  const modoCampoRef = useRef(useDipoloStore.getState().modoCampo);
-  const orientacionRef = useRef(useDipoloStore.getState().orientacionPlacas);
-  const polaridadRef = useRef(useDipoloStore.getState().polaridadPlacas);
-  const voltajeKVRef = useRef(useDipoloStore.getState().voltajeKV);
-  const qUCRef = useRef(useDipoloStore.getState().qUC);
-  const dPxRef = useRef(useDipoloStore.getState().dPx);
-  const qFuenteUCRef = useRef(useDipoloStore.getState().qFuenteUC);
-  const signoFuenteRef = useRef(useDipoloStore.getState().signoFuente);
-  const mostrarFuerzasRef = useRef(useDipoloStore.getState().mostrarFuerzas);
-  const enPausaRef = useRef(useDipoloStore.getState().enPausa);
+  const objetoRef = useRef(useCampoContinuoStore.getState().objeto);
+  const modoCampoRef = useRef(useCampoContinuoStore.getState().modoCampo);
+  const orientacionRef = useRef(useCampoContinuoStore.getState().orientacionPlacas);
+  const polaridadRef = useRef(useCampoContinuoStore.getState().polaridadPlacas);
+  const voltajeKVRef = useRef(useCampoContinuoStore.getState().voltajeKV);
+  const qUCRef = useRef(useCampoContinuoStore.getState().qUC);
+  const dPxRef = useRef(useCampoContinuoStore.getState().dPx);
+  const qCargaLibreUCRef = useRef(useCampoContinuoStore.getState().qCargaLibreUC);
+  const signoCargaLibreRef = useRef(useCampoContinuoStore.getState().signoCargaLibre);
+  const qFuenteUCRef = useRef(useCampoContinuoStore.getState().qFuenteUC);
+  const signoFuenteRef = useRef(useCampoContinuoStore.getState().signoFuente);
+  const mostrarFuerzasRef = useRef(useCampoContinuoStore.getState().mostrarFuerzas);
+  const enPausaRef = useRef(useCampoContinuoStore.getState().enPausa);
   const seleccionRef = useRef<string | null>(useSeleccionStore.getState().seleccionadaId);
 
-  const modoCampo = useDipoloStore((s) => s.modoCampo);
-  const orientacionPlacas = useDipoloStore((s) => s.orientacionPlacas);
-  const polaridadPlacas = useDipoloStore((s) => s.polaridadPlacas);
-  const voltajeKV = useDipoloStore((s) => s.voltajeKV);
-  const qUC = useDipoloStore((s) => s.qUC);
-  const dPx = useDipoloStore((s) => s.dPx);
-  const qFuenteUC = useDipoloStore((s) => s.qFuenteUC);
-  const signoFuente = useDipoloStore((s) => s.signoFuente);
-  const mostrarFuerzas = useDipoloStore((s) => s.mostrarFuerzas);
-  const enPausa = useDipoloStore((s) => s.enPausa);
-  const publicarLectura = useDipoloStore((s) => s.publicarLectura);
+  const objeto = useCampoContinuoStore((s) => s.objeto);
+  const modoCampo = useCampoContinuoStore((s) => s.modoCampo);
+  const orientacionPlacas = useCampoContinuoStore((s) => s.orientacionPlacas);
+  const polaridadPlacas = useCampoContinuoStore((s) => s.polaridadPlacas);
+  const voltajeKV = useCampoContinuoStore((s) => s.voltajeKV);
+  const qUC = useCampoContinuoStore((s) => s.qUC);
+  const dPx = useCampoContinuoStore((s) => s.dPx);
+  const qCargaLibreUC = useCampoContinuoStore((s) => s.qCargaLibreUC);
+  const signoCargaLibre = useCampoContinuoStore((s) => s.signoCargaLibre);
+  const qFuenteUC = useCampoContinuoStore((s) => s.qFuenteUC);
+  const signoFuente = useCampoContinuoStore((s) => s.signoFuente);
+  const mostrarFuerzas = useCampoContinuoStore((s) => s.mostrarFuerzas);
+  const enPausa = useCampoContinuoStore((s) => s.enPausa);
+  const publicarLectura = useCampoContinuoStore((s) => s.publicarLectura);
+  const publicarLecturaCargaLibre = useCampoContinuoStore((s) => s.publicarLecturaCargaLibre);
   const seleccionadaId = useSeleccionStore((s) => s.seleccionadaId);
 
+  useEffect(() => {
+    objetoRef.current = objeto;
+  }, [objeto]);
   useEffect(() => {
     modoCampoRef.current = modoCampo;
   }, [modoCampo]);
@@ -144,6 +179,12 @@ export function CanvasDipolo({ controladorRef }: Props) {
   useEffect(() => {
     dPxRef.current = dPx;
   }, [dPx]);
+  useEffect(() => {
+    qCargaLibreUCRef.current = qCargaLibreUC;
+  }, [qCargaLibreUC]);
+  useEffect(() => {
+    signoCargaLibreRef.current = signoCargaLibre;
+  }, [signoCargaLibre]);
   useEffect(() => {
     qFuenteUCRef.current = qFuenteUC;
   }, [qFuenteUC]);
@@ -184,6 +225,17 @@ export function CanvasDipolo({ controladorRef }: Props) {
     };
   }
 
+  /** Parámetros de la carga libre: el MISMO campo (placas o fuente) que el dipolo, con su propia q y masa. */
+  function parametrosCargaLibre(pd: ParametrosDipolo): ParametrosCargaLibre {
+    return {
+      q: signoCargaLibreRef.current * qCargaLibreUCRef.current,
+      masa: MASA_CARGA_LIBRE,
+      modoCampo: pd.modoCampo,
+      externoSim: pd.externoSim,
+      cargaFuente: pd.cargaFuente,
+    };
+  }
+
   /** Líneas de campo de la carga fuente; solo se retrazan si ella se movió o cambió su carga. */
   function lineasDeLaFuente(fuente: PuntoCarga): LineaCampo[] {
     const clave = `${fuente.x.toFixed(1)}|${fuente.y.toFixed(1)}|${fuente.q}`;
@@ -196,8 +248,8 @@ export function CanvasDipolo({ controladorRef }: Props) {
     return lineasFuenteRef.current.lineas;
   }
 
-  // Controlador publicado para el teclado (PanelDipolo): mismo contrato que ControladorEscena
-  // (posicion/mover), con `girar`/`anguloDeg`/`reiniciar` añadidos -- ver render/controladorDipolo.ts.
+  // Controlador publicado para el teclado (PanelCampoContinuo): mismo contrato que ControladorEscena
+  // (posicion/mover), con `girar`/`anguloDeg`/`reiniciar` añadidos -- ver render/controladorCampoContinuo.ts.
   useEffect(() => {
     if (!controladorRef) return;
     controladorRef.current = {
@@ -205,34 +257,37 @@ export function CanvasDipolo({ controladorRef }: Props) {
       alto: ALTO_ESCENA,
       posicion: (id) => {
         if (id === ID_DIPOLO) return { x: dipoloRef.current.cx, y: dipoloRef.current.cy };
+        if (id === ID_CARGA_LIBRE) return { x: cargaLibreRef.current.x, y: cargaLibreRef.current.y };
         if (id === ID_CARGA_FUENTE) return { ...fuenteRef.current };
         return undefined;
       },
-      mover: (id, x, y) => colocarEn(dipoloRef, fuenteRef, id, x, y),
+      mover: (id, x, y) => colocarEn(refsObjetos, id, x, y),
       girar: (deltaRad) => {
         dipoloRef.current = { ...dipoloRef.current, theta: dipoloRef.current.theta + deltaRad, omega: 0 };
       },
       anguloDeg: () => (((dipoloRef.current.theta * 180) / Math.PI) % 360 + 360) % 360,
       reiniciar: () => {
         dipoloRef.current = estadoInicialDipolo(DIPOLO_INICIAL.cx, DIPOLO_INICIAL.cy, DIPOLO_INICIAL.theta);
+        cargaLibreRef.current = estadoInicialCargaLibre(CARGA_LIBRE_INICIAL.x, CARGA_LIBRE_INICIAL.y);
         fuenteRef.current = { ...FUENTE_INICIAL };
       },
     };
     return () => {
       controladorRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `refsObjetos` solo agrupa refs estables.
   }, [controladorRef]);
 
-  // Interacción de puntero: arrastrar la carga fuente (modo "puntual") o el cuerpo del dipolo
-  // (cualquiera de sus cargas, la varilla o el centro), o "colocar tocando el recuadro" con el
-  // dipolo/fuente armados desde el panel (alternativa de un solo puntero, WCAG 2.5.7).
-  // Solo TRASLADA -- girar el dipolo es siempre por botones (PanelDipolo), así que no hace
-  // falta distinguir "qué parte" del cuerpo se agarró.
+  // Interacción de puntero: arrastrar la carga fuente (modo "puntual") o el objeto activo (el
+  // cuerpo del dipolo -- cualquiera de sus cargas, la varilla o el centro -- o la carga libre), o
+  // "colocar tocando el recuadro" con el objeto/fuente armados desde el panel (alternativa de un
+  // solo puntero, WCAG 2.5.7). Solo TRASLADA -- girar el dipolo es siempre por botones
+  // (PanelCampoContinuo), así que no hace falta distinguir "qué parte" del cuerpo se agarró.
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    let arrastrandoDipolo = false;
+    let arrastrandoObjeto = false;
     let arrastrandoFuente = false;
     /** centro − puntero al agarrar: el objeto no "salta" al puntero (agarrar por una carga extrema). */
     let desfase: Posicion = { x: 0, y: 0 };
@@ -250,28 +305,38 @@ export function CanvasDipolo({ controladorRef }: Props) {
       if (modoCampoRef.current !== "puntual") return false;
       return Math.hypot(p.x - fuenteRef.current.x, p.y - fuenteRef.current.y) <= radioAgarre(escalaCssRef.current);
     }
-    function sobreDipolo(p: Posicion): boolean {
+    /** El objeto activo (dipolo XOR carga libre) bajo el puntero: el otro no está en pantalla, no se puede agarrar. */
+    function sobreObjeto(p: Posicion): boolean {
+      if (objetoRef.current === "carga") {
+        const c = cargaLibreRef.current;
+        return Math.hypot(p.x - c.x, p.y - c.y) <= radioAgarre(escalaCssRef.current);
+      }
       const ext = extremosDipolo(dipoloRef.current, dPxRef.current);
       return distanciaASegmento(p.x, p.y, ext.masX, ext.masY, ext.menosX, ext.menosY) <= radioAgarre(escalaCssRef.current);
+    }
+    function idObjeto(): string {
+      return objetoRef.current === "carga" ? ID_CARGA_LIBRE : ID_DIPOLO;
+    }
+    /** ¿Se puede colocar `id` tocando el recuadro con la configuración actual? */
+    function colocable(id: string | null): boolean {
+      return id === idObjeto() || (id === ID_CARGA_FUENTE && modoCampoRef.current === "puntual");
     }
     /** Cursor según lo que hay bajo el puntero: agarrando > sobre un objeto > listo para colocar > normal. */
     function actualizarCursor(p: Posicion | null) {
       let cursor = "default";
       const s = useSeleccionStore.getState();
-      const armado =
-        s.colocarConToque &&
-        (s.seleccionadaId === ID_DIPOLO || (s.seleccionadaId === ID_CARGA_FUENTE && modoCampoRef.current === "puntual"));
-      if (arrastrandoDipolo || arrastrandoFuente) cursor = "grabbing";
-      else if (p && (sobreFuente(p) || sobreDipolo(p))) cursor = "grab";
+      const armado = s.colocarConToque && colocable(s.seleccionadaId);
+      if (arrastrandoObjeto || arrastrandoFuente) cursor = "grabbing";
+      else if (p && (sobreFuente(p) || sobreObjeto(p))) cursor = "grab";
       else if (armado) cursor = "crosshair";
       canvas!.style.cursor = cursor;
     }
     /** Termina el arrastre y devuelve la selección previa (el anillo solo se muestra mientras se agarra). */
     function terminarArrastre() {
-      if (!arrastrandoDipolo && !arrastrandoFuente) return;
-      arrastrandoDipolo = false;
+      if (!arrastrandoObjeto && !arrastrandoFuente) return;
+      arrastrandoObjeto = false;
       arrastrandoFuente = false;
-      arrastrandoDipoloRef.current = false;
+      arrastrandoObjetoRef.current = false;
       const previa = seleccionPrevia;
       seleccionPrevia = null;
       useSeleccionStore.getState().seleccionar(previa?.id ?? null, previa?.armada ?? false);
@@ -281,27 +346,32 @@ export function CanvasDipolo({ controladorRef }: Props) {
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
       const p = aLogicas(t.clientX, t.clientY);
-      if ((sobreFuente(p) || sobreDipolo(p)) && e.cancelable) e.preventDefault();
+      if ((sobreFuente(p) || sobreObjeto(p)) && e.cancelable) e.preventDefault();
     }
     function onPointerDown(e: PointerEvent) {
       if (e.pointerType === "mouse" && e.button !== 0) return;
       const p = aLogicas(e.clientX, e.clientY);
       const enFuente = sobreFuente(p);
-      const enDipolo = !enFuente && sobreDipolo(p);
-      if (enFuente || enDipolo) {
+      const enObjeto = !enFuente && sobreObjeto(p);
+      if (enFuente || enObjeto) {
         const s = useSeleccionStore.getState();
         seleccionPrevia = { id: s.seleccionadaId, armada: s.colocarConToque };
         toque = null;
-        const cx = enFuente ? fuenteRef.current.x : dipoloRef.current.cx;
-        const cy = enFuente ? fuenteRef.current.y : dipoloRef.current.cy;
+        const centro = enFuente
+          ? fuenteRef.current
+          : objetoRef.current === "carga"
+            ? cargaLibreRef.current
+            : { x: dipoloRef.current.cx, y: dipoloRef.current.cy };
+        const cx = centro.x;
+        const cy = centro.y;
         desfase = { x: cx - p.x, y: cy - p.y };
         if (enFuente) arrastrandoFuente = true;
         else {
-          arrastrandoDipolo = true;
-          arrastrandoDipoloRef.current = true;
+          arrastrandoObjeto = true;
+          arrastrandoObjetoRef.current = true;
         }
         canvas!.setPointerCapture(e.pointerId);
-        s.seleccionar(enFuente ? ID_CARGA_FUENTE : ID_DIPOLO, false); // muestra el anillo mientras se agarra
+        s.seleccionar(enFuente ? ID_CARGA_FUENTE : idObjeto(), false); // muestra el anillo mientras se agarra
         actualizarCursor(p);
         return;
       }
@@ -309,9 +379,9 @@ export function CanvasDipolo({ controladorRef }: Props) {
     }
     function onPointerMove(e: PointerEvent) {
       const bruto = aLogicas(e.clientX, e.clientY);
-      if (arrastrandoDipolo || arrastrandoFuente) {
+      if (arrastrandoObjeto || arrastrandoFuente) {
         const destino = limitar({ x: bruto.x + desfase.x, y: bruto.y + desfase.y });
-        colocarEn(dipoloRef, fuenteRef, arrastrandoFuente ? ID_CARGA_FUENTE : ID_DIPOLO, destino.x, destino.y);
+        colocarEn(refsObjetos, arrastrandoFuente ? ID_CARGA_FUENTE : idObjeto(), destino.x, destino.y);
         return;
       }
       if (
@@ -325,7 +395,7 @@ export function CanvasDipolo({ controladorRef }: Props) {
     }
     function onPointerUp(e: PointerEvent) {
       const p = aLogicas(e.clientX, e.clientY);
-      if (arrastrandoDipolo || arrastrandoFuente) {
+      if (arrastrandoObjeto || arrastrandoFuente) {
         terminarArrastre();
         actualizarCursor(p);
         return;
@@ -333,10 +403,9 @@ export function CanvasDipolo({ controladorRef }: Props) {
       if (toque && toque.pointerId === e.pointerId) {
         toque = null;
         const { seleccionadaId: id, colocarConToque } = useSeleccionStore.getState();
-        const aplicable = id === ID_DIPOLO || (id === ID_CARGA_FUENTE && modoCampoRef.current === "puntual");
-        if (id && colocarConToque && aplicable) {
+        if (id && colocarConToque && colocable(id)) {
           const destino = limitar(p);
-          colocarEn(dipoloRef, fuenteRef, id, destino.x, destino.y);
+          colocarEn(refsObjetos, id, destino.x, destino.y);
           emitirCargaColocada({ id, x: destino.x, y: destino.y });
         }
       }
@@ -347,7 +416,7 @@ export function CanvasDipolo({ controladorRef }: Props) {
       toque = null;
     }
     function onPointerLeave() {
-      if (!arrastrandoDipolo && !arrastrandoFuente) actualizarCursor(null);
+      if (!arrastrandoObjeto && !arrastrandoFuente) actualizarCursor(null);
     }
 
     canvas.style.cursor = "default";
@@ -366,10 +435,11 @@ export function CanvasDipolo({ controladorRef }: Props) {
       canvas.removeEventListener("pointercancel", onPointerCancel);
       canvas.removeEventListener("lostpointercapture", onPointerCancel);
       canvas.removeEventListener("pointerleave", onPointerLeave);
-      arrastrandoDipoloRef.current = false;
+      arrastrandoObjetoRef.current = false;
       // El store de selección es compartido con las otras estaciones: no dejar aquí ids que no les corresponden.
       useSeleccionStore.getState().seleccionar(null);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `refsObjetos` solo agrupa refs estables.
   }, [escalaCssRef]);
 
   // Bucle de física + dibujo propio.
@@ -388,25 +458,28 @@ export function CanvasDipolo({ controladorRef }: Props) {
       ultimoTiempoRef.current = ahora;
 
       const params = construirParametros();
-      if (!enPausaRef.current && !arrastrandoDipoloRef.current) {
-        dipoloRef.current = pasoAvanceDipolo(dipoloRef.current, params, dt);
+      const esCarga = objetoRef.current === "carga";
+      const paramsCarga = parametrosCargaLibre(params);
+      if (!enPausaRef.current && !arrastrandoObjetoRef.current) {
+        // Solo el objeto activo se integra: el otro queda congelado donde estaba.
+        if (esCarga) cargaLibreRef.current = pasoAvanceCargaLibre(cargaLibreRef.current, paramsCarga, dt, LIMITES_CARGA_LIBRE);
+        else dipoloRef.current = pasoAvanceDipolo(dipoloRef.current, params, dt);
       }
 
       if (ahora - ultimaPublicacionMs >= INTERVALO_LECTURA_MS) {
         ultimaPublicacionMs = ahora;
-        publicarLectura(calcularLecturaDipolo(dipoloRef.current, params));
+        if (esCarga) publicarLecturaCargaLibre(calcularLecturaCargaLibre(cargaLibreRef.current, paramsCarga));
+        else publicarLectura(calcularLecturaDipolo(dipoloRef.current, params));
       }
 
-      dibujar(ctx, params);
+      dibujar(ctx, params, esCarga ? paramsCarga : null);
       idFrame = requestAnimationFrame(frame);
     }
 
-    function dibujar(ctx: CanvasRenderingContext2D, params: ParametrosDipolo) {
+    /** `paramsCarga` no nulo = el objeto activo es la carga libre; nulo = el dipolo. */
+    function dibujar(ctx: CanvasRenderingContext2D, params: ParametrosDipolo, paramsCarga: ParametrosCargaLibre | null) {
       const escalaCss = escalaCssRef.current;
       const seleccion = seleccionRef.current;
-      const estado = dipoloRef.current;
-      const ext = extremosDipolo(estado, params.d);
-      const { puntos, fuerzas } = fuerzasDipoloParaDibujar(estado, params);
 
       ctx.clearRect(0, 0, ANCHO_ESCENA, ALTO_ESCENA);
       dibujarCuadricula(ctx, ANCHO_ESCENA, ALTO_ESCENA, escalaCss);
@@ -423,6 +496,21 @@ export function CanvasDipolo({ controladorRef }: Props) {
         });
       }
 
+      if (paramsCarga) {
+        // Carga libre: una carga real con masa (se dibuja como cualquier carga, nunca como la sonda q₀).
+        const { punto, fuerza } = fuerzaCargaLibreParaDibujar(cargaLibreRef.current, paramsCarga);
+        dibujarCargas(ctx, [punto], {
+          escalaCss,
+          indiceSeleccionada: seleccion === ID_CARGA_LIBRE ? 0 : -1,
+          ancho: ANCHO_ESCENA,
+        });
+        if (mostrarFuerzasRef.current) dibujarFuerzas(ctx, [punto], [fuerza], escalaCss);
+        return;
+      }
+
+      const estado = dipoloRef.current;
+      const ext = extremosDipolo(estado, params.d);
+      const { puntos, fuerzas } = fuerzasDipoloParaDibujar(estado, params);
       dibujarVarillaDipolo(ctx, ext, params.q, escalaCss, seleccion === ID_DIPOLO);
       dibujarCargas(ctx, puntos, { escalaCss, ancho: ANCHO_ESCENA });
       if (mostrarFuerzasRef.current) dibujarFuerzas(ctx, puntos, fuerzas, escalaCss);
@@ -432,7 +520,7 @@ export function CanvasDipolo({ controladorRef }: Props) {
     idFrame = requestAnimationFrame(frame);
     return () => cancelAnimationFrame(idFrame);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- lee la configuración vía refs, no como dependencia de efecto.
-  }, [escalaCssRef, factorResolucionRef, publicarLectura]);
+  }, [escalaCssRef, factorResolucionRef, publicarLectura, publicarLecturaCargaLibre]);
 
   return (
     <canvas
@@ -441,7 +529,11 @@ export function CanvasDipolo({ controladorRef }: Props) {
       width={ANCHO_ESCENA}
       height={ALTO_ESCENA}
       role="img"
-      aria-label={`Un dipolo eléctrico (dos cargas opuestas unidas por una varilla rígida) en ${
+      aria-label={`${
+        objeto === "carga"
+          ? `Una carga puntual libre ${signoCargaLibre === 1 ? "positiva" : "negativa"}, que se mueve y rebota en los bordes,`
+          : "Un dipolo eléctrico (dos cargas opuestas unidas por una varilla rígida)"
+      } en ${
         modoCampo === "uniforme" ? "un campo uniforme, entre dos placas paralelas" : "el campo de una carga puntual arrastrable"
       }.`}
       style={{

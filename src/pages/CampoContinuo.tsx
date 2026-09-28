@@ -1,17 +1,19 @@
 import { useRef } from "react";
 import { Link } from "react-router-dom";
 import { useTituloDocumento } from "../hooks/useTituloDocumento";
-import { CanvasDipolo } from "../render/CanvasDipolo";
-import type { ControladorDipolo } from "../render/controladorDipolo";
-import { AjustesDipolo, PanelDipolo } from "../ui/PanelDipolo";
-import { LecturaDipolo } from "../ui/LecturaDipolo";
-import { RotuloDipolo } from "../ui/RotuloDipolo";
+import { CanvasCampoContinuo } from "../render/CanvasCampoContinuo";
+import type { ControladorCampoContinuo } from "../render/controladorCampoContinuo";
+import { AjustesDipolo, PanelCampoContinuo } from "../ui/PanelCampoContinuo";
+import { LecturaCampoContinuo } from "../ui/LecturaCampoContinuo";
+import { useCampoContinuoStore } from "../store/campoContinuoStore";
+import { RotuloCampoContinuo } from "../ui/RotuloCampoContinuo";
 
-export function Dipolos() {
-  const controladorRef = useRef<ControladorDipolo | null>(null);
+export function CampoContinuo() {
+  const controladorRef = useRef<ControladorCampoContinuo | null>(null);
+  const objeto = useCampoContinuoStore((s) => s.objeto);
 
   // Título de la pestaña mientras la estación está abierta; al salir se restaura el anterior.
-  useTituloDocumento("Dipolos · ExpoFísica");
+  useTituloDocumento("Campo continuo · ExpoFísica");
 
   return (
     // --reserva-v/--reserva-lateral: alto de cabecera + instrucciones (2 líneas) + rótulo bajo el lienzo + margen.
@@ -23,24 +25,38 @@ export function Dipolos() {
         <Link to="/" className="volver">
           ← Estaciones
         </Link>
-        <h1>Dipolos</h1>
+        <h1>Campo continuo</h1>
       </header>
-      <p className="instrucciones instrucciones-larga">
-        Un dipolo son dos cargas opuestas unidas por una varilla: arrástralo. En campo uniforme gira y
-        se balancea sin trasladarse; cerca de una carga puntual se alinea y es atraído.
-      </p>
-      <p className="instrucciones instrucciones-corta">
-        Arrastra el dipolo. Uniforme: gira y se balancea. Carga puntual: se alinea y es atraído.
-      </p>
+      {objeto === "carga" ? (
+        <>
+          <p className="instrucciones instrucciones-larga">
+            Una carga libre en el campo: arrástrala y suéltala. Entre las placas acelera en línea recta;
+            cerca de la carga fuente es atraída o repelida según su signo.
+          </p>
+          <p className="instrucciones instrucciones-corta">
+            Arrastra la carga. Uniforme: acelera recto. Carga fuente: atrae o repele.
+          </p>
+        </>
+      ) : (
+        <>
+          <p className="instrucciones instrucciones-larga">
+            Un dipolo son dos cargas opuestas unidas por una varilla: arrástralo. En campo uniforme gira y
+            se balancea sin trasladarse; cerca de una carga fuente se alinea y es atraído.
+          </p>
+          <p className="instrucciones instrucciones-corta">
+            Arrastra el dipolo. Uniforme: gira y se balancea. Carga fuente: se alinea y es atraído.
+          </p>
+        </>
+      )}
       <div className="simulador">
         <div className="simulador-lienzo">
-          <CanvasDipolo controladorRef={controladorRef} />
-          <RotuloDipolo />
+          <CanvasCampoContinuo controladorRef={controladorRef} />
+          <RotuloCampoContinuo />
         </div>
         <div className="simulador-lateral">
-          <PanelDipolo controladorRef={controladorRef} />
-          <LecturaDipolo />
-          <AjustesDipolo />
+          <PanelCampoContinuo controladorRef={controladorRef} />
+          <LecturaCampoContinuo />
+          {objeto === "dipolo" && <AjustesDipolo />}
           <details className="notas-modelo">
             <summary>Notas sobre el modelo</summary>
             <ul>
@@ -92,6 +108,36 @@ export function Dipolos() {
                 En campo de una carga puntual, la energía (U) es la energía de interacción exacta de las
                 dos cargas reales con la fuente, no −p·E: esa fórmula solo es exacta para un dipolo
                 puntual ideal o en campo uniforme.
+              </li>
+              <li className="notas-subtitulo" aria-hidden="true">
+                La carga puntual libre
+              </li>
+              <li>
+                Es una sola carga con masa, que se traslada (no gira: es un punto). Siente solo el campo
+                de las placas o el de la carga fuente, F = qE. Es independiente del dipolo: nunca están
+                los dos a la vez en el campo y no se ejercen fuerza entre sí.
+              </li>
+              <li>
+                Entre las placas la fuerza es la misma en todo el recuadro: la carga acelera en línea
+                recta, como una piedra que cae. Cerca de la carga fuente la fuerza crece al acercarse
+                (ley 1/r²): con el mismo signo se repelen, con signo opuesto se atraen.
+              </li>
+              <li>
+                No hay fricción: la energía cinética (K) sube exactamente lo que baja la potencial (U), y
+                su suma se mantiene. Al llegar a un borde del recuadro rebota sin perder energía (una
+                pared que no se dibuja), así que vuelve a la misma altura de la que salió, como una
+                pelota ideal. En modo uniforme el cero de U es arbitrario: lo que importa son sus
+                cambios.
+              </li>
+              <li>
+                Al tocar la carga fuente se detiene contra ella (una simplificación, igual que con el
+                dipolo, para evitar la divergencia del campo a distancia cero): ahí sí se pierde la
+                energía del choque. La carga fuente está sujeta por ti y no se simula su reacción.
+              </li>
+              <li>
+                La masa de la carga es una constante de escala visual (para que el movimiento se vea en
+                unos segundos), no la masa real de ninguna partícula. Es la misma en los dos tipos de
+                campo, así que se pueden comparar.
               </li>
               <li className="notas-subtitulo" aria-hidden="true">
                 El campo uniforme (las placas)

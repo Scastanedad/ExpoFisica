@@ -1,7 +1,7 @@
 /**
  * Canvas de la Estación 04 (Conductores y aislantes): dos lienzos (conductor y
  * aislante) con un ÚNICO `requestAnimationFrame` propio, totalmente separado
- * del ciclo de renderizado de React, igual que `CanvasDipolo.tsx`.
+ * del ciclo de renderizado de React, igual que `CanvasCampoContinuo.tsx`.
  *
  * Sin Web Worker (decisión de arquitectura, spec E5.2 §4.4): 140 electrones por
  * material es O(N²) = ~40 000 pares por paso, una fracción de milisegundo. Las

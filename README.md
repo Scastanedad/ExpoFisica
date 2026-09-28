@@ -10,7 +10,7 @@ Simulador interactivo de electrostática pensado como estación para una exposic
 |---|---|---|
 | `/cargas-en-reposo` | Cargas en reposo | Campo eléctrico de cargas arrastrables (vectores, líneas de campo, equipotenciales), carga de prueba q₀ (E, V, F, ΔV, trabajo) y gráficas vs. tiempo/distancia con exportación CSV |
 | `/cargas-en-movimiento` | Cargas en movimiento | N cargas interactuando por la ley de Coulomb en tiempo real (Web Worker), con energía cinética/potencial/total y su gráfica |
-| `/dipolos` | Dipolos | Un dipolo (+q, −q) en un campo uniforme (placas) o el campo de una carga puntual: giro, oscilación, torque y fuerza sobre cada carga |
+| `/campo-continuo` | Campo continuo | Un dipolo (+q, −q) o una carga puntual libre en un campo uniforme (placas) o el campo de una carga fuente: giro, oscilación y torque del dipolo; aceleración, rebotes y energía de la carga libre (`/dipolos` redirige aquí) |
 | `/materiales` | Conductores y aislantes | Modelo de red ion-electrón entre placas: apantallamiento parcial en un conductor vs. polarización en un aislante, con voltaje ajustable |
 
 `/campo-fijo` redirige a `/cargas-en-reposo` (ruta anterior, se mantiene por enlaces/QR ya impresos).
@@ -32,7 +32,7 @@ npm run preview   # sirve el build de producción
 ## Estructura
 
 - `src/pages/` — una página por estación, más `Home`
-- `src/fisica/` — leyes físicas puras (Coulomb, campo externo, dipolo, conductores/aislantes)
+- `src/fisica/` — leyes físicas puras (Coulomb, campo externo, dipolo, carga libre, conductores/aislantes)
 - `src/worker/motorFisico.worker.ts` — motor de integración (Velocity Verlet + softening) para "Cargas en movimiento"
 - `src/render/` — dibujo en Canvas 2D por estación
 - `src/store/` — estado de UI (Zustand)

@@ -16,7 +16,7 @@
  * latencia de mensajería para las interacciones en vivo (arrastrar la carga
  * fuente, rotar el dipolo) sin ningún beneficio de paralelismo, así que las
  * POSICIONES siguen la misma regla arquitectónica (nunca pasan por estado de
- * React) pero viven en un `ref` dentro de `render/CanvasDipolo.tsx`, con su
+ * React) pero viven en un `ref` dentro de `render/CanvasCampoContinuo.tsx`, con su
  * propio `requestAnimationFrame`, igual que la estación estática.
  *
  * Integrador (spec §3.3): Velocity Verlet (KDK) para traslación SIEMPRE

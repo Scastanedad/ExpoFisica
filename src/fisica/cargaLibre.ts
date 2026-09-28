@@ -36,29 +36,26 @@ import { aplicarZonaExclusion, camposActivos, campoTotalEnPunto, type ModoCampoE
 // ---- Constantes calibradas ----
 
 /**
- * Masa traslacional, unidades de simulación. Decisión: NO un valor propio
- * decoplado (a diferencia de `J0_DIPOLO`, que escala un momento de inercia
- * SIN equivalente físico real) sino el MISMO convenio que ya usa el resto de
- * la app para masas traslacionales bajo la ley de Coulomb con `K_VISUAL`
- * ("Cargas en movimiento": `masa = 1` por defecto en `dinamica.ts`;
- * `MASA_DIPOLO = 1`): la masa de una carga puntual libre es directamente
- * comparable a la de cualquier otra carga de la app (misma unidad de fuerza,
- * mismo `K_VISUAL`), así que reusar `1` mantiene coherencia física entre
- * estaciones y no introduce un factor de calibración oculto.
+ * Masa traslacional, unidades de simulación: una CONSTANTE DE ESCALA VISUAL
+ * (mismo estatus que `J0_DIPOLO`), no la masa real de nada.
  *
- * Consecuencia aceptada (no un bug): en modo "uniforme" el campo en unidades
- * de simulación es mucho más débil (`E_sim` ≈ 0.007–0.07 en el rango
- * calibrado 30–300 kV, ver `campoUniformeASim`) que el de una carga fuente a
- * distancia típica de escena (`E_sim` ≈ 0.2–1, ley 1/r² con `K_VISUAL = 5000`),
- * así que la carga libre acelera visiblemente más lento bajo placas que cerca
- * de una fuente puntual. Es una diferencia FÍSICA real de escala de campo,
- * coherente con que esta app ya opera deliberadamente en "cámara lenta"
- * (`coulomb.ts`). Si en la demo el modo uniforme se ve demasiado lento, la
- * palanca correcta es subir `VOLTAJE_MIN_KV`/el rango de `q`, NO dar a este
- * modo una masa distinta (eso sería una calibración oculta, inconsistente
- * entre modos del mismo objeto).
+ * Por qué no `1` (la masa de "Cargas en movimiento" y `MASA_DIPOLO`): en modo
+ * "uniforme" el campo en unidades de simulación es débil (`E_sim` ≈ 0.007–0.07
+ * en el rango 30–300 kV, ver `campoUniformeASim`). Con masa 1 y q = 1 µC a
+ * 50 kV (valores iniciales) la aceleración sería ≈ 0.011 px/s²: ~3 minutos
+ * para recorrer media escena, es decir, "no se mueve". Con 0.002:
+ *
+ *   - Uniforme, 50 kV, q = 1: a ≈ 5.6 px/s² → 250 px en ≈ 9.5 s.
+ *   - Uniforme, 300 kV, q = 5: a ≈ 170 px/s² → 250 px en ≈ 1.7 s.
+ *   - Puntual (fuente 5 µC) repeliendo q = 1 desde 60 px: rapidez final
+ *     ≈ 650 px/s (cruza la escena en ~1 s, todavía legible).
+ *
+ * Una sola masa para los DOS modos (no una por modo): así la comparación
+ * "placas vs. carga puntual" sigue siendo honesta dentro de la estación. El
+ * dipolo conserva `MASA_DIPOLO = 1` porque su traslación solo importa en modo
+ * "puntual" (en uniforme `F_neta = 0`), donde ya estaba calibrada.
  */
-export const MASA_CARGA_LIBRE = 1;
+export const MASA_CARGA_LIBRE = 0.002;
 
 /** Tope de sub-pasos por paso lógico (mismo espíritu que `SUBPASOS_MAX_DIPOLO`/`SUBDIVISIONES_MAX`). */
 export const SUBPASOS_MAX_CARGA_LIBRE = 400;
@@ -254,11 +251,18 @@ export interface LecturaCargaLibre {
   fuerzaNetaN: number;
   /** J: `U = qV` -- potencial de placas (`potencialUniformeSim`) en modo "uniforme",
    * o potencial de la fuente (`potencialEn`) en modo "puntual" (nunca ambos:
-   * misma regla de `camposActivos`). Sin término cinético: al no rotar, esta
-   * lectura reusa exactamente las funciones de potencial ya existentes, sin
-   * inventar una conversión nueva de energía mecánica a SI.
+   * misma regla de `camposActivos`). En modo "uniforme" el cero de potencial
+   * es arbitrario (esquina superior izquierda): solo importan sus CAMBIOS.
    */
   energiaJ: number;
+  /**
+   * J: `K = ½mv²` en unidades de simulación convertida con el MISMO factor de
+   * energía que `U` (`factoresSim(K_VISUAL).energia`). Es coherente porque en
+   * simulación `F = qE` y `W = F·Δx` usan las mismas unidades que `½mv²`
+   * (teorema trabajo-energía dentro de la simulación), así que `K + U` se
+   * conserva (salvo en el contacto con la fuente, que frena la parte radial).
+   */
+  energiaCineticaJ: number;
 }
 
 export function calcularLecturaCargaLibre(
@@ -281,6 +285,7 @@ export function calcularLecturaCargaLibre(
   const vSI = vSim * factores.potencial;
   const qC = unidadesACoulomb(params.q, esc);
   const energiaJ = qC * vSI;
+  const energiaCineticaJ = 0.5 * params.masa * vPxS * vPxS * factores.energia;
 
-  return { rapidezMs, fuerzaNetaN, energiaJ };
+  return { rapidezMs, fuerzaNetaN, energiaJ, energiaCineticaJ };
 }

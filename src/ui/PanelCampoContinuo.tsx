@@ -1,18 +1,21 @@
 /**
- * Controles de la Estación 03 (Dipolos). Todo lo que aquí se cambia es estado
- * de UI (`store/dipoloStore.ts`); las posiciones/ángulo del dipolo y de la
- * carga fuente NO están en este panel: se leen/escriben a través de
- * `ControladorDipolo` (mismo contrato que `ControladorEscena`, ver
- * `render/controladorDipolo.ts`), publicado por `CanvasDipolo.tsx`.
+ * Controles de la Estación 03 (Campo continuo). Todo lo que aquí se cambia es
+ * estado de UI (`store/campoContinuoStore.ts`); las posiciones/ángulo del
+ * dipolo, de la carga libre y de la carga fuente NO están en este panel: se
+ * leen/escriben a través de `ControladorCampoContinuo` (mismo contrato que
+ * `ControladorEscena`, ver `render/controladorCampoContinuo.ts`), publicado
+ * por `CanvasCampoContinuo.tsx`.
  *
  * Orden (como en las otras estaciones, lo más usado arriba): Pausar/Reiniciar,
- * tipo de campo, controles de ese campo y del dipolo. Los sliders secundarios
- * (q, d) están en `AjustesDipolo`, que la página coloca DESPUÉS de las lecturas.
+ * objeto en el campo (dipolo / carga puntual), tipo de campo, controles de ese
+ * campo y del objeto. Los sliders secundarios del dipolo (q, d) están en
+ * `AjustesDipolo`, que la página coloca DESPUÉS de las lecturas; la carga
+ * libre solo tiene signo y magnitud, que van aquí mismo.
  *
  * Alternativas al arrastre (WCAG 2.1.1/2.5.7, mismo patrón que
- * `PanelSondaQ0.tsx`): por cada objeto arrastrable (el dipolo siempre; la
- * carga fuente solo en modo "puntual") hay un botón enfocable para moverlo con
- * las flechas (`moverPorTeclado`, reutilizado sin cambios) y otro para
+ * `PanelSondaQ0.tsx`): por cada objeto arrastrable (el objeto activo siempre;
+ * la carga fuente solo en modo "puntual") hay un botón enfocable para moverlo
+ * con las flechas (`moverPorTeclado`, reutilizado sin cambios) y otro para
  * "colocar tocando el recuadro" (arma `seleccionStore` y el canvas coloca el
  * objeto donde se toque). Girar el dipolo es SIEMPRE por botones.
  */
@@ -21,28 +24,51 @@ import { D_MAX_PX, D_MIN_PX, D_PASO_PX, VOLTAJE_MAX_KV, VOLTAJE_MIN_KV, VOLTAJE_
 import { Q_MAX, Q_MIN, Q_PASO } from "../fisica/carga";
 import { formatDistancia, pxAMetros } from "../fisica/escala";
 import type { OrientacionPlacas } from "../fisica/campoExterno";
-import { ID_CARGA_FUENTE, ID_DIPOLO, type ControladorDipolo } from "../render/controladorDipolo";
+import { ID_CARGA_FUENTE, ID_CARGA_LIBRE, ID_DIPOLO, type ControladorCampoContinuo } from "../render/controladorCampoContinuo";
 import { esTeclaDeMovimiento, moverPorTeclado } from "../render/controladorEscena";
 import { EVENTO_CARGA_COLOCADA, type DetalleCargaColocada } from "../render/eventosEscena";
-import { useDipoloStore } from "../store/dipoloStore";
+import { useCampoContinuoStore, type ObjetoCampo } from "../store/campoContinuoStore";
 import { useSeleccionStore } from "../store/seleccionStore";
 import { SelectorSegmentado, type OpcionSegmentada } from "./SelectorSegmentado";
 
 const PASO_GIRO_RAD = (15 * Math.PI) / 180;
 const PASO_GIRO_GRANDE_RAD = (45 * Math.PI) / 180;
 
-const MODOS: OpcionSegmentada<ModoCampoDipolo>[] = [
+const OBJETOS: OpcionSegmentada<ObjetoCampo>[] = [
   {
-    valor: "uniforme",
-    etiqueta: "Uniforme",
-    descripcion: "dos placas paralelas: el dipolo gira y se balancea, pero no se traslada",
+    valor: "dipolo",
+    etiqueta: "Dipolo",
+    descripcion: "dos cargas opuestas unidas por una varilla: gira con el campo",
   },
   {
-    valor: "puntual",
+    valor: "carga",
     etiqueta: "Carga puntual",
-    descripcion: "una carga que puedes mover: el dipolo se alinea con su campo y es atraído hacia ella",
+    descripcion: "una sola carga libre: el campo la empuja y la acelera",
   },
 ];
+
+const MODOS: OpcionSegmentada<ModoCampoDipolo>[] = [
+  { valor: "uniforme", etiqueta: "Uniforme" },
+  { valor: "puntual", etiqueta: "Carga fuente" },
+];
+
+/** Qué hace el objeto elegido en cada tipo de campo (texto bajo el selector). */
+const DESCRIPCION_MODO: Record<ObjetoCampo, Record<ModoCampoDipolo, string>> = {
+  dipolo: {
+    uniforme: "dos placas paralelas: el dipolo gira y se balancea, pero no se traslada",
+    puntual: "una carga que puedes mover: el dipolo se alinea con su campo y es atraído hacia ella",
+  },
+  carga: {
+    uniforme: "dos placas paralelas: la carga acelera en línea recta, siempre con la misma fuerza",
+    puntual: "una carga que puedes mover: atrae o repele a la carga libre, más fuerte cuanto más cerca",
+  },
+};
+
+const NOMBRES: Record<string, { sujeto: string; participio: string }> = {
+  [ID_DIPOLO]: { sujeto: "El dipolo", participio: "movido" },
+  [ID_CARGA_LIBRE]: { sujeto: "La carga libre", participio: "movida" },
+  [ID_CARGA_FUENTE]: { sujeto: "La carga fuente", participio: "movida" },
+};
 
 const ORIENTACIONES: OpcionSegmentada<OrientacionPlacas>[] = [
   { valor: "vertical", etiqueta: "Placas arriba/abajo" },
@@ -59,9 +85,9 @@ function lugarPlacaPositiva(orientacion: OrientacionPlacas, polaridad: 1 | -1): 
     : { largo: "a la derecha", corto: "der." };
 }
 
-/** "El dipolo movido a …" / "La carga fuente movida a …" (concuerda en género; posiciones desde el borde izquierdo y el superior). */
+/** "El dipolo movido a …" / "La carga libre movida a …" (concuerda en género; posiciones desde el borde izquierdo y el superior). */
 function textoMovimiento(id: string, x: number, y: number): string {
-  const [sujeto, participio] = id === ID_DIPOLO ? ["El dipolo", "movido"] : ["La carga fuente", "movida"];
+  const { sujeto, participio } = NOMBRES[id] ?? NOMBRES[ID_CARGA_FUENTE];
   return `${sujeto} ${participio} a ${formatDistancia(pxAMetros(x))} del borde izquierdo y ${formatDistancia(pxAMetros(y))} del borde superior.`;
 }
 
@@ -71,38 +97,47 @@ function siguienteAnuncio(previo: string, texto: string): string {
 }
 
 interface Props {
-  controladorRef: RefObject<ControladorDipolo | null>;
+  controladorRef: RefObject<ControladorCampoContinuo | null>;
 }
 
-export function PanelDipolo({ controladorRef }: Props) {
-  const modoCampo = useDipoloStore((s) => s.modoCampo);
-  const orientacionPlacas = useDipoloStore((s) => s.orientacionPlacas);
-  const polaridadPlacas = useDipoloStore((s) => s.polaridadPlacas);
-  const voltajeKV = useDipoloStore((s) => s.voltajeKV);
-  const qFuenteUC = useDipoloStore((s) => s.qFuenteUC);
-  const signoFuente = useDipoloStore((s) => s.signoFuente);
-  const mostrarFuerzas = useDipoloStore((s) => s.mostrarFuerzas);
-  const enPausa = useDipoloStore((s) => s.enPausa);
+export function PanelCampoContinuo({ controladorRef }: Props) {
+  const objeto = useCampoContinuoStore((s) => s.objeto);
+  const modoCampo = useCampoContinuoStore((s) => s.modoCampo);
+  const orientacionPlacas = useCampoContinuoStore((s) => s.orientacionPlacas);
+  const polaridadPlacas = useCampoContinuoStore((s) => s.polaridadPlacas);
+  const voltajeKV = useCampoContinuoStore((s) => s.voltajeKV);
+  const qFuenteUC = useCampoContinuoStore((s) => s.qFuenteUC);
+  const qCargaLibreUC = useCampoContinuoStore((s) => s.qCargaLibreUC);
+  const signoCargaLibre = useCampoContinuoStore((s) => s.signoCargaLibre);
+  const signoFuente = useCampoContinuoStore((s) => s.signoFuente);
+  const mostrarFuerzas = useCampoContinuoStore((s) => s.mostrarFuerzas);
+  const enPausa = useCampoContinuoStore((s) => s.enPausa);
 
-  const setModoCampo = useDipoloStore((s) => s.setModoCampo);
-  const setOrientacionPlacas = useDipoloStore((s) => s.setOrientacionPlacas);
-  const alternarPolaridadPlacas = useDipoloStore((s) => s.alternarPolaridadPlacas);
-  const setVoltajeKV = useDipoloStore((s) => s.setVoltajeKV);
-  const setQFuenteUC = useDipoloStore((s) => s.setQFuenteUC);
-  const alternarSignoFuente = useDipoloStore((s) => s.alternarSignoFuente);
-  const setMostrarFuerzas = useDipoloStore((s) => s.setMostrarFuerzas);
-  const togglePausa = useDipoloStore((s) => s.togglePausa);
+  const setObjeto = useCampoContinuoStore((s) => s.setObjeto);
+  const setModoCampo = useCampoContinuoStore((s) => s.setModoCampo);
+  const setOrientacionPlacas = useCampoContinuoStore((s) => s.setOrientacionPlacas);
+  const alternarPolaridadPlacas = useCampoContinuoStore((s) => s.alternarPolaridadPlacas);
+  const setVoltajeKV = useCampoContinuoStore((s) => s.setVoltajeKV);
+  const setQFuenteUC = useCampoContinuoStore((s) => s.setQFuenteUC);
+  const alternarSignoFuente = useCampoContinuoStore((s) => s.alternarSignoFuente);
+  const setQCargaLibreUC = useCampoContinuoStore((s) => s.setQCargaLibreUC);
+  const alternarSignoCargaLibre = useCampoContinuoStore((s) => s.alternarSignoCargaLibre);
+  const setMostrarFuerzas = useCampoContinuoStore((s) => s.setMostrarFuerzas);
+  const togglePausa = useCampoContinuoStore((s) => s.togglePausa);
 
   const seleccionadaId = useSeleccionStore((s) => s.seleccionadaId);
   const colocarConToque = useSeleccionStore((s) => s.colocarConToque);
   const seleccionar = useSeleccionStore((s) => s.seleccionar);
   const dipoloElegido = seleccionadaId === ID_DIPOLO;
+  const cargaLibreElegida = seleccionadaId === ID_CARGA_LIBRE;
   const fuenteElegida = seleccionadaId === ID_CARGA_FUENTE;
 
   const [anuncio, setAnuncio] = useState("");
   const contenedorRef = useRef<HTMLElement>(null);
   const idAyudaDipolo = useId();
   const idAyudaFuente = useId();
+  const idAyudaCargaLibre = useId();
+  const idSignoCargaLibre = useId();
   const idPolaridad = useId();
   const idSignoFuente = useId();
 
@@ -114,7 +149,7 @@ export function PanelDipolo({ controladorRef }: Props) {
   useEffect(() => {
     const alColocar = (e: Event) => {
       const { id, x, y } = (e as CustomEvent<DetalleCargaColocada>).detail;
-      if (id === ID_DIPOLO || id === ID_CARGA_FUENTE) {
+      if (id === ID_DIPOLO || id === ID_CARGA_LIBRE || id === ID_CARGA_FUENTE) {
         setAnuncio((previo) => siguienteAnuncio(previo, textoMovimiento(id, x, y)));
       }
     };
@@ -122,10 +157,14 @@ export function PanelDipolo({ controladorRef }: Props) {
     return () => window.removeEventListener(EVENTO_CARGA_COLOCADA, alColocar);
   }, []);
 
-  // La carga fuente solo existe en modo "puntual": si se cambia a "uniforme", no dejar su selección colgada.
+  // La carga fuente solo existe en modo "puntual", y solo el objeto activo está en pantalla: al
+  // cambiar de modo o de objeto, no dejar colgada la selección de algo que ya no se ve.
   useEffect(() => {
-    if (modoCampo !== "puntual" && seleccionadaId === ID_CARGA_FUENTE) seleccionar(null);
-  }, [modoCampo, seleccionadaId, seleccionar]);
+    const fuenteHuerfana = modoCampo !== "puntual" && seleccionadaId === ID_CARGA_FUENTE;
+    const objetoHuerfano =
+      (objeto !== "dipolo" && seleccionadaId === ID_DIPOLO) || (objeto !== "carga" && seleccionadaId === ID_CARGA_LIBRE);
+    if (fuenteHuerfana || objetoHuerfano) seleccionar(null);
+  }, [objeto, modoCampo, seleccionadaId, seleccionar]);
 
   function alPulsarTecla(id: string) {
     return (e: KeyboardEvent<HTMLButtonElement>) => {
@@ -176,7 +215,9 @@ export function PanelDipolo({ controladorRef }: Props) {
   function reiniciar() {
     controladorRef.current?.reiniciar();
     seleccionar(null);
-    anunciar("Dipolo y carga fuente restablecidos a su posición inicial.");
+    anunciar(
+      `${objeto === "carga" ? "Carga libre" : "Dipolo"}${modoCampo === "puntual" ? " y carga fuente" : ""} restablecidos a su posición inicial.`,
+    );
   }
 
   function cambiarPolaridad() {
@@ -186,10 +227,12 @@ export function PanelDipolo({ controladorRef }: Props) {
   }
 
   const placaPositiva = lugarPlacaPositiva(orientacionPlacas, polaridadPlacas);
-  const descripcionModo = (MODOS.find((m) => m.valor === modoCampo) ?? MODOS[0]).descripcion ?? "";
+  const descripcionObjeto = (OBJETOS.find((o) => o.valor === objeto) ?? OBJETOS[0]).descripcion ?? "";
+  const descripcionModo = DESCRIPCION_MODO[objeto][modoCampo];
+  const modos = MODOS.map((m) => ({ ...m, descripcion: DESCRIPCION_MODO[objeto][m.valor] }));
 
   return (
-    <section className="panel-dipolo" aria-label="Controles del dipolo" ref={contenedorRef}>
+    <section className="panel-dipolo" aria-label="Controles del campo y del objeto" ref={contenedorRef}>
       <p className="sr-only" aria-live="polite">
         {anuncio}
       </p>
@@ -205,7 +248,13 @@ export function PanelDipolo({ controladorRef }: Props) {
 
       <div className="panel-dipolo-grupo">
         <div className="selector-modo-envoltorio">
-          <SelectorSegmentado etiquetaGrupo="Tipo de campo" opciones={MODOS} valor={modoCampo} alElegir={setModoCampo} />
+          <SelectorSegmentado etiquetaGrupo="Objeto en el campo" opciones={OBJETOS} valor={objeto} alElegir={setObjeto} />
+          <p className="selector-modo-descripcion" aria-hidden="true">
+            {descripcionObjeto.charAt(0).toUpperCase() + descripcionObjeto.slice(1)}.
+          </p>
+        </div>
+        <div className="selector-modo-envoltorio">
+          <SelectorSegmentado etiquetaGrupo="Tipo de campo" opciones={modos} valor={modoCampo} alElegir={setModoCampo} />
           <p className="selector-modo-descripcion" aria-hidden="true">
             {descripcionModo.charAt(0).toUpperCase() + descripcionModo.slice(1)}.
           </p>
@@ -254,7 +303,7 @@ export function PanelDipolo({ controladorRef }: Props) {
             aria-describedby={idSignoFuente}
             onClick={alternarSignoFuente}
           >
-            Invertir signo de la carga <span aria-hidden="true">· {signoFuente === 1 ? "+" : "−"}</span>
+            Invertir signo de la carga fuente <span aria-hidden="true">· {signoFuente === 1 ? "+" : "−"}</span>
           </button>
           <span id={idSignoFuente} className="sr-only">
             La carga fuente es {signoFuente === 1 ? "positiva" : "negativa"}.
@@ -303,6 +352,67 @@ export function PanelDipolo({ controladorRef }: Props) {
         </div>
       )}
 
+      {objeto === "carga" ? (
+        <div className="panel-dipolo-grupo">
+          <button
+            type="button"
+            className="boton-colocar"
+            aria-pressed={signoCargaLibre === -1}
+            aria-describedby={idSignoCargaLibre}
+            onClick={alternarSignoCargaLibre}
+          >
+            Invertir signo de la carga libre <span aria-hidden="true">· {signoCargaLibre === 1 ? "+" : "−"}</span>
+          </button>
+          <span id={idSignoCargaLibre} className="sr-only">
+            La carga libre es {signoCargaLibre === 1 ? "positiva" : "negativa"}.
+          </span>
+          <label className="control-deslizador control-deslizador-apilado">
+            <span>Magnitud de la carga libre</span>
+            <input
+              type="range"
+              min={Q_MIN}
+              max={Q_MAX}
+              step={Q_PASO}
+              value={qCargaLibreUC}
+              onChange={(e) => setQCargaLibreUC(Number(e.target.value))}
+            />
+            <output>{qCargaLibreUC} µC</output>
+          </label>
+          <div className="panel-sonda-chip-fila">
+            <button
+              type="button"
+              className={`sonda-chip${cargaLibreElegida ? " seleccionada" : ""}`}
+              aria-pressed={cargaLibreElegida}
+              aria-label="Elegir la carga libre para moverla con las flechas"
+              aria-describedby={idAyudaCargaLibre}
+              onFocus={() => seleccionar(ID_CARGA_LIBRE, false)}
+              onBlur={(e) => alPerderFoco(ID_CARGA_LIBRE, e.relatedTarget)}
+              onKeyDown={alPulsarTecla(ID_CARGA_LIBRE)}
+              onClick={() => seleccionar(ID_CARGA_LIBRE, false)}
+            >
+              ⊕ carga libre
+            </button>
+          </div>
+          <button
+            type="button"
+            className="boton-colocar"
+            aria-pressed={cargaLibreElegida && colocarConToque}
+            onClick={() => alternarArmado(ID_CARGA_LIBRE, "la carga libre", cargaLibreElegida && colocarConToque)}
+            onKeyDown={alPulsarEscape}
+            onBlur={(e) => alPerderFoco(ID_CARGA_LIBRE, e.relatedTarget)}
+          >
+            {cargaLibreElegida && colocarConToque ? "Toca el recuadro para colocarla" : "Colocar tocando el recuadro"}
+          </button>
+          <p id={idAyudaCargaLibre} className="ayuda-mover">
+            <span className="ayuda-puntero-fino">Arrástrala, o elígela con ⊕ y usa las flechas. Se suelta en reposo.</span>
+            <span className="ayuda-puntero-tactil">Arrástrala, o toca «Colocar tocando el recuadro» y luego el punto.</span>
+          </p>
+          <label className="panel-sonda-check">
+            <input type="checkbox" checked={mostrarFuerzas} onChange={(e) => setMostrarFuerzas(e.target.checked)} />
+            Mostrar la fuerza sobre la carga
+          </label>
+        </div>
+      ) : (
       <div className="panel-dipolo-grupo">
         <div className="panel-sonda-chip-fila">
           <button
@@ -353,16 +463,17 @@ export function PanelDipolo({ controladorRef }: Props) {
           Mostrar la fuerza sobre +q y −q
         </label>
       </div>
+      )}
     </section>
   );
 }
 
 /** Sliders secundarios del dipolo (q y d): la página los coloca después de las lecturas. */
 export function AjustesDipolo() {
-  const qUC = useDipoloStore((s) => s.qUC);
-  const dPx = useDipoloStore((s) => s.dPx);
-  const setQUC = useDipoloStore((s) => s.setQUC);
-  const setDPx = useDipoloStore((s) => s.setDPx);
+  const qUC = useCampoContinuoStore((s) => s.qUC);
+  const dPx = useCampoContinuoStore((s) => s.dPx);
+  const setQUC = useCampoContinuoStore((s) => s.setQUC);
+  const setDPx = useCampoContinuoStore((s) => s.setDPx);
 
   return (
     <section className="panel-dipolo panel-dipolo-ajustes" aria-label="Ajustes del dipolo">

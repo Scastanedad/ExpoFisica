@@ -2,7 +2,7 @@
  * Estado de UI de la Estación 04 (Conductores y aislantes): lo que cambia por
  * acción del visitante (voltaje, orientación y polaridad de las placas,
  * pausa) y la LECTURA en vivo que `render/CanvasMateriales.tsx` publica a
- * ~10 Hz (mismo patrón que `dipoloStore.ts` / `cargaPruebaStore.ts`).
+ * ~10 Hz (mismo patrón que `campoContinuoStore.ts` / `cargaPruebaStore.ts`).
  *
  * Las posiciones de los átomos y electrones NO están aquí: viven en refs
  * dentro de `CanvasMateriales.tsx` (ver `fisica/materiales.ts`).
