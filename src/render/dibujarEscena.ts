@@ -14,6 +14,7 @@ import type { ModoVista, UnidadCarga } from "../types/simulacion";
 import type { CapaCampo } from "./capaCampo";
 import { dibujarCargas } from "./dibujarCargas";
 import { dibujarFuerzas } from "./dibujarFuerzas";
+import { dibujarMarcasDistancia, type PuntoMarca } from "./dibujarMarcasDistancia";
 import { dibujarSondaQ0, type PuntoLogico } from "./dibujarSondaQ0";
 import type { DibujanteLeyenda } from "./dibujarLeyendaEscala";
 
@@ -59,6 +60,11 @@ export interface EscenaParaDibujar {
   mostrarFuerzas?: boolean;
   /** Carga de prueba q₀ (E3.1), solo en "Cargas en reposo". */
   sonda?: SondaParaDibujar | null;
+  /**
+   * Puntos A/B fijados en `graficas/PanelGraficaDistancia.tsx` (E4.1 §3,
+   * corrección post revisión UI); `undefined`/`null` = nada que marcar.
+   */
+  marcasDistancia?: { a: PuntoMarca | null; b: PuntoMarca | null } | null;
 }
 
 export function dibujarEscena(ctx: CanvasRenderingContext2D, escena: EscenaParaDibujar) {
@@ -78,6 +84,7 @@ export function dibujarEscena(ctx: CanvasRenderingContext2D, escena: EscenaParaD
     fuerzas,
     mostrarFuerzas = false,
     sonda,
+    marcasDistancia,
   } = escena;
   ctx.clearRect(0, 0, ancho, alto);
   capa.pintar(ctx, {
@@ -94,4 +101,5 @@ export function dibujarEscena(ctx: CanvasRenderingContext2D, escena: EscenaParaD
   dibujarCargas(ctx, puntos, { escalaCss, indiceSeleccionada, indiceEditada, unidadCarga, ancho });
   if (mostrarFuerzas && fuerzas) dibujarFuerzas(ctx, puntos, fuerzas, escalaCss);
   if (sonda) dibujarSondaQ0(ctx, sonda.x, sonda.y, sonda.signo, escalaCss, sonda.traza);
+  if (marcasDistancia) dibujarMarcasDistancia(ctx, marcasDistancia.a, marcasDistancia.b, escalaCss);
 }

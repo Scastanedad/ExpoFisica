@@ -19,6 +19,7 @@ import { useSimulacionStore } from "../store/simulacionStore";
 import { useSeleccionStore } from "../store/seleccionStore";
 import { useCargaPruebaStore } from "../store/cargaPruebaStore";
 import { useLecturasStore } from "../store/lecturasStore";
+import { useGraficaDistanciaStore } from "../store/graficaDistanciaStore";
 import type { PuntoCarga } from "../fisica/coulomb";
 import { lecturaQ0, medirDeltaV, potencialQ0SI, trabajoCampoTraza, type LecturaQ0 } from "../fisica/cargaPrueba";
 import { fuerzaNetaSI, fuerzasNetasSI, type VectorFuerzaSI } from "../fisica/fuerzas";
@@ -82,6 +83,10 @@ export function CanvasRenderer({
   const signoQ0Ref = useRef<1 | -1>(1);
   const mostrarFuerzasRef = useRef(false);
   const mostrarLineasRef = useRef(true);
+  // Puntos A/B fijados en `PanelGraficaDistancia` (E4.1 §3, corrección post revisión UI):
+  // el store es la fuente de verdad (cambia solo por clic); el ref es la copia que lee
+  // el bucle de dibujo, sin pasar por React en cada frame.
+  const marcasDistanciaRef = useRef<{ a: Posicion | null; b: Posicion | null }>({ a: null, b: null });
 
   const cargasStore = useSimulacionStore((s) => s.cargas);
   const modoVistaStore = useSimulacionStore((s) => s.modoVista);
@@ -96,6 +101,8 @@ export function CanvasRenderer({
   const signoQ0 = useCargaPruebaStore((s) => s.signoQ0);
   const publicarLectura = useCargaPruebaStore((s) => s.publicarLectura);
   const publicarFuerzaSeleccionada = useLecturasStore((s) => s.publicarFuerzaSeleccionada);
+  const puntoADistancia = useGraficaDistanciaStore((s) => s.puntoA);
+  const puntoBDistancia = useGraficaDistanciaStore((s) => s.puntoB);
   const cargas = cargasProp ?? cargasStore;
   const modoVista = modoVistaProp ?? modoVistaStore;
   const activoQ0 = conSondaQ0 && activoQ0Store;
@@ -121,6 +128,13 @@ export function CanvasRenderer({
   useEffect(() => {
     mostrarLineasRef.current = mostrarLineasEnEquipotenciales;
   }, [mostrarLineasEnEquipotenciales]);
+  useEffect(() => {
+    // Solo relevante donde existe el panel de distancia (`conSondaQ0`, p. ej. el hero de
+    // Home no lo tiene): en otro caso no se dibuja nada aunque el store tuviera algo viejo.
+    marcasDistanciaRef.current = conSondaQ0
+      ? { a: puntoADistancia, b: puntoBDistancia }
+      : { a: null, b: null };
+  }, [conSondaQ0, puntoADistancia, puntoBDistancia]);
 
   // Sincroniza posicionesRef con altas/bajas de cargas. No pasa por setState.
   useEffect(() => {
@@ -255,6 +269,7 @@ export function CanvasRenderer({
         sonda: activo
           ? { x: sondaRef.current.x, y: sondaRef.current.y, signo: signoQ0Ref.current, traza: trazaRef.current }
           : null,
+        marcasDistancia: marcasDistanciaRef.current,
       });
       idFrame = requestAnimationFrame(frame);
     }

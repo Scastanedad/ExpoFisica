@@ -8,6 +8,8 @@ import { NotasCampo } from "../ui/NotasCampo";
 import { PanelCargas } from "../ui/PanelCargas";
 import { PanelSondaQ0 } from "../ui/PanelSondaQ0";
 import { LecturaFuerza } from "../ui/LecturaFuerza";
+import { PanelGraficaQ0 } from "../graficas/PanelGraficaQ0";
+import { PanelGraficaDistancia } from "../graficas/PanelGraficaDistancia";
 import { useSimulacionStore } from "../store/simulacionStore";
 
 export function CargasEnReposo() {
@@ -54,6 +56,8 @@ export function CargasEnReposo() {
           />
           <LecturaFuerza />
           <PanelSondaQ0 controladorRef={controladorRef} />
+          <PanelGraficaQ0 controladorRef={controladorRef} />
+          <PanelGraficaDistancia controladorRef={controladorRef} />
           <details className="notas-modelo">
             <summary>Notas sobre el modelo</summary>
             <ul>

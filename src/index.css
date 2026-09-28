@@ -715,7 +715,7 @@ a {
   cursor: pointer;
 }
 
-.boton-colocar:hover {
+.boton-colocar:hover:not(:disabled) {
   border-color: var(--accent);
   color: var(--accent);
 }
@@ -725,6 +725,13 @@ a {
   border-color: var(--accent);
   background: rgba(34, 211, 238, 0.12);
   color: var(--accent);
+}
+
+/* Sin esto, "Graficar" (panel de distancia) quedaba `disabled` sin ninguna señal visual de
+   por qué no respondía al clic (revisión UI); mismo tratamiento que `.panel-sonda-ab button:disabled`. */
+.boton-colocar:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
 .carga-positiva {
@@ -1085,6 +1092,128 @@ a {
   line-height: 1.4;
   color: var(--text-dim);
   font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Gráficas dinámicas (E4.1) ---------- */
+
+.panel-grafica {
+  border-top: 1px solid var(--borde);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.panel-grafica-titulo {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.panel-grafica-subtitulo {
+  font-family: var(--sans);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--text-dim);
+}
+
+.lienzo-grafica {
+  width: 100%;
+  max-width: 300px;
+  height: auto;
+  aspect-ratio: 300 / 180;
+  border: 1px solid var(--borde);
+  border-radius: 4px;
+  background: rgba(11, 16, 32, 0.5);
+}
+
+.panel-grafica-controles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.panel-grafica-controles .boton-colocar {
+  width: auto;
+  flex: 1 1 auto;
+  margin-top: 0;
+}
+
+.panel-grafica-leyenda {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.panel-grafica-leyenda li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.muestra-color {
+  display: inline-block;
+  width: 14px;
+  height: 3px;
+  border-radius: 2px;
+}
+
+.muestra-guion {
+  background-image: linear-gradient(90deg, currentColor 50%, transparent 50%);
+  background-size: 6px 3px;
+}
+
+.panel-grafica-nota {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+/* Confirmación breve de "Exportar CSV" (revisión UI: antes no daba ninguna señal de que la
+   descarga había ocurrido); se borra sola a los 2.5 s (`hooks/useAvisoTemporal.ts`). */
+.panel-grafica-aviso {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--accent);
+}
+
+.panel-grafica-pestanas {
+  display: flex;
+  gap: 6px;
+}
+
+.pestana-grafica {
+  flex: 1 1 auto;
+  min-height: 36px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid var(--borde);
+  background: transparent;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-dim);
+  cursor: pointer;
+}
+
+.pestana-grafica:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pestana-grafica.activa {
+  border-color: var(--accent);
+  background: rgba(34, 211, 238, 0.12);
+  color: var(--accent);
 }
 
 .notas-modelo {

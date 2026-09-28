@@ -9,6 +9,7 @@ import { NotasCampo } from "../ui/NotasCampo";
 import { PanelCargas } from "../ui/PanelCargas";
 import { LecturaFuerza } from "../ui/LecturaFuerza";
 import { IndicadorEnergia } from "../ui/IndicadorEnergia";
+import { PanelGraficaEnergia } from "../graficas/PanelGraficaEnergia";
 import { useSimulacionDinamicaStore } from "../store/simulacionDinamicaStore";
 
 export function CargasEnMovimiento() {
@@ -53,6 +54,7 @@ export function CargasEnMovimiento() {
         <div className="simulador-lateral">
           <ControlesReproduccion />
           <IndicadorEnergia />
+          <PanelGraficaEnergia controladorRef={controladorRef} />
           <PanelCargas
             cargas={cargas}
             alAgregar={agregarCarga}
