@@ -1895,3 +1895,14 @@ a {
     font-size: 40px;
   }
 }
+
+/* Título de cada grupo del panel de Campo continuo (carga fuente / carga libre / dipolo): con los
+   dos grupos de "carga" casi idénticos, el título dice a cuál pertenece cada control. */
+.panel-dipolo-titulo {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}

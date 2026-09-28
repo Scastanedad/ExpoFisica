@@ -50,12 +50,12 @@ import { dibujarAsaDipolo, dibujarVarillaDipolo } from "./dibujarDipolo";
 import { dibujarCuadricula } from "./dibujarCuadricula";
 import { dibujarFuerzas } from "./dibujarFuerzas";
 import { dibujarLineasCampo } from "./dibujarLineasCampo";
-import { dibujarPlacas } from "./dibujarPlacas";
+import { dibujarPlacas, grosorPlacas } from "./dibujarPlacas";
 import { ALTO_ESCENA, ANCHO_ESCENA } from "./dimensiones";
 import { emitirCargaColocada } from "./eventosEscena";
 import { fuerzaCargaLibreParaDibujar } from "./fuerzasCargaLibre";
 import { fuerzasDipoloParaDibujar } from "./fuerzasDipolo";
-import { radioAgarre } from "./geometriaCargas";
+import { radioAgarre, radioVisualCarga } from "./geometriaCargas";
 import { ID_CARGA_FUENTE, ID_CARGA_LIBRE, ID_DIPOLO, type ControladorCampoContinuo } from "./controladorCampoContinuo";
 import { limitarPosicion, type Posicion } from "./controladorEscena";
 
@@ -72,8 +72,6 @@ const DIPOLO_INICIAL = { cx: ANCHO_ESCENA / 2, cy: ALTO_ESCENA / 2 + 70, theta: 
 const FUENTE_INICIAL: Posicion = { x: ANCHO_ESCENA / 2, y: 120 };
 /** A un lado y por debajo de la fuente: en los dos modos tiene recorrido libre antes de chocar con algo. */
 const CARGA_LIBRE_INICIAL: Posicion = { x: ANCHO_ESCENA / 2 - 150, y: ALTO_ESCENA / 2 };
-/** Paredes de la carga libre: los bordes del lienzo (rebote elástico, `dinamica.ts#reflejarEje`). */
-const LIMITES_CARGA_LIBRE: LimitesCargaLibre = { ancho: ANCHO_ESCENA, alto: ALTO_ESCENA };
 
 interface RefsObjetos {
   dipoloRef: RefObject<EstadoDipolo>;
@@ -225,14 +223,48 @@ export function CanvasCampoContinuo({ controladorRef }: Props) {
     };
   }
 
-  /** Parámetros de la carga libre: el MISMO campo (placas o fuente) que el dipolo, con su propia q y masa. */
+  /**
+   * Parámetros de la carga libre: el MISMO campo (placas o fuente) que el dipolo, con su propia q y
+   * masa. El contacto con la fuente es la suma de los radios DIBUJADOS (crecen con |q|), y V = 0 se
+   * pone en la placa negativa (solo cambia la lectura de U, no la dinámica).
+   */
   function parametrosCargaLibre(pd: ParametrosDipolo): ParametrosCargaLibre {
+    const q = signoCargaLibreRef.current * qCargaLibreUCRef.current;
+    const escalaCss = escalaCssRef.current;
+    const vertical = orientacionRef.current === "vertical";
+    const negativaAbajoDerecha = polaridadRef.current === 1; // polaridad 1: + arriba/izquierda
+    const origenPotencial = vertical
+      ? { x: 0, y: negativaAbajoDerecha ? ALTO_ESCENA : 0 }
+      : { x: negativaAbajoDerecha ? ANCHO_ESCENA : 0, y: 0 };
     return {
-      q: signoCargaLibreRef.current * qCargaLibreUCRef.current,
+      q,
       masa: MASA_CARGA_LIBRE,
       modoCampo: pd.modoCampo,
       externoSim: pd.externoSim,
       cargaFuente: pd.cargaFuente,
+      distMinFuente: pd.cargaFuente
+        ? radioVisualCarga(pd.cargaFuente.q, escalaCss) + radioVisualCarga(q, escalaCss)
+        : undefined,
+      origenPotencial,
+    };
+  }
+
+  /** Paredes de la carga libre: los bordes del lienzo, o la cara interior de las placas si se dibujan. */
+  function limitesCargaLibre(params: ParametrosCargaLibre): LimitesCargaLibre {
+    const escalaCss = escalaCssRef.current;
+    const r = radioVisualCarga(params.q, escalaCss);
+    const conPlaca = r + grosorPlacas(escalaCss);
+    const placasVerticales = params.modoCampo === "uniforme" && orientacionRef.current === "vertical";
+    const placasHorizontales = params.modoCampo === "uniforme" && orientacionRef.current === "horizontal";
+    return {
+      ancho: ANCHO_ESCENA,
+      alto: ALTO_ESCENA,
+      margenes: {
+        izquierda: placasHorizontales ? conPlaca : r,
+        derecha: placasHorizontales ? conPlaca : r,
+        arriba: placasVerticales ? conPlaca : r,
+        abajo: placasVerticales ? conPlaca : r,
+      },
     };
   }
 
@@ -462,7 +494,7 @@ export function CanvasCampoContinuo({ controladorRef }: Props) {
       const paramsCarga = parametrosCargaLibre(params);
       if (!enPausaRef.current && !arrastrandoObjetoRef.current) {
         // Solo el objeto activo se integra: el otro queda congelado donde estaba.
-        if (esCarga) cargaLibreRef.current = pasoAvanceCargaLibre(cargaLibreRef.current, paramsCarga, dt, LIMITES_CARGA_LIBRE);
+        if (esCarga) cargaLibreRef.current = pasoAvanceCargaLibre(cargaLibreRef.current, paramsCarga, dt, limitesCargaLibre(paramsCarga));
         else dipoloRef.current = pasoAvanceDipolo(dipoloRef.current, params, dt);
       }
 

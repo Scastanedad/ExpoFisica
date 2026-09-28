@@ -252,7 +252,50 @@ describe("carga libre: lectura", () => {
     expect(a.fuerzaNetaN).toBeCloseTo(2, 9);
     // ΔU = −qE·Δy = −(2e-6 C)(1e6 V/m)(0.04 m) = −0.08 J (se mueve en el sentido del campo: baja U).
     expect(b.energiaJ - a.energiaJ).toBeCloseTo(-0.08, 9);
-    expect(a.rapidezMs).toBe(0);
     expect(a.energiaCineticaJ).toBe(0);
+  });
+
+  test("uniforme con V = 0 en la placa negativa: U en la placa positiva = q·(voltaje del control)", () => {
+    // Placas arriba (+) / abajo (−), 100 kV sobre los 500 px (10 cm) del lienzo.
+    const e0 = campoUniformeASim(campoPlacas("vertical", 1, 100_000, pxAMetros(500)));
+    const p: ParametrosCargaLibre = { ...uniforme(e0, 2), origenPotencial: { x: 0, y: 500 } };
+    expect(calcularLecturaCargaLibre(estadoInicialCargaLibre(350, 500), p).energiaJ).toBeCloseTo(0, 12);
+    // U = qV = 2 µC · 100 kV = 0.2 J
+    expect(calcularLecturaCargaLibre(estadoInicialCargaLibre(350, 0), p).energiaJ).toBeCloseTo(0.2, 9);
+  });
+
+  test("el cero de U no cambia la dinámica", () => {
+    const e0 = campoUniformeASim(campoPlacas("vertical", 1, 100_000, pxAMetros(500)));
+    const a = simular(estadoInicialCargaLibre(350, 100), uniforme(e0, 2), 2, LIMITES);
+    const b = simular(estadoInicialCargaLibre(350, 100), { ...uniforme(e0, 2), origenPotencial: { x: 0, y: 500 } }, 2, LIMITES);
+    expect(b).toEqual(a);
+  });
+});
+
+describe("carga libre: límites coherentes con lo dibujado", () => {
+  test("margenes por lado: rebota contra la cara de la placa, no dentro de ella", () => {
+    const lim: LimitesCargaLibre = { ancho: 700, alto: 500, margenes: { izquierda: 14, derecha: 14, arriba: 30, abajo: 30 } };
+    const e0 = campoUniformeASim(campoPlacas("vertical", 1, 300_000, pxAMetros(500)));
+    let e = estadoInicialCargaLibre(350, 250);
+    let maxY = 0;
+    for (let t = 0; t < 10; t += DT) {
+      e = pasoAvanceCargaLibre(e, uniforme(e0, 5), DT, lim);
+      maxY = Math.max(maxY, e.y);
+    }
+    expect(maxY).toBeLessThanOrEqual(500 - 30 + 1e-9);
+    expect(maxY).toBeGreaterThan(500 - 31);
+  });
+
+  test("distMinFuente: el contacto ocurre a la distancia pedida", () => {
+    const fuente: PuntoCarga = { x: 350, y: 120, q: 5 };
+    let e = estadoInicialCargaLibre(350, 300);
+    const p: ParametrosCargaLibre = { ...puntual(fuente, -5), distMinFuente: 40 };
+    let minDist = Infinity;
+    for (let t = 0; t < 5; t += DT) {
+      e = pasoAvanceCargaLibre(e, p, DT, LIMITES);
+      minDist = Math.min(minDist, Math.hypot(e.x - fuente.x, e.y - fuente.y));
+    }
+    expect(minDist).toBeGreaterThanOrEqual(40 - 1e-6);
+    expect(minDist).toBeLessThan(41);
   });
 });

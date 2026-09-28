@@ -1,9 +1,9 @@
 /**
  * Lecturas en vivo de la Estación 03 (Campo continuo), según el objeto activo.
  *
- * Carga libre (`LecturaCargaLibre`): rapidez, fuerza neta (F = qE) y energía
- * (K, U y su suma, que se conserva: no hay fricción). Sin p/θ/τ: un punto no
- * gira.
+ * Carga libre (`LecturaCargaLibre`): fuerza (F = qE) y energía (K, U y su
+ * suma, que se conserva: no hay fricción). Sin p/θ/τ: un punto no gira. Sin
+ * rapidez en m/s: la simulación va en cámara lenta (ver `fisica/cargaLibre.ts`).
  *
  * Dipolo (E5.1 §5): momento dipolar (p), ángulo, torque (τ),
  * fuerza neta y energía (U) -- publicadas por `CanvasCampoContinuo.tsx` a ~10 Hz vía
@@ -52,10 +52,6 @@ function LecturaCargaLibre() {
       </h2>
       <dl className="panel-energia-filas">
         <div>
-          <dt>Rapidez (v)</dt>
-          <dd>{lectura ? formatSI(lectura.rapidezMs, "m/s") : "—"}</dd>
-        </div>
-        <div>
           <dt>Fuerza (F = qE)</dt>
           <dd>{lectura ? formatSI(lectura.fuerzaNetaN, "N") : "—"}</dd>
         </div>
@@ -74,8 +70,8 @@ function LecturaCargaLibre() {
       </dl>
       <p className="ayuda-mover">
         {modoCampo === "uniforme"
-          ? "La fuerza es la misma en todo el recuadro: K sube lo que U baja, y el total no cambia."
-          : "K sube lo que U baja, y el total no cambia (salvo al chocar con la carga fuente)."}
+          ? "V = 0 en la placa −. La fuerza es la misma en todo el recuadro; K sube lo que U baja."
+          : "V = 0 lejos de la fuente. K sube lo que U baja (salvo al chocar con la fuente)."}
       </p>
     </section>
   );

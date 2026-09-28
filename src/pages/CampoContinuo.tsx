@@ -120,14 +120,16 @@ export function CampoContinuo() {
               <li>
                 Entre las placas la fuerza es la misma en todo el recuadro: la carga acelera en línea
                 recta, como una piedra que cae. Cerca de la carga fuente la fuerza crece al acercarse
-                (ley 1/r²): con el mismo signo se repelen, con signo opuesto se atraen.
+                (ley 1/r²): con el mismo signo se repelen, con signo opuesto se atraen. A unos pocos
+                milímetros de la fuente la simulación suaviza esa ley para que los números no se
+                disparen: en el contacto la fuerza es hasta un 20 % menor que la real.
               </li>
               <li>
-                No hay fricción: la energía cinética (K) sube exactamente lo que baja la potencial (U), y
-                su suma se mantiene. Al llegar a un borde del recuadro rebota sin perder energía (una
-                pared que no se dibuja), así que vuelve a la misma altura de la que salió, como una
-                pelota ideal. En modo uniforme el cero de U es arbitrario: lo que importa son sus
-                cambios.
+                No hay fricción: la energía cinética (K) sube lo que baja la potencial (U), y su suma se
+                mantiene. En los bordes del recuadro rebota sin perder energía, como una pelota ideal:
+                entre las placas vuelve a subir justo hasta la altura de la que la soltaste. Los bordes
+                sin placa son paredes que no se dibujan. Contra una placa real no rebotaría: al tocarla
+                intercambiaría carga con ella; aquí se simplifica a un rebote para que siga moviéndose.
               </li>
               <li>
                 Al tocar la carga fuente se detiene contra ella (una simplificación, igual que con el
@@ -135,8 +137,14 @@ export function CampoContinuo() {
                 energía del choque. La carga fuente está sujeta por ti y no se simula su reacción.
               </li>
               <li>
-                La masa de la carga es una constante de escala visual (para que el movimiento se vea en
-                unos segundos), no la masa real de ninguna partícula. Es la misma en los dos tipos de
+                La energía U = qV se mide con V = 0 en la placa negativa (entre las placas) o lejos de
+                la fuente (carga fuente). Así, en la placa positiva U vale q por el voltaje del control.
+              </li>
+              <li>
+                La masa de la carga es una constante de escala visual: el movimiento va en «cámara lenta»
+                para que se pueda seguir con la vista. Una carga real de esta magnitud y masa pequeña
+                cruzaría el recuadro en una fracción de segundo. Por eso no se muestra su rapidez en m/s:
+                las fuerzas y las energías sí son las reales. La masa es la misma en los dos tipos de
                 campo, así que se pueden comparar.
               </li>
               <li className="notas-subtitulo" aria-hidden="true">

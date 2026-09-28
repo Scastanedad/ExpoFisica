@@ -67,6 +67,11 @@ function dibujarLineaConFlecha(
   ctx.fill();
 }
 
+/** Grosor dibujado de cada placa (px lógicos): la carga libre rebota contra su cara interior. */
+export function grosorPlacas(escalaCss = 1): number {
+  return GROSOR_PLACA_CSS * unidadTexto(escalaCss);
+}
+
 export function dibujarPlacas(
   ctx: CanvasRenderingContext2D,
   ancho: number,
@@ -76,7 +81,7 @@ export function dibujarPlacas(
   escalaCss = 1,
 ): void {
   const ut = unidadTexto(escalaCss);
-  const grosor = GROSOR_PLACA_CSS * ut;
+  const grosor = grosorPlacas(escalaCss);
   const vertical = orientacion === "vertical";
   // Placa "de arriba/izquierda" (A) y "de abajo/derecha" (B): con polaridad = 1, A es la +.
   const signoA: "+" | "−" = polaridad === 1 ? "+" : "−";

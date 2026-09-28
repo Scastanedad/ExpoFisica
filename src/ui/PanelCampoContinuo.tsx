@@ -296,6 +296,7 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
         </div>
       ) : (
         <div className="panel-dipolo-grupo">
+          <h2 className="panel-dipolo-titulo">La carga fuente</h2>
           <button
             type="button"
             className="boton-colocar"
@@ -344,6 +345,7 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
             onBlur={(e) => alPerderFoco(ID_CARGA_FUENTE, e.relatedTarget)}
           >
             {fuenteElegida && colocarConToque ? "Toca el recuadro para colocarla" : "Colocar tocando el recuadro"}
+            <span className="sr-only"> (la carga fuente)</span>
           </button>
           <p id={idAyudaFuente} className="ayuda-mover">
             <span className="ayuda-puntero-fino">Arrástrala, o elígela con ⊕ y usa las flechas.</span>
@@ -354,6 +356,7 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
 
       {objeto === "carga" ? (
         <div className="panel-dipolo-grupo">
+          <h2 className="panel-dipolo-titulo">La carga libre</h2>
           <button
             type="button"
             className="boton-colocar"
@@ -402,9 +405,10 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
             onBlur={(e) => alPerderFoco(ID_CARGA_LIBRE, e.relatedTarget)}
           >
             {cargaLibreElegida && colocarConToque ? "Toca el recuadro para colocarla" : "Colocar tocando el recuadro"}
+            <span className="sr-only"> (la carga libre)</span>
           </button>
           <p id={idAyudaCargaLibre} className="ayuda-mover">
-            <span className="ayuda-puntero-fino">Arrástrala, o elígela con ⊕ y usa las flechas. Se suelta en reposo.</span>
+            <span className="ayuda-puntero-fino">Arrástrala y suéltala, o elígela con ⊕ y usa las flechas.</span>
             <span className="ayuda-puntero-tactil">Arrástrala, o toca «Colocar tocando el recuadro» y luego el punto.</span>
           </p>
           <label className="panel-sonda-check">
@@ -414,6 +418,7 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
         </div>
       ) : (
       <div className="panel-dipolo-grupo">
+        <h2 className="panel-dipolo-titulo">El dipolo</h2>
         <div className="panel-sonda-chip-fila">
           <button
             type="button"
@@ -449,6 +454,7 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
           onBlur={(e) => alPerderFoco(ID_DIPOLO, e.relatedTarget)}
         >
           {dipoloElegido && colocarConToque ? "Toca el recuadro para colocarlo" : "Colocar tocando el recuadro"}
+            <span className="sr-only"> (el dipolo)</span>
         </button>
         <p id={idAyudaDipolo} className="ayuda-mover">
           <span className="ayuda-puntero-fino">Arrástralo, o elígelo con ⊕ y usa las flechas.</span>

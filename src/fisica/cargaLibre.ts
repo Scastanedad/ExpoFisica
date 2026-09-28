@@ -30,7 +30,7 @@ import { K_VISUAL, SOFTENING2, type PuntoCarga } from "./coulomb";
 import { potencialEn } from "./coulomb";
 import { potencialUniformeSim } from "./campoExterno";
 import { reflejarEje } from "./dinamica";
-import { ESCALA, RADIO_CARGA_PX, factoresSim, pxAMetros, unidadesACoulomb, type ConfigEscala } from "./escala";
+import { ESCALA, RADIO_CARGA_PX, factoresSim, unidadesACoulomb, type ConfigEscala } from "./escala";
 import { aplicarZonaExclusion, camposActivos, campoTotalEnPunto, type ModoCampoEscena } from "./campoEscena";
 
 // ---- Constantes calibradas ----
@@ -70,11 +70,14 @@ export const SUBPASOS_MAX_CARGA_LIBRE = 400;
 export const FRACCION_DESPLAZAMIENTO_MAX = 0.5;
 
 /**
- * Distancia mínima a la carga fuente (zona de exclusión, modo "puntual"):
- * `2·RADIO_CARGA_PX`, la suma de los dos radios dibujados -- a diferencia del
- * dipolo (`RADIO_CARGA_PX + d/2`, el radio de la fuente más el brazo de la
- * varilla), aquí NO hay varilla: son dos cargas puntuales libres, así que se
- * tratan como "en contacto" cuando sus dos círculos dibujados se tocan.
+ * Distancia mínima a la carga fuente (zona de exclusión, modo "puntual") POR
+ * DEFECTO: `2·RADIO_CARGA_PX` -- a diferencia del dipolo (`RADIO_CARGA_PX +
+ * d/2`, el radio de la fuente más el brazo de la varilla), aquí NO hay
+ * varilla: son dos cargas puntuales, "en contacto" cuando sus dos discos se
+ * tocan. El canvas pasa `distMinFuente` con la suma de los radios REALMENTE
+ * dibujados (crecen con |q| hasta 20 px), para que el contacto de la
+ * simulación coincida con el que se ve (revisión física: con 5 µC los discos
+ * se solapaban 12 px antes de "tocarse").
  */
 export const DIST_MIN_EXCLUSION_CARGA_LIBRE = 2 * RADIO_CARGA_PX;
 
@@ -106,14 +109,31 @@ export interface ParametrosCargaLibre {
   /** Carga puntual fuente, arrastrable (solo se usa si `modoCampo === "puntual"`). */
   cargaFuente: PuntoCarga | null;
   soft2?: number;
+  /** Distancia centro-centro de contacto con la fuente (por defecto `DIST_MIN_EXCLUSION_CARGA_LIBRE`). */
+  distMinFuente?: number;
+  /**
+   * Punto donde V = 0 en modo "uniforme" (el potencial de placas solo está
+   * definido salvo una constante). El canvas pasa un punto de la placa
+   * NEGATIVA: así `V` va de 0 (placa −) al voltaje del control (placa +) y
+   * `U = qV` se lee directamente contra ese control. Por defecto (0, 0).
+   * No afecta a la dinámica (solo a la lectura de U).
+   */
+  origenPotencial?: { x: number; y: number };
 }
 
 /** Límites rectangulares del canvas para el rebote elástico (paredes). */
 export interface LimitesCargaLibre {
   ancho: number;
   alto: number;
-  /** Radio de la carga dibujada (por defecto `RADIO_CARGA_PX`). */
+  /** Radio de la carga dibujada (por defecto `RADIO_CARGA_PX`): distancia mínima del CENTRO a cada borde. */
   radio?: number;
+  /**
+   * Distancia mínima del centro a cada borde, si difiere por lado (p. ej. en
+   * modo "uniforme" las placas dibujadas ocupan los dos bordes de un eje:
+   * radio + grosor de placa ahí, para que la carga rebote contra la cara de la
+   * placa y no "dentro" de ella). Si se da, reemplaza a `radio` en las paredes.
+   */
+  margenes?: { izquierda: number; derecha: number; arriba: number; abajo: number };
 }
 
 // ---- Fuerza ----
@@ -186,17 +206,17 @@ export function pasoCargaLibre(
   let y = estado.y + vy * h;
 
   // Rebote elástico en los cuatro bordes del canvas.
-  const lo = radio;
-  const hx = limites.ancho - radio;
-  const hy = limites.alto - radio;
+  const m = limites.margenes ?? { izquierda: radio, derecha: radio, arriba: radio, abajo: radio };
+  const hx = limites.ancho - m.derecha;
+  const hy = limites.alto - m.abajo;
   const ax0 = fx0 / M;
   const ay0 = fy0 / M;
-  const rx = reflejarEje(x, x0, vx, ax0, h, lo, hx);
+  const rx = reflejarEje(x, x0, vx, ax0, h, m.izquierda, hx);
   if (rx) {
     x = rx[0];
     vx = rx[1];
   }
-  const ry = reflejarEje(y, y0, vy, ay0, h, lo, hy);
+  const ry = reflejarEje(y, y0, vy, ay0, h, m.arriba, hy);
   if (ry) {
     y = ry[0];
     vy = ry[1];
@@ -205,7 +225,7 @@ export function pasoCargaLibre(
   // Zona de exclusión cerca de la fuente puntual (modo "puntual").
   let intermedio: EstadoCargaLibre = { x, y, vx, vy };
   if (params.modoCampo === "puntual" && params.cargaFuente) {
-    const r = aplicarZonaExclusion(intermedio.x, intermedio.y, intermedio.vx, intermedio.vy, params.cargaFuente, DIST_MIN_EXCLUSION_CARGA_LIBRE);
+    const r = aplicarZonaExclusion(intermedio.x, intermedio.y, intermedio.vx, intermedio.vy, params.cargaFuente, params.distMinFuente ?? DIST_MIN_EXCLUSION_CARGA_LIBRE);
     intermedio = { x: r.x, y: r.y, vx: r.vx, vy: r.vy };
   }
 
@@ -244,15 +264,23 @@ export function pasoAvanceCargaLibre(
 
 // ---- Lectura para la UI ----
 
+/**
+ * Sin rapidez en m/s A PROPÓSITO (revisión física): la simulación va en
+ * "cámara lenta" (masa de escala visual, ver `MASA_CARGA_LIBRE`), así que una
+ * rapidez en m/s junto a K en julios implicaría una masa de ~450 kg para una
+ * carga de 1 µC. Las ENERGÍAS sí son SI honestas: `K` es el trabajo `qΔV`
+ * hecho por el campo, que no depende de la escala de tiempo ni de la masa.
+ */
 export interface LecturaCargaLibre {
-  /** m/s. */
-  rapidezMs: number;
   /** N. */
   fuerzaNetaN: number;
-  /** J: `U = qV` -- potencial de placas (`potencialUniformeSim`) en modo "uniforme",
-   * o potencial de la fuente (`potencialEn`) en modo "puntual" (nunca ambos:
-   * misma regla de `camposActivos`). En modo "uniforme" el cero de potencial
-   * es arbitrario (esquina superior izquierda): solo importan sus CAMBIOS.
+  /** J: `U = qV` -- potencial de placas (`potencialUniformeSim`, V = 0 en
+   * `origenPotencial`) en modo "uniforme", o potencial de la fuente
+   * (`potencialEn`, V = 0 en el infinito) en modo "puntual" (nunca ambos:
+   * misma regla de `camposActivos`). En modo "puntual" se usa el potencial
+   * CON softening, el mismo del que deriva la fuerza que mueve la carga: así
+   * K + U se conserva de verdad (con `kqQ/r` exacto habría una "deriva"
+   * aparente de hasta ~6 % en el contacto, 28 px).
    */
   energiaJ: number;
   /**
@@ -276,16 +304,15 @@ export function calcularLecturaCargaLibre(
   const fuerzaNetaN = Math.hypot(fx, fy) * factores.fuerza;
 
   const vPxS = Math.hypot(estado.vx, estado.vy);
-  const rapidezMs = pxAMetros(vPxS, esc); // px/s de simulación -> m/s (mismo factor de escala geométrica; el tiempo de simulación es el mismo reloj).
 
   const vSim =
     params.modoCampo === "uniforme" && externoSim
-      ? potencialUniformeSim(estado.x, estado.y, externoSim)
+      ? potencialUniformeSim(estado.x, estado.y, externoSim, params.origenPotencial)
       : potencialEn(estado.x, estado.y, cargasFuente, params.soft2 ?? SOFTENING2);
   const vSI = vSim * factores.potencial;
   const qC = unidadesACoulomb(params.q, esc);
   const energiaJ = qC * vSI;
   const energiaCineticaJ = 0.5 * params.masa * vPxS * vPxS * factores.energia;
 
-  return { rapidezMs, fuerzaNetaN, energiaJ, energiaCineticaJ };
+  return { fuerzaNetaN, energiaJ, energiaCineticaJ };
 }
