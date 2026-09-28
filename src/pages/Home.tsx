@@ -28,6 +28,22 @@ const ESTACIONES: Estacion[] = [
       "Coloca varias cargas y mira cómo se mueven solas: se atraen y se repelen entre sí por la fuerza de Coulomb.",
     ruta: "/cargas-en-movimiento",
   },
+  {
+    numero: "03",
+    etiqueta: "Gira y se acerca",
+    titulo: "Dipolos",
+    descripcion:
+      "Dos cargas opuestas unidas por una varilla: giran con el campo y, cerca de otra carga, se acercan a ella.",
+    ruta: "/dipolos",
+  },
+  {
+    numero: "04",
+    etiqueta: "Compara dos materiales",
+    titulo: "Conductores y aislantes",
+    descripcion:
+      "El mismo campo sobre un conductor y un aislante: los electrones libres del conductor apartan el campo de su interior.",
+    ruta: "/materiales",
+  },
 ];
 
 /**

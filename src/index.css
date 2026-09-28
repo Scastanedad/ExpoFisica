@@ -1323,3 +1323,575 @@ a {
     font-size: 20px;
   }
 }
+
+/* ---------- Dipolos (Estación 03) ---------- */
+
+/* Orden del panel: acciones, tipo de campo, controles del campo y del dipolo; después las lecturas y
+   los ajustes secundarios (q, d). Cada bloque se separa del anterior con un filete. */
+.panel-dipolo {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.panel-dipolo-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.panel-dipolo-grupo + .panel-dipolo-grupo {
+  padding-top: 12px;
+  border-top: 1px solid var(--borde);
+}
+
+.panel-dipolo-lecturas,
+.panel-dipolo-ajustes {
+  padding-top: 12px;
+  border-top: 1px solid var(--borde);
+}
+
+/* Pausar / Reiniciar: una fila con dos botones del mismo ancho, arriba del panel (como en 02). */
+.panel-dipolo-acciones {
+  flex-direction: row;
+  gap: 8px;
+}
+
+.panel-dipolo-acciones > button {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+/* Cada ayuda va pegada a su control (sin el margen superior de `.ayuda-mover`; el hueco lo da el grupo). */
+.panel-dipolo .ayuda-mover {
+  margin: 0;
+}
+
+.panel-dipolo .boton-colocar {
+  margin-top: 0;
+}
+
+/* Deslizador apilado: etiqueta a la izquierda y valor a la derecha en una fila, y la barra a ancho
+   completo debajo. Así una etiqueta larga ("Magnitud de la carga fuente") no comprime la barra, y
+   `flex: 0 0 auto` evita que `.control-deslizador` (flex: 1 1 200px) le dé 200 px de ALTO dentro de
+   un grupo en columna. */
+.control-deslizador-apilado {
+  display: grid;
+  flex: 0 0 auto;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "etiqueta valor"
+    "barra barra";
+  align-items: baseline;
+  gap: 0 12px;
+  min-height: 0;
+}
+
+.control-deslizador-apilado > span {
+  grid-area: etiqueta;
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--text-dim);
+}
+
+.control-deslizador-apilado > output {
+  grid-area: valor;
+  font-family: var(--mono);
+  font-size: 15px;
+}
+
+.control-deslizador-apilado > input[type="range"] {
+  grid-area: barra;
+  width: 100%;
+  min-width: 0;
+}
+
+/* Selector de solo 2 opciones (tipo de campo, orientación de las placas): 2 columnas siempre,
+   también donde `.selector-modo` pasa a 3 (>= 420 px). */
+.selector-modo.selector-modo-dos {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Rótulo bajo el lienzo: fricción sí/no, leyenda de las flechas de fuerza y aviso de pausa. */
+.rotulo-dipolo {
+  margin: 6px auto 0;
+  max-width: var(--lienzo-max, 980px);
+  min-height: 24px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2px 16px;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--text-dim);
+}
+
+.rotulo-dipolo-leyenda {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Violeta de las flechas de fuerza (`COLOR_FUERZA` de dibujarFuerzas.ts). */
+.muestra-fuerza {
+  border-top: 3px solid #c4b5fd;
+}
+
+.rotulo-dipolo-pausa {
+  padding: 1px 10px;
+  border: 1px solid var(--text-dim);
+  border-radius: 999px;
+  color: var(--text);
+}
+
+/* Proyector: los controles pequeños del panel de Dipolos suben a 16 px, como el resto de estaciones. */
+@media (min-width: 1600px) {
+  .panel-dipolo .boton-pausa,
+  .panel-dipolo .boton-colocar,
+  .panel-dipolo .sonda-chip,
+  .panel-dipolo .selector-modo button,
+  .panel-dipolo .selector-modo-descripcion,
+  .panel-dipolo .panel-sonda-check,
+  .panel-dipolo .control-deslizador-apilado > span,
+  .panel-dipolo .control-deslizador-apilado > output,
+  .panel-dipolo-lecturas .panel-energia-titulo,
+  .panel-dipolo-lecturas .panel-energia-subtitulo,
+  .panel-dipolo-lecturas .panel-energia-filas dt,
+  .rotulo-dipolo {
+    font-size: 16px;
+  }
+
+  .panel-dipolo .boton-paso {
+    font-size: 24px;
+  }
+}
+
+/* ---------- Materiales (Estación 04) ---------- */
+
+/* En pantallas angostas `.simulador-lienzo` se queda pegado arriba; aquí serían dos lienzos apilados
+   (más de media pantalla) y taparían los controles, así que esta estación no lo pega. En su lugar
+   queda fija al pie la barra del voltaje (`.materiales-voltaje-movil`). */
+.simulador-lienzo.materiales-zona {
+  position: static;
+  padding-bottom: 0;
+}
+
+/* Instrucción de dos líneas en pantalla ancha (lo demás se explica bajo cada material). */
+.instrucciones-materiales {
+  max-width: 100ch;
+}
+
+/* Aviso de honestidad + leyenda + aviso de pausa: una sola caja sobre los lienzos, siempre visible. */
+.materiales-info {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 18px;
+  margin: 0 0 8px;
+  padding: 6px 12px;
+  border: 1px solid var(--borde);
+  border-left: 3px solid var(--text-dim);
+  border-radius: 8px;
+  background: rgba(11, 16, 32, 0.5);
+}
+
+.materiales-aviso {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text);
+}
+
+.materiales-aviso strong {
+  font-weight: 600;
+}
+
+/* Leyenda dentro de la caja: en fila, sin su propio marco (.leyenda-vista es una caja en columna). */
+.leyenda-vista.leyenda-materiales {
+  flex: 1 1 auto;
+  flex-direction: row;
+  flex-wrap: wrap;
+  gap: 2px 16px;
+  margin: 0;
+  padding: 0;
+  max-width: none;
+  border: 0;
+  border-radius: 0;
+  background: none;
+}
+
+.leyenda-materiales li {
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+/* Muestras: forma y tamaño además del color (electrón = grande y azul, átomo = chico y rojo). */
+.muestra-electron,
+.muestra-atomo,
+.muestra-zona {
+  flex: none;
+  box-sizing: border-box;
+}
+
+.muestra-electron {
+  width: 14px;
+  height: 14px;
+  border: 1px solid #93c5fd;
+  border-radius: 50%;
+  background: rgba(37, 99, 235, 0.78);
+}
+
+.muestra-atomo {
+  width: 7px;
+  height: 7px;
+  margin: 0 3.5px;
+  border: 1px solid #fecaca;
+  border-radius: 50%;
+  background: #dc2626;
+}
+
+/* Línea blanca con flecha: el campo. */
+.muestra-campo-flecha {
+  position: relative;
+  border-top: 2px solid #f8fafc;
+}
+
+.muestra-campo-flecha::after {
+  content: "";
+  position: absolute;
+  top: -6px;
+  right: -1px;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 9px solid #f8fafc;
+}
+
+.muestra-zona {
+  width: 14px;
+  height: 14px;
+  border: 2px dashed rgba(226, 232, 240, 0.85);
+}
+
+.materiales-pausa {
+  margin-left: auto;
+  white-space: nowrap;
+  font-family: var(--mono);
+  font-size: 13px;
+}
+
+/* Conductor y aislante lado a lado; apilados si no caben dos columnas de al menos 280 px. */
+.materiales-comparacion {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.materiales-figura {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+  margin: 0;
+}
+
+.materiales-cabecera h2 {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.materiales-descripcion {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--text-dim);
+}
+
+/* Apilados (pantalla angosta) el lienzo ocupa todo el ancho; el ancho por altura solo aplica a dos columnas. */
+.materiales-lienzo {
+  width: 100%;
+  cursor: default;
+}
+
+.materiales-lectura {
+  font-family: var(--mono);
+}
+
+.materiales-lectura-titulo {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Cifra clave: cuánto campo queda dentro, grande y pegada a su barra. */
+.materiales-cifra {
+  align-items: baseline;
+}
+
+.materiales-cifra dt,
+.materiales-cifra dd span {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.materiales-cifra dd strong {
+  font-size: 28px;
+  font-weight: 600;
+  line-height: 1.1;
+  color: var(--text);
+}
+
+/* Barra de |E dentro| / E0: refuerzo visual de los números (los números llevan la información). */
+.materiales-barra {
+  height: 8px;
+  margin: 2px 0 6px;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.25);
+  overflow: hidden;
+}
+
+.materiales-barra-relleno {
+  height: 100%;
+  border-radius: 4px;
+  background: rgba(226, 232, 240, 0.85);
+}
+
+/* Lecturas secundarias: más discretas que la cifra clave. */
+.materiales-filas-secundarias > div {
+  flex-wrap: wrap;
+}
+
+.materiales-filas-secundarias dt {
+  font-size: 13px;
+}
+
+.materiales-filas-secundarias dd {
+  font-size: 14px;
+  color: var(--text-dim);
+  text-align: right;
+}
+
+/* Barra del voltaje fija al pie (solo pantalla angosta): mientras se recorren los dos lienzos el
+   control sigue a mano. Fondo opaco para que lo que pasa debajo no se transparente. */
+.materiales-voltaje-movil {
+  position: sticky;
+  bottom: 0;
+  z-index: 3;
+  margin: 8px -16px 0;
+  padding: 4px 16px calc(6px + env(safe-area-inset-bottom, 0px));
+  background: var(--bg);
+  border-top: 1px solid var(--borde);
+  box-shadow: 0 -8px 12px -6px rgba(5, 7, 13, 0.9);
+}
+
+.materiales-voltaje-escritorio {
+  display: none;
+}
+
+/* Panel de controles. */
+.materiales-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.materiales-grupo {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.materiales-grupo + .materiales-grupo {
+  padding-top: 12px;
+  border-top: 1px solid var(--borde);
+}
+
+.materiales-acciones {
+  flex-direction: row;
+  gap: 8px;
+}
+
+.materiales-acciones > button {
+  flex: 1 1 0;
+  min-width: 0;
+  margin: 0;
+  padding-left: 10px;
+  padding-right: 10px;
+}
+
+.materiales-panel .boton-colocar {
+  margin-top: 0;
+}
+
+/* El borde punteado del botón de polaridad se lee mejor con un poco más de opacidad. */
+.materiales-panel .boton-colocar:not([aria-pressed="true"]) {
+  border-color: rgba(148, 163, 184, 0.7);
+}
+
+/* Deslizador apilado: etiqueta y valor en una fila y la barra a ancho completo debajo. */
+.materiales-deslizador {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "etiqueta valor"
+    "barra barra";
+  align-items: baseline;
+  gap: 4px 12px;
+}
+
+.materiales-deslizador > span {
+  grid-area: etiqueta;
+  font-size: 14px;
+  line-height: 1.3;
+  color: var(--text-dim);
+}
+
+.materiales-deslizador > output {
+  grid-area: valor;
+  font-family: var(--mono);
+  font-size: 15px;
+}
+
+.materiales-deslizador > input[type="range"] {
+  grid-area: barra;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  margin: 0;
+  background: transparent;
+  cursor: pointer;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.materiales-deslizador > input[type="range"]::-webkit-slider-runnable-track {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.materiales-deslizador > input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 28px;
+  height: 28px;
+  margin-top: -11px;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  background: var(--accent);
+}
+
+.materiales-deslizador > input[type="range"]::-moz-range-track {
+  height: 6px;
+  border-radius: 3px;
+  background: rgba(148, 163, 184, 0.35);
+}
+
+.materiales-deslizador > input[type="range"]::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+  background: var(--accent);
+}
+
+.materiales-dato,
+.materiales-ayuda {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--text-dim);
+}
+
+.materiales-dato {
+  font-family: var(--mono);
+}
+
+.materiales-dato strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.materiales-dato-nota {
+  display: block;
+  font-family: var(--sans);
+}
+
+.materiales-etiqueta {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+/* Selector de solo 2 opciones: 2 columnas siempre, también donde `.selector-modo` pasa a 3. */
+.materiales-panel .selector-modo {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+/* Pantalla ancha (dos columnas, sin scroll de página): el deslizador vuelve al panel, los lienzos
+   toman su ancho de la altura disponible (no `width: 100%`: eso lo pisaba y desbordaba a 1366x768) y
+   los bloques de texto reservan sitio para que nada salte cuando cambian las lecturas. */
+@media (min-width: 900px) and (min-height: 560px) {
+  .materiales-voltaje-movil {
+    display: none;
+  }
+
+  .materiales-voltaje-escritorio {
+    display: block;
+  }
+
+  .materiales-lienzo {
+    width: min(
+      100%,
+      max(220px, calc((100svh - var(--reserva-v, 0px)) * var(--lienzo-ratio, 1.333))),
+      var(--lienzo-max, 980px)
+    );
+  }
+
+  .materiales-descripcion {
+    min-height: calc(2 * 1.35em);
+  }
+
+  .materiales-filas-secundarias {
+    min-height: 44px;
+  }
+}
+
+/* Proyector: los textos pequeños suben a 16 px y la cifra clave se hace grande, como en el resto de estaciones. */
+@media (min-width: 1600px) {
+  .materiales-aviso,
+  .materiales-descripcion,
+  .materiales-lectura-titulo,
+  .materiales-dato,
+  .materiales-ayuda,
+  .materiales-etiqueta,
+  .materiales-deslizador > span,
+  .materiales-deslizador > output,
+  .materiales-panel .boton-pausa,
+  .materiales-panel .boton-colocar,
+  .materiales-panel .selector-modo button,
+  .materiales-cifra dt,
+  .materiales-cifra dd span,
+  .materiales-filas-secundarias dt,
+  .materiales-filas-secundarias dd,
+  .materiales-pausa,
+  .leyenda-materiales {
+    font-size: 16px;
+  }
+
+  .materiales-cabecera h2 {
+    font-size: 22px;
+  }
+
+  .materiales-cifra dd strong {
+    font-size: 40px;
+  }
+}
