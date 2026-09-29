@@ -18,6 +18,7 @@ import { D_MAX_PX, D_MIN_PX, VOLTAJE_MAX_KV, VOLTAJE_MIN_KV, type LecturaDipolo,
 import type { LecturaCargaLibre } from "../fisica/cargaLibre";
 import type { OrientacionPlacas } from "../fisica/campoExterno";
 import { Q_MAX, Q_MIN } from "../fisica/carga";
+import { VELOCIDAD_MAX, VELOCIDAD_MIN } from "../fisica/dinamica";
 
 /** Qué objeto se coloca en el campo (uno a la vez). */
 export type ObjetoCampo = "dipolo" | "carga";
@@ -35,6 +36,8 @@ interface EstadoCampoContinuoStore {
   // La carga puntual libre (objeto "carga").
   qCargaLibreUC: number;
   signoCargaLibre: 1 | -1;
+  /** Deslizador "Velocidad" de la carga libre (×, mismo rango que la estación 02): multiplica `DILATACION_CARGA_LIBRE`. */
+  velocidadCargaLibre: number;
   // Carga fuente (modo "puntual").
   qFuenteUC: number;
   signoFuente: 1 | -1;
@@ -53,6 +56,7 @@ interface EstadoCampoContinuoStore {
   setDPx: (d: number) => void;
   setQCargaLibreUC: (q: number) => void;
   alternarSignoCargaLibre: () => void;
+  setVelocidadCargaLibre: (v: number) => void;
   setQFuenteUC: (q: number) => void;
   alternarSignoFuente: () => void;
   setMostrarFuerzas: (v: boolean) => void;
@@ -81,6 +85,7 @@ export const useCampoContinuoStore = create<EstadoCampoContinuoStore>((set) => (
   dPx: 50,
   qCargaLibreUC: 1,
   signoCargaLibre: 1,
+  velocidadCargaLibre: 1,
   qFuenteUC: 5, // misma configuración verificada en el prototipo de la spec E5.1 §4.
   signoFuente: 1,
   mostrarFuerzas: true,
@@ -97,6 +102,7 @@ export const useCampoContinuoStore = create<EstadoCampoContinuoStore>((set) => (
   setDPx: (d) => set({ dPx: acotar(d, D_MIN_PX, D_MAX_PX) }),
   setQCargaLibreUC: (q) => set({ qCargaLibreUC: acotar(q, Q_MIN, Q_MAX) }),
   alternarSignoCargaLibre: () => set((s) => ({ signoCargaLibre: s.signoCargaLibre === 1 ? -1 : 1 })),
+  setVelocidadCargaLibre: (v) => set({ velocidadCargaLibre: acotar(v, VELOCIDAD_MIN, VELOCIDAD_MAX) }),
   setQFuenteUC: (q) => set({ qFuenteUC: acotar(q, Q_MIN, Q_MAX) }),
   alternarSignoFuente: () => set((s) => ({ signoFuente: s.signoFuente === 1 ? -1 : 1 })),
   setMostrarFuerzas: (v) => set({ mostrarFuerzas: v }),

@@ -141,11 +141,11 @@ export function CampoContinuo() {
                 la fuente (carga fuente). Así, en la placa positiva U vale q por el voltaje del control.
               </li>
               <li>
-                La masa de la carga es una constante de escala visual: el movimiento va en «cámara lenta»
-                para que se pueda seguir con la vista. Una carga real de esta magnitud y masa pequeña
-                cruzaría el recuadro en una fracción de segundo. Por eso no se muestra su rapidez en m/s:
-                las fuerzas y las energías sí son las reales. La masa es la misma en los dos tipos de
-                campo, así que se pueden comparar.
+                La animación va en cámara lenta, como en «Cargas en movimiento»: con cargas y masas de
+                laboratorio la carga cruzaría el recuadro en una fracción de segundo. El control
+                «Velocidad de la animación» solo cambia qué tan rápido pasa el tiempo en pantalla, no
+                la física: la trayectoria y las energías son las mismas. Por eso no se muestra la
+                rapidez en m/s; las fuerzas y las energías sí son las reales.
               </li>
               <li className="notas-subtitulo" aria-hidden="true">
                 El campo uniforme (las placas)

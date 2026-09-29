@@ -36,26 +36,35 @@ import { aplicarZonaExclusion, camposActivos, campoTotalEnPunto, type ModoCampoE
 // ---- Constantes calibradas ----
 
 /**
- * Masa traslacional, unidades de simulación: una CONSTANTE DE ESCALA VISUAL
- * (mismo estatus que `J0_DIPOLO`), no la masa real de nada.
- *
- * Por qué no `1` (la masa de "Cargas en movimiento" y `MASA_DIPOLO`): en modo
- * "uniforme" el campo en unidades de simulación es débil (`E_sim` ≈ 0.007–0.07
- * en el rango 30–300 kV, ver `campoUniformeASim`). Con masa 1 y q = 1 µC a
- * 50 kV (valores iniciales) la aceleración sería ≈ 0.011 px/s²: ~3 minutos
- * para recorrer media escena, es decir, "no se mueve". Con 0.002:
- *
- *   - Uniforme, 50 kV, q = 1: a ≈ 5.6 px/s² → 250 px en ≈ 9.5 s.
- *   - Uniforme, 300 kV, q = 5: a ≈ 170 px/s² → 250 px en ≈ 1.7 s.
- *   - Puntual (fuente 5 µC) repeliendo q = 1 desde 60 px: rapidez final
- *     ≈ 650 px/s (cruza la escena en ~1 s, todavía legible).
- *
- * Una sola masa para los DOS modos (no una por modo): así la comparación
- * "placas vs. carga puntual" sigue siendo honesta dentro de la estación. El
- * dipolo conserva `MASA_DIPOLO = 1` porque su traslación solo importa en modo
- * "puntual" (en uniforme `F_neta = 0`), donde ya estaba calibrada.
+ * Masa traslacional, unidades de simulación: `1`, el MISMO convenio que
+ * "Cargas en movimiento" (`dinamica.ts`, masa 1 por defecto) y `MASA_DIPOLO`.
+ * La "cámara lenta" NO se consigue con una masa ficticia sino, igual que en la
+ * estación 02, con un factor de tiempo (`DILATACION_CARGA_LIBRE`) y un
+ * deslizador de velocidad: ver abajo.
  */
-export const MASA_CARGA_LIBRE = 0.002;
+export const MASA_CARGA_LIBRE = 1;
+
+/**
+ * σ: segundos de SIMULACIÓN por segundo de reloj a velocidad 1× (mismo papel
+ * que `DILATACION_DINAMICA = 8` de `dinamica.ts`). El canvas integra
+ * `dt_reloj · σ · velocidad` segundos de simulación por frame.
+ *
+ * Por qué 22 y no 8: en modo "uniforme" el campo en unidades de simulación es
+ * débil (`E_sim` ≈ 0.007–0.07 en el rango 30–300 kV, ver `campoUniformeASim`).
+ * Con σ = 8, a 50 kV y q = 1 µC (valores iniciales) la carga tardaría ~17 s en
+ * recorrer 100 px. Con σ = 22 (≈ √500, equivalente a la masa visual 0.002 de
+ * la primera versión, ya revisada en pantalla):
+ *
+ *   - Uniforme, 50 kV, q = 1, 1×: 100 px en ≈ 6 s (≈ 2 s a 3×).
+ *   - Uniforme, 300 kV, q = 5, 1×: 250 px en ≈ 1.7 s.
+ *   - Puntual (fuente 5 µC, q = 5) soltada en contacto, 1×: ≈ 2000 px/s en
+ *     pantalla (≈ 500 px/s a 0.25×). Física correcta, decisión confirmada.
+ *
+ * Dilatar el tiempo por σ equivale EXACTAMENTE a dividir la masa por σ² (la
+ * trayectoria es la misma; ver el test "dilatación ≡ masa/σ²"), pero deja la
+ * masa y la energía cinética en el mismo convenio que el resto de la app.
+ */
+export const DILATACION_CARGA_LIBRE = 22;
 
 /** Tope de sub-pasos por paso lógico (mismo espíritu que `SUBPASOS_MAX_DIPOLO`/`SUBDIVISIONES_MAX`). */
 export const SUBPASOS_MAX_CARGA_LIBRE = 400;
@@ -266,10 +275,10 @@ export function pasoAvanceCargaLibre(
 
 /**
  * Sin rapidez en m/s A PROPÓSITO (revisión física): la simulación va en
- * "cámara lenta" (masa de escala visual, ver `MASA_CARGA_LIBRE`), así que una
- * rapidez en m/s junto a K en julios implicaría una masa de ~450 kg para una
- * carga de 1 µC. Las ENERGÍAS sí son SI honestas: `K` es el trabajo `qΔV`
- * hecho por el campo, que no depende de la escala de tiempo ni de la masa.
+ * "cámara lenta" (`DILATACION_CARGA_LIBRE`, más el deslizador), así que una
+ * rapidez en m/s no sería la real y, junto a K en julios, implicaría una masa
+ * absurda. Las ENERGÍAS sí son SI honestas: `K` es el trabajo `qΔV` hecho por
+ * el campo, que no depende de la escala de tiempo ni de la masa.
  */
 export interface LecturaCargaLibre {
   /** N. */

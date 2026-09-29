@@ -24,6 +24,7 @@ import { campoPlacas, campoUniformeASim } from "../fisica/campoExterno";
 import type { PuntoCarga } from "../fisica/coulomb";
 import {
   calcularLecturaCargaLibre,
+  DILATACION_CARGA_LIBRE,
   estadoInicialCargaLibre,
   MASA_CARGA_LIBRE,
   pasoAvanceCargaLibre,
@@ -133,6 +134,7 @@ export function CanvasCampoContinuo({ controladorRef }: Props) {
   const dPxRef = useRef(useCampoContinuoStore.getState().dPx);
   const qCargaLibreUCRef = useRef(useCampoContinuoStore.getState().qCargaLibreUC);
   const signoCargaLibreRef = useRef(useCampoContinuoStore.getState().signoCargaLibre);
+  const velocidadCargaLibreRef = useRef(useCampoContinuoStore.getState().velocidadCargaLibre);
   const qFuenteUCRef = useRef(useCampoContinuoStore.getState().qFuenteUC);
   const signoFuenteRef = useRef(useCampoContinuoStore.getState().signoFuente);
   const mostrarFuerzasRef = useRef(useCampoContinuoStore.getState().mostrarFuerzas);
@@ -148,6 +150,7 @@ export function CanvasCampoContinuo({ controladorRef }: Props) {
   const dPx = useCampoContinuoStore((s) => s.dPx);
   const qCargaLibreUC = useCampoContinuoStore((s) => s.qCargaLibreUC);
   const signoCargaLibre = useCampoContinuoStore((s) => s.signoCargaLibre);
+  const velocidadCargaLibre = useCampoContinuoStore((s) => s.velocidadCargaLibre);
   const qFuenteUC = useCampoContinuoStore((s) => s.qFuenteUC);
   const signoFuente = useCampoContinuoStore((s) => s.signoFuente);
   const mostrarFuerzas = useCampoContinuoStore((s) => s.mostrarFuerzas);
@@ -183,6 +186,9 @@ export function CanvasCampoContinuo({ controladorRef }: Props) {
   useEffect(() => {
     signoCargaLibreRef.current = signoCargaLibre;
   }, [signoCargaLibre]);
+  useEffect(() => {
+    velocidadCargaLibreRef.current = velocidadCargaLibre;
+  }, [velocidadCargaLibre]);
   useEffect(() => {
     qFuenteUCRef.current = qFuenteUC;
   }, [qFuenteUC]);
@@ -493,8 +499,10 @@ export function CanvasCampoContinuo({ controladorRef }: Props) {
       const esCarga = objetoRef.current === "carga";
       const paramsCarga = parametrosCargaLibre(params);
       if (!enPausaRef.current && !arrastrandoObjetoRef.current) {
-        // Solo el objeto activo se integra: el otro queda congelado donde estaba.
-        if (esCarga) cargaLibreRef.current = pasoAvanceCargaLibre(cargaLibreRef.current, paramsCarga, dt, limitesCargaLibre(paramsCarga));
+        // Solo el objeto activo se integra: el otro queda congelado donde estaba. La carga libre va
+        // en cámara lenta como la estación 02: σ·velocidad segundos de simulación por segundo de reloj.
+        const dtCarga = dt * DILATACION_CARGA_LIBRE * velocidadCargaLibreRef.current;
+        if (esCarga) cargaLibreRef.current = pasoAvanceCargaLibre(cargaLibreRef.current, paramsCarga, dtCarga, limitesCargaLibre(paramsCarga));
         else dipoloRef.current = pasoAvanceDipolo(dipoloRef.current, params, dt);
       }
 

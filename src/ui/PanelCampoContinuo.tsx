@@ -22,6 +22,7 @@
 import { useEffect, useId, useRef, useState, type KeyboardEvent, type MouseEvent, type RefObject } from "react";
 import { D_MAX_PX, D_MIN_PX, D_PASO_PX, VOLTAJE_MAX_KV, VOLTAJE_MIN_KV, VOLTAJE_PASO_KV, type ModoCampoDipolo } from "../fisica/dipolo";
 import { Q_MAX, Q_MIN, Q_PASO } from "../fisica/carga";
+import { VELOCIDAD_MAX, VELOCIDAD_MIN } from "../fisica/dinamica";
 import { formatDistancia, pxAMetros } from "../fisica/escala";
 import type { OrientacionPlacas } from "../fisica/campoExterno";
 import { ID_CARGA_FUENTE, ID_CARGA_LIBRE, ID_DIPOLO, type ControladorCampoContinuo } from "../render/controladorCampoContinuo";
@@ -122,6 +123,8 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
   const alternarSignoFuente = useCampoContinuoStore((s) => s.alternarSignoFuente);
   const setQCargaLibreUC = useCampoContinuoStore((s) => s.setQCargaLibreUC);
   const alternarSignoCargaLibre = useCampoContinuoStore((s) => s.alternarSignoCargaLibre);
+  const velocidadCargaLibre = useCampoContinuoStore((s) => s.velocidadCargaLibre);
+  const setVelocidadCargaLibre = useCampoContinuoStore((s) => s.setVelocidadCargaLibre);
   const setMostrarFuerzas = useCampoContinuoStore((s) => s.setMostrarFuerzas);
   const togglePausa = useCampoContinuoStore((s) => s.togglePausa);
 
@@ -382,6 +385,18 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
               onChange={(e) => setQCargaLibreUC(Number(e.target.value))}
             />
             <output>{qCargaLibreUC} µC</output>
+          </label>
+          <label className="control-deslizador control-deslizador-apilado">
+            <span>Velocidad de la animación</span>
+            <input
+              type="range"
+              min={VELOCIDAD_MIN}
+              max={VELOCIDAD_MAX}
+              step={0.25}
+              value={velocidadCargaLibre}
+              onChange={(e) => setVelocidadCargaLibre(Number(e.target.value))}
+            />
+            <output>{velocidadCargaLibre.toFixed(2)}×</output>
           </label>
           <div className="panel-sonda-chip-fila">
             <button

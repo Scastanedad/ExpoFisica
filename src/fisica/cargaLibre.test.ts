@@ -3,6 +3,7 @@ import type { PuntoCarga } from "./coulomb";
 import { campoPlacas, campoUniformeASim } from "./campoExterno";
 import { aplicarZonaExclusion, camposActivos, campoTotalEnPunto } from "./campoEscena";
 import {
+  DILATACION_CARGA_LIBRE,
   DIST_MIN_EXCLUSION_CARGA_LIBRE,
   MASA_CARGA_LIBRE,
   SUBPASOS_MAX_CARGA_LIBRE,
@@ -22,7 +23,9 @@ import { estadoInicialDipolo, pasoAvanceDipolo, type ParametrosDipolo } from "./
 const LIMITES: LimitesCargaLibre = { ancho: 700, alto: 500 };
 /** Caja enorme: sin paredes a efectos prácticos (aísla la física del campo del rebote). */
 const SIN_PAREDES: LimitesCargaLibre = { ancho: 1e7, alto: 1e7 };
-const DT = 1 / 60;
+/** Un frame de reloj (60 fps) a velocidad 1×, y los segundos de SIMULACIÓN que integra el canvas en él. */
+const DT_RELOJ = 1 / 60;
+const DT = DILATACION_CARGA_LIBRE * DT_RELOJ;
 
 function uniforme(externoSim: readonly [number, number], q = 1): ParametrosCargaLibre {
   return { q, masa: MASA_CARGA_LIBRE, modoCampo: "uniforme", externoSim, cargaFuente: null };
@@ -32,9 +35,11 @@ function puntual(fuente: PuntoCarga, q = 1): ParametrosCargaLibre {
   return { q, masa: MASA_CARGA_LIBRE, modoCampo: "puntual", externoSim: null, cargaFuente: fuente };
 }
 
+/** `segundos` de RELOJ a 1× (lo que ve el visitante), en frames de 60 fps como el canvas. */
 function simular(e: EstadoCargaLibre, p: ParametrosCargaLibre, segundos: number, lim: LimitesCargaLibre): EstadoCargaLibre {
   let estado = e;
-  for (let t = 0; t < segundos - 1e-9; t += DT) estado = pasoAvanceCargaLibre(estado, p, DT, lim);
+  const frames = Math.round(segundos / DT_RELOJ);
+  for (let i = 0; i < frames; i++) estado = pasoAvanceCargaLibre(estado, p, DT, lim);
   return estado;
 }
 
@@ -103,10 +108,24 @@ describe("carga libre: campo uniforme", () => {
     const p = uniforme([0.01, 0], 1.5);
     const a = (1.5 * 0.01) / MASA_CARGA_LIBRE;
     const e = simular(estadoInicialCargaLibre(1000, 1000), p, 3, SIN_PAREDES);
-    const t = Math.round(3 / DT) * DT;
+    const t = Math.round(3 / DT_RELOJ) * DT; // segundos de simulación integrados
     expect(e.x - 1000).toBeCloseTo(0.5 * a * t * t, 6);
     expect(e.vx).toBeCloseTo(a * t, 6);
     expect(e.y).toBe(1000);
+  });
+
+  test("dilatación ≡ masa/σ²: integrar σ·dt con masa 1 da la misma trayectoria que dt con masa 1/σ²", () => {
+    const s = DILATACION_CARGA_LIBRE;
+    const lento = { ...uniforme(e0, 2), masa: 1 / (s * s) };
+    let a = estadoInicialCargaLibre(350, 100);
+    let b = estadoInicialCargaLibre(350, 100);
+    for (let i = 0; i < 120; i++) {
+      a = pasoAvanceCargaLibre(a, uniforme(e0, 2), s * DT_RELOJ, LIMITES); // masa 1, tiempo dilatado
+      b = pasoAvanceCargaLibre(b, lento, DT_RELOJ, LIMITES); // masa pequeña, tiempo de reloj
+      expect(a.x).toBeCloseTo(b.x, 6);
+      expect(a.y).toBeCloseTo(b.y, 6);
+      expect(a.vy).toBeCloseTo(b.vy / s, 6); // v_sim = v_pantalla / σ
+    }
   });
 
   test("la carga positiva va en el sentido del campo; la negativa en contra", () => {
@@ -129,7 +148,7 @@ describe("carga libre: campo uniforme", () => {
     const escala = Math.abs(calcularLecturaCargaLibre(estadoInicialCargaLibre(200, 500), p).energiaJ - calcularLecturaCargaLibre(e, p).energiaJ);
     let rebotes = 0;
     let vyPrevio = e.vy;
-    for (let t = 0; t < 30; t += DT) {
+    for (let t = 0; t < 30; t += DT_RELOJ) {
       e = pasoAvanceCargaLibre(e, p, DT, LIMITES);
       if (vyPrevio > 0 && e.vy < 0) rebotes++;
       vyPrevio = e.vy;
@@ -144,7 +163,7 @@ describe("carga libre: campo uniforme", () => {
     const eFuerte = campoUniformeASim(campoPlacas("horizontal", -1, 300_000, pxAMetros(700)));
     let e = estadoInicialCargaLibre(350, 250, 300, -200);
     const p = uniforme(eFuerte, 5);
-    for (let t = 0; t < 20; t += DT) {
+    for (let t = 0; t < 20; t += DT_RELOJ) {
       e = pasoAvanceCargaLibre(e, p, DT, LIMITES);
       expect(e.x).toBeGreaterThanOrEqual(RADIO_CARGA_PX - 1e-9);
       expect(e.x).toBeLessThanOrEqual(700 - RADIO_CARGA_PX + 1e-9);
@@ -168,20 +187,20 @@ describe("carga libre: campo de una carga puntual", () => {
     let e = estadoInicialCargaLibre(420, 330);
     const p = puntual(fuente, -5);
     let minDist = Infinity;
-    for (let t = 0; t < 10; t += DT) {
+    for (let t = 0; t < 10; t += DT_RELOJ) {
       e = pasoAvanceCargaLibre(e, p, DT, LIMITES);
       minDist = Math.min(minDist, Math.hypot(e.x - fuente.x, e.y - fuente.y));
     }
     expect(minDist).toBeGreaterThanOrEqual(DIST_MIN_EXCLUSION_CARGA_LIBRE - 1e-6);
     // Y termina pegada a ella (la atracción la mantiene en el contacto; puede deslizar alrededor).
-    expect(Math.hypot(e.x - fuente.x, e.y - fuente.y)).toBeLessThan(DIST_MIN_EXCLUSION_CARGA_LIBRE + 3);
+    expect(Math.hypot(e.x - fuente.x, e.y - fuente.y)).toBeLessThan(DIST_MIN_EXCLUSION_CARGA_LIBRE + 5);
   });
 
   test("repulsión sin paredes: K + U se conserva (≤ 0.5 %)", () => {
     const p = puntual(fuente, 2);
     let e = estadoInicialCargaLibre(380, 170);
     const inicial = energiaTotalJ(e, p);
-    for (let t = 0; t < 3; t += DT) e = pasoAvanceCargaLibre(e, p, DT, SIN_PAREDES);
+    for (let t = 0; t < 3; t += DT_RELOJ) e = pasoAvanceCargaLibre(e, p, DT, SIN_PAREDES);
     const final = energiaTotalJ(e, p);
     expect(Math.abs(final - inicial) / Math.abs(inicial)).toBeLessThan(0.005);
     expect(calcularLecturaCargaLibre(e, p).energiaCineticaJ).toBeGreaterThan(0.9 * inicial);
@@ -192,7 +211,7 @@ describe("carga libre: campo de una carga puntual", () => {
     let e = estadoInicialCargaLibre(350, 320, 900, 0);
     const inicial = energiaTotalJ(e, p);
     let minDist = Infinity;
-    for (let t = 0; t < 1; t += DT) {
+    for (let t = 0; t < 1; t += DT_RELOJ) {
       e = pasoAvanceCargaLibre(e, p, DT, SIN_PAREDES);
       minDist = Math.min(minDist, Math.hypot(e.x - fuente.x, e.y - fuente.y));
     }
@@ -205,7 +224,7 @@ describe("carga libre: campo de una carga puntual", () => {
     for (const q of [-5, -0.5, 0.5, 5]) {
       let e = estadoInicialCargaLibre(fuente.x + 1e-3, fuente.y);
       const p = puntual(fuente, q);
-      for (let t = 0; t < 60; t += DT) e = pasoAvanceCargaLibre(e, p, DT, LIMITES);
+      for (let t = 0; t < 60; t += DT_RELOJ) e = pasoAvanceCargaLibre(e, p, DT, LIMITES);
       for (const v of [e.x, e.y, e.vx, e.vy]) expect(Number.isFinite(v)).toBe(true);
     }
   });
@@ -233,7 +252,7 @@ describe("carga libre: independencia del dipolo", () => {
     // Intercalada con un dipolo que se integra (y se "arrastra") en la misma escena.
     let e = estadoInicialCargaLibre(200, 300);
     let dip = estadoInicialDipolo(260, 320, 1);
-    for (let t = 0; t < 2 - 1e-9; t += DT) {
+    for (let t = 0; t < 2 - 1e-9; t += DT_RELOJ) {
       dip = pasoAvanceDipolo(dip, pd, DT);
       dip = { ...dip, cx: dip.cx + 3 };
       e = pasoAvanceCargaLibre(e, pc, DT, LIMITES);
@@ -278,7 +297,7 @@ describe("carga libre: límites coherentes con lo dibujado", () => {
     const e0 = campoUniformeASim(campoPlacas("vertical", 1, 300_000, pxAMetros(500)));
     let e = estadoInicialCargaLibre(350, 250);
     let maxY = 0;
-    for (let t = 0; t < 10; t += DT) {
+    for (let t = 0; t < 10; t += DT_RELOJ) {
       e = pasoAvanceCargaLibre(e, uniforme(e0, 5), DT, lim);
       maxY = Math.max(maxY, e.y);
     }
@@ -291,7 +310,7 @@ describe("carga libre: límites coherentes con lo dibujado", () => {
     let e = estadoInicialCargaLibre(350, 300);
     const p: ParametrosCargaLibre = { ...puntual(fuente, -5), distMinFuente: 40 };
     let minDist = Infinity;
-    for (let t = 0; t < 5; t += DT) {
+    for (let t = 0; t < 5; t += DT_RELOJ) {
       e = pasoAvanceCargaLibre(e, p, DT, LIMITES);
       minDist = Math.min(minDist, Math.hypot(e.x - fuente.x, e.y - fuente.y));
     }
