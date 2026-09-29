@@ -1324,7 +1324,7 @@ a {
   }
 }
 
-/* ---------- Dipolos (Estación 03) ---------- */
+/* ---------- Campo continuo (Estación 03: dipolo o carga libre) ---------- */
 
 /* Orden del panel: acciones, tipo de campo, controles del campo y del dipolo; después las lecturas y
    los ajustes secundarios (q, d). Cada bloque se separa del anterior con un filete. */
@@ -1449,7 +1449,7 @@ a {
   color: var(--text);
 }
 
-/* Proyector: los controles pequeños del panel de Dipolos suben a 16 px, como el resto de estaciones. */
+/* Proyector: los controles pequeños del panel de Campo continuo suben a 16 px, como el resto de estaciones. */
 @media (min-width: 1600px) {
   .panel-dipolo .boton-pausa,
   .panel-dipolo .boton-colocar,
@@ -1894,4 +1894,15 @@ a {
   .materiales-cifra dd strong {
     font-size: 40px;
   }
+}
+
+/* Título de cada grupo del panel de Campo continuo (carga fuente / carga libre / dipolo): con los
+   dos grupos de "carga" casi idénticos, el título dice a cuál pertenece cada control. */
+.panel-dipolo-titulo {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-dim);
 }

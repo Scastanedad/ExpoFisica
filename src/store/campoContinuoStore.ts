@@ -1,18 +1,30 @@
 /**
- * Estado de UI de la Estación 03 (Dipolos): todo lo que cambia por acción del
- * visitante (controles) y la LECTURA en vivo publicada por `CanvasDipolo.tsx`
- * a ~10 Hz (mismo patrón que `cargaPruebaStore.ts`/`lecturasStore.ts`).
+ * Estado de UI de la Estación 03 (Campo continuo): todo lo que cambia por
+ * acción del visitante (controles) y la LECTURA en vivo publicada por
+ * `CanvasCampoContinuo.tsx` a ~10 Hz (mismo patrón que
+ * `cargaPruebaStore.ts`/`lecturasStore.ts`).
  *
- * Las posiciones/ángulo del dipolo (y de la carga fuente arrastrable) NO están
- * aquí: viven en refs dentro de `render/CanvasDipolo.tsx` (ver ese archivo y
- * `fisica/dipolo.ts` para la justificación de no usar un Worker).
+ * La estación tiene UN "objeto en el campo" a la vez (`objeto`): el dipolo o
+ * una carga puntual libre. El campo (placas o carga fuente) y sus controles
+ * son transversales a los dos objetos; `qUC`/`dPx` son solo del dipolo y
+ * `qCargaLibreUC`/`signoCargaLibre` solo de la carga libre.
+ *
+ * Las posiciones/ángulo (dipolo, carga libre, carga fuente arrastrable) NO
+ * están aquí: viven en refs dentro de `render/CanvasCampoContinuo.tsx` (ver
+ * ese archivo y `fisica/dipolo.ts` para la justificación de no usar un Worker).
  */
 import { create } from "zustand";
 import { D_MAX_PX, D_MIN_PX, VOLTAJE_MAX_KV, VOLTAJE_MIN_KV, type LecturaDipolo, type ModoCampoDipolo } from "../fisica/dipolo";
+import type { LecturaCargaLibre } from "../fisica/cargaLibre";
 import type { OrientacionPlacas } from "../fisica/campoExterno";
 import { Q_MAX, Q_MIN } from "../fisica/carga";
+import { VELOCIDAD_MAX, VELOCIDAD_MIN } from "../fisica/dinamica";
 
-interface EstadoDipoloStore {
+/** Qué objeto se coloca en el campo (uno a la vez). */
+export type ObjetoCampo = "dipolo" | "carga";
+
+interface EstadoCampoContinuoStore {
+  objeto: ObjetoCampo;
   modoCampo: ModoCampoDipolo;
   // Campo uniforme (placas paralelas, E5.0).
   orientacionPlacas: OrientacionPlacas;
@@ -21,25 +33,36 @@ interface EstadoDipoloStore {
   // El dipolo.
   qUC: number;
   dPx: number;
+  // La carga puntual libre (objeto "carga").
+  qCargaLibreUC: number;
+  signoCargaLibre: 1 | -1;
+  /** Deslizador "Velocidad" de la carga libre (×, mismo rango que la estación 02): multiplica `DILATACION_CARGA_LIBRE`. */
+  velocidadCargaLibre: number;
   // Carga fuente (modo "puntual").
   qFuenteUC: number;
   signoFuente: 1 | -1;
-  /** Flechas de fuerza sobre +q y −q (violeta, como en las otras estaciones). */
+  /** Flechas de fuerza (sobre +q y −q del dipolo, o sobre la carga libre; violeta, como en las otras estaciones). */
   mostrarFuerzas: boolean;
   enPausa: boolean;
   lectura: LecturaDipolo | null;
+  lecturaCargaLibre: LecturaCargaLibre | null;
 
+  setObjeto: (o: ObjetoCampo) => void;
   setModoCampo: (m: ModoCampoDipolo) => void;
   setOrientacionPlacas: (o: OrientacionPlacas) => void;
   alternarPolaridadPlacas: () => void;
   setVoltajeKV: (v: number) => void;
   setQUC: (q: number) => void;
   setDPx: (d: number) => void;
+  setQCargaLibreUC: (q: number) => void;
+  alternarSignoCargaLibre: () => void;
+  setVelocidadCargaLibre: (v: number) => void;
   setQFuenteUC: (q: number) => void;
   alternarSignoFuente: () => void;
   setMostrarFuerzas: (v: boolean) => void;
   togglePausa: () => void;
   publicarLectura: (l: LecturaDipolo | null) => void;
+  publicarLecturaCargaLibre: (l: LecturaCargaLibre | null) => void;
 }
 
 /** `prefers-reduced-motion` (mismo criterio que `simulacionDinamicaStore.ts`): arranca en pausa. */
@@ -52,28 +75,38 @@ function acotar(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
 }
 
-export const useDipoloStore = create<EstadoDipoloStore>((set) => ({
+export const useCampoContinuoStore = create<EstadoCampoContinuoStore>((set) => ({
+  objeto: "dipolo",
   modoCampo: "uniforme",
   orientacionPlacas: "vertical",
   polaridadPlacas: 1,
   voltajeKV: 50, // recomendación de la spec E5.0 §4: periodos de 1.5-5.8s en todo el rango de q/d.
   qUC: 1,
   dPx: 50,
+  qCargaLibreUC: 1,
+  signoCargaLibre: 1,
+  velocidadCargaLibre: 1,
   qFuenteUC: 5, // misma configuración verificada en el prototipo de la spec E5.1 §4.
   signoFuente: 1,
   mostrarFuerzas: true,
   enPausa: prefiereMenosMovimiento,
   lectura: null,
+  lecturaCargaLibre: null,
 
+  setObjeto: (o) => set({ objeto: o }),
   setModoCampo: (m) => set({ modoCampo: m }),
   setOrientacionPlacas: (o) => set({ orientacionPlacas: o }),
   alternarPolaridadPlacas: () => set((s) => ({ polaridadPlacas: s.polaridadPlacas === 1 ? -1 : 1 })),
   setVoltajeKV: (v) => set({ voltajeKV: acotar(v, VOLTAJE_MIN_KV, VOLTAJE_MAX_KV) }),
   setQUC: (q) => set({ qUC: acotar(q, Q_MIN, Q_MAX) }),
   setDPx: (d) => set({ dPx: acotar(d, D_MIN_PX, D_MAX_PX) }),
+  setQCargaLibreUC: (q) => set({ qCargaLibreUC: acotar(q, Q_MIN, Q_MAX) }),
+  alternarSignoCargaLibre: () => set((s) => ({ signoCargaLibre: s.signoCargaLibre === 1 ? -1 : 1 })),
+  setVelocidadCargaLibre: (v) => set({ velocidadCargaLibre: acotar(v, VELOCIDAD_MIN, VELOCIDAD_MAX) }),
   setQFuenteUC: (q) => set({ qFuenteUC: acotar(q, Q_MIN, Q_MAX) }),
   alternarSignoFuente: () => set((s) => ({ signoFuente: s.signoFuente === 1 ? -1 : 1 })),
   setMostrarFuerzas: (v) => set({ mostrarFuerzas: v }),
   togglePausa: () => set((s) => ({ enPausa: !s.enPausa })),
   publicarLectura: (l) => set({ lectura: l }),
+  publicarLecturaCargaLibre: (l) => set({ lecturaCargaLibre: l }),
 }));

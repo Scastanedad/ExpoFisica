@@ -30,11 +30,11 @@ const ESTACIONES: Estacion[] = [
   },
   {
     numero: "03",
-    etiqueta: "Gira y se acerca",
-    titulo: "Dipolos",
+    etiqueta: "Gira o acelera",
+    titulo: "Campo continuo",
     descripcion:
-      "Dos cargas opuestas unidas por una varilla: giran con el campo y, cerca de otra carga, se acercan a ella.",
-    ruta: "/dipolos",
+      "Pon un dipolo o una carga libre en un campo: el dipolo gira y se alinea; la carga acelera, atraída o repelida.",
+    ruta: "/campo-continuo",
   },
   {
     numero: "04",
