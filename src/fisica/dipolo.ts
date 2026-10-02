@@ -1,5 +1,5 @@
 /**
- * Física de la Estación 03 (Dipolos, especificación E5.1). Cuerpo rígido de
+ * Física de la Estación 03 (Campo continuo; dipolo, especificación E5.1). Cuerpo rígido de
  * DOS cargas puntuales EXACTAS (+q y −q separadas una distancia fija `d`),
  * NUNCA la fórmula de libro de texto del dipolo puntual (`τ = p×E`,
  * `F = (p·∇)E`): esas fórmulas solo se usan como verificación del límite

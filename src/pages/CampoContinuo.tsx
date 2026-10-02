@@ -29,21 +29,21 @@ export function CampoContinuo() {
       </header>
       {objeto === "carga" ? (
         <>
-          <p className="instrucciones instrucciones-larga">
+          <p className="instrucciones instrucciones-estable instrucciones-larga">
             Una carga libre en el campo: arrástrala y suéltala. Entre las placas acelera en línea recta;
             cerca de la carga fuente es atraída o repelida según su signo.
           </p>
-          <p className="instrucciones instrucciones-corta">
+          <p className="instrucciones instrucciones-estable instrucciones-corta">
             Arrastra la carga. Uniforme: acelera recto. Carga fuente: atrae o repele.
           </p>
         </>
       ) : (
         <>
-          <p className="instrucciones instrucciones-larga">
+          <p className="instrucciones instrucciones-estable instrucciones-larga">
             Un dipolo son dos cargas opuestas unidas por una varilla: arrástralo. En campo uniforme gira y
-            se balancea sin trasladarse; cerca de una carga fuente se alinea y es atraído.
+            oscila; cerca de una carga fuente se alinea y es atraído.
           </p>
-          <p className="instrucciones instrucciones-corta">
+          <p className="instrucciones instrucciones-estable instrucciones-corta">
             Arrastra el dipolo. Uniforme: gira y se balancea. Carga fuente: se alinea y es atraído.
           </p>
         </>
@@ -60,8 +60,8 @@ export function CampoContinuo() {
           <details className="notas-modelo">
             <summary>Notas sobre el modelo</summary>
             <ul>
-              <li className="notas-subtitulo" aria-hidden="true">
-                El dipolo
+              <li className="notas-subtitulo" role="presentation">
+                <strong>El dipolo</strong>
               </li>
               <li>
                 Se simulan dos cargas puntuales reales (no la fórmula de libro de texto de un «dipolo
@@ -97,7 +97,7 @@ export function CampoContinuo() {
                 su campo: no solo «lo opuesto atrae».
               </li>
               <li>
-                Las líneas de campo del modo «Carga puntual» son solo las de la carga fuente: las
+                Las líneas de campo del tipo de campo «Carga fuente» son solo las de la carga fuente: las
                 cargas del dipolo también crean campo, pero no se dibuja (ese campo propio no ejerce
                 fuerza sobre el propio dipolo; el que lo mueve es el de la fuente). La fuente está
                 sujeta por ti: no se simula su reacción a la fuerza del dipolo. Las flechas violeta son la
@@ -109,8 +109,8 @@ export function CampoContinuo() {
                 dos cargas reales con la fuente, no −p·E: esa fórmula solo es exacta para un dipolo
                 puntual ideal o en campo uniforme.
               </li>
-              <li className="notas-subtitulo" aria-hidden="true">
-                La carga puntual libre
+              <li className="notas-subtitulo" role="presentation">
+                <strong>La carga puntual libre</strong>
               </li>
               <li>
                 Es una sola carga con masa, que se traslada (no gira: es un punto). Siente solo el campo
@@ -138,7 +138,10 @@ export function CampoContinuo() {
               </li>
               <li>
                 La energía U = qV se mide con V = 0 en la placa negativa (entre las placas) o lejos de
-                la fuente (carga fuente). Así, en la placa positiva U vale q por el voltaje del control.
+                la fuente (carga fuente). Así, en la placa positiva U vale aproximadamente q por el voltaje del control (la carga
+                rebota en la cara interior de la placa, un poco antes del borde del recuadro). En el
+                campo de la fuente, la energía usa la misma ley suavizada de cerca (softening): en el
+                contacto difiere unos pocos por ciento (≈ 6 %) del valor puro kqQ/r.
               </li>
               <li>
                 La animación va en cámara lenta, como en «Cargas en movimiento»: con cargas y masas de
@@ -147,8 +150,8 @@ export function CampoContinuo() {
                 la física: la trayectoria y las energías son las mismas. Por eso no se muestra la
                 rapidez en m/s; las fuerzas y las energías sí son las reales.
               </li>
-              <li className="notas-subtitulo" aria-hidden="true">
-                El campo uniforme (las placas)
+              <li className="notas-subtitulo" role="presentation">
+                <strong>El campo uniforme (las placas)</strong>
               </li>
               <li>
                 Modela un capacitor de placas paralelas ideal: en la realidad las placas tendrían que

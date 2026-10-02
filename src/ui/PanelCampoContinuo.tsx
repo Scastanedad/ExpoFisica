@@ -97,6 +97,28 @@ function siguienteAnuncio(previo: string, texto: string): string {
   return previo === texto ? `${texto} ` : texto;
 }
 
+/** Coma decimal como el resto de la interfaz: "1,00". */
+function formatoVelocidad(v: number): string {
+  return v.toFixed(2).replace(".", ",");
+}
+
+/** Qué controles trae cada objeto y cada tipo de campo (para anunciarlos al cambiar). */
+const CONTROLES_OBJETO: Record<ObjetoCampo, string> = {
+  dipolo: "girar el dipolo, carga de cada extremo y separación",
+  carga: "signo, magnitud y velocidad de la animación",
+};
+const CONTROLES_CAMPO: Record<ModoCampoDipolo, string> = {
+  uniforme: "orientación de las placas, invertir polaridad y voltaje",
+  puntual: "signo y magnitud de la carga fuente",
+};
+
+function textoCambio(objeto: ObjetoCampo, modo: ModoCampoDipolo, cambio: "objeto" | "campo"): string {
+  const nombreObjeto = objeto === "carga" ? "carga libre" : "dipolo";
+  const nombreCampo = modo === "uniforme" ? "campo uniforme" : "campo de una carga fuente";
+  const nuevos = cambio === "objeto" ? CONTROLES_OBJETO[objeto] : CONTROLES_CAMPO[modo];
+  return `Ahora: ${nombreObjeto} en ${nombreCampo}. Controles nuevos: ${nuevos}.`;
+}
+
 interface Props {
   controladorRef: RefObject<ControladorCampoContinuo | null>;
 }
@@ -215,6 +237,29 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
     );
   }
 
+  /** Cambios hechos por el usuario (no el montaje): se anuncian; el foco se queda en el radio. */
+  function elegirObjeto(nuevo: ObjetoCampo) {
+    if (nuevo === objeto) return;
+    setObjeto(nuevo);
+    anunciar(textoCambio(nuevo, modoCampo, "objeto"));
+  }
+
+  function elegirModo(nuevo: ModoCampoDipolo) {
+    if (nuevo === modoCampo) return;
+    setModoCampo(nuevo);
+    anunciar(textoCambio(objeto, nuevo, "campo"));
+  }
+
+  function cambiarSignoFuente() {
+    alternarSignoFuente();
+    anunciar(`La carga fuente es ahora ${signoFuente === 1 ? "negativa" : "positiva"}.`);
+  }
+
+  function cambiarSignoCargaLibre() {
+    alternarSignoCargaLibre();
+    anunciar(`La carga libre es ahora ${signoCargaLibre === 1 ? "negativa" : "positiva"}.`);
+  }
+
   function reiniciar() {
     controladorRef.current?.reiniciar();
     seleccionar(null);
@@ -253,13 +298,13 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
 
       <div className="panel-dipolo-grupo">
         <div className="selector-modo-envoltorio">
-          <SelectorSegmentado etiquetaGrupo="Objeto en el campo" opciones={OBJETOS} valor={objeto} alElegir={setObjeto} />
+          <SelectorSegmentado etiquetaGrupo="Objeto en el campo" opciones={OBJETOS} valor={objeto} alElegir={elegirObjeto} />
           <p className="selector-modo-descripcion" aria-hidden="true">
             {descripcionObjeto.charAt(0).toUpperCase() + descripcionObjeto.slice(1)}.
           </p>
         </div>
         <div className="selector-modo-envoltorio">
-          <SelectorSegmentado etiquetaGrupo="Tipo de campo" opciones={modos} valor={modoCampo} alElegir={setModoCampo} />
+          <SelectorSegmentado etiquetaGrupo="Tipo de campo" opciones={modos} valor={modoCampo} alElegir={elegirModo} />
           <p className="selector-modo-descripcion" aria-hidden="true">
             {descripcionModo.charAt(0).toUpperCase() + descripcionModo.slice(1)}.
           </p>
@@ -277,7 +322,7 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
           <button
             type="button"
             className="boton-colocar"
-            aria-pressed={polaridadPlacas === -1}
+            data-activo={polaridadPlacas === -1}
             aria-describedby={idPolaridad}
             onClick={cambiarPolaridad}
           >
@@ -305,9 +350,9 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
           <button
             type="button"
             className="boton-colocar"
-            aria-pressed={signoFuente === -1}
+            data-activo={signoFuente === -1}
             aria-describedby={idSignoFuente}
-            onClick={alternarSignoFuente}
+            onClick={cambiarSignoFuente}
           >
             Invertir signo de la carga fuente <span aria-hidden="true">· {signoFuente === 1 ? "+" : "−"}</span>
           </button>
@@ -331,7 +376,7 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
               type="button"
               className={`sonda-chip${fuenteElegida ? " seleccionada" : ""}`}
               aria-pressed={fuenteElegida}
-              aria-label="Elegir la carga fuente para moverla con las flechas"
+              aria-label="Carga fuente: elegir para moverla con las flechas"
               aria-describedby={idAyudaFuente}
               onFocus={() => seleccionar(ID_CARGA_FUENTE, false)}
               onBlur={(e) => alPerderFoco(ID_CARGA_FUENTE, e.relatedTarget)}
@@ -344,7 +389,7 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
           <button
             type="button"
             className="boton-colocar"
-            aria-pressed={fuenteElegida && colocarConToque}
+            data-activo={fuenteElegida && colocarConToque}
             onClick={() => alternarArmado(ID_CARGA_FUENTE, "la carga fuente", fuenteElegida && colocarConToque)}
             onKeyDown={alPulsarEscape}
             onBlur={(e) => alPerderFoco(ID_CARGA_FUENTE, e.relatedTarget)}
@@ -365,9 +410,9 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
           <button
             type="button"
             className="boton-colocar"
-            aria-pressed={signoCargaLibre === -1}
+            data-activo={signoCargaLibre === -1}
             aria-describedby={idSignoCargaLibre}
-            onClick={alternarSignoCargaLibre}
+            onClick={cambiarSignoCargaLibre}
           >
             Invertir signo de la carga libre <span aria-hidden="true">· {signoCargaLibre === 1 ? "+" : "−"}</span>
           </button>
@@ -387,23 +432,24 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
             <output>{qCargaLibreUC} µC</output>
           </label>
           <label className="control-deslizador control-deslizador-apilado">
-            <span>Velocidad de la animación</span>
+            <span>Velocidad de la animación (1× = tiempo de pantalla)</span>
             <input
               type="range"
               min={VELOCIDAD_MIN}
               max={VELOCIDAD_MAX}
               step={0.25}
               value={velocidadCargaLibre}
+              aria-valuetext={`${formatoVelocidad(velocidadCargaLibre)} veces`}
               onChange={(e) => setVelocidadCargaLibre(Number(e.target.value))}
             />
-            <output>{velocidadCargaLibre.toFixed(2)}×</output>
+            <output>{formatoVelocidad(velocidadCargaLibre)}×</output>
           </label>
           <div className="panel-sonda-chip-fila">
             <button
               type="button"
               className={`sonda-chip${cargaLibreElegida ? " seleccionada" : ""}`}
               aria-pressed={cargaLibreElegida}
-              aria-label="Elegir la carga libre para moverla con las flechas"
+              aria-label="Carga libre: elegir para moverla con las flechas"
               aria-describedby={idAyudaCargaLibre}
               onFocus={() => seleccionar(ID_CARGA_LIBRE, false)}
               onBlur={(e) => alPerderFoco(ID_CARGA_LIBRE, e.relatedTarget)}
@@ -416,7 +462,7 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
           <button
             type="button"
             className="boton-colocar"
-            aria-pressed={cargaLibreElegida && colocarConToque}
+            data-activo={cargaLibreElegida && colocarConToque}
             onClick={() => alternarArmado(ID_CARGA_LIBRE, "la carga libre", cargaLibreElegida && colocarConToque)}
             onKeyDown={alPulsarEscape}
             onBlur={(e) => alPerderFoco(ID_CARGA_LIBRE, e.relatedTarget)}
@@ -441,7 +487,7 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
             type="button"
             className={`sonda-chip${dipoloElegido ? " seleccionada" : ""}`}
             aria-pressed={dipoloElegido}
-            aria-label="Elegir el dipolo para moverlo con las flechas"
+            aria-label="Dipolo: elegir para moverlo con las flechas"
             aria-describedby={idAyudaDipolo}
             onFocus={() => seleccionar(ID_DIPOLO, false)}
             onBlur={(e) => alPerderFoco(ID_DIPOLO, e.relatedTarget)}
@@ -465,7 +511,7 @@ export function PanelCampoContinuo({ controladorRef }: Props) {
         <button
           type="button"
           className="boton-colocar"
-          aria-pressed={dipoloElegido && colocarConToque}
+          data-activo={dipoloElegido && colocarConToque}
           onClick={() => alternarArmado(ID_DIPOLO, "el dipolo", dipoloElegido && colocarConToque)}
           onKeyDown={alPulsarEscape}
           onBlur={(e) => alPerderFoco(ID_DIPOLO, e.relatedTarget)}

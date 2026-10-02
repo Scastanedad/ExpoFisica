@@ -23,7 +23,7 @@ export function RotuloCampoContinuo() {
         : "Con fricción en el giro: se asienta";
 
   return (
-    <div className="rotulo-dipolo" role="status">
+    <div className="rotulo-dipolo">
       <span>{friccion}</span>
       {mostrarFuerzas && (
         <span className="rotulo-dipolo-leyenda">
@@ -31,7 +31,10 @@ export function RotuloCampoContinuo() {
           {objeto === "carga" ? "Fuerza sobre la carga" : "Fuerza sobre cada carga"}
         </span>
       )}
-      {enPausa && <span className="rotulo-dipolo-pausa">En pausa: pulsa Reanudar</span>}
+      {/* Única región viva del rótulo: siempre montada para que el aviso se anuncie al aparecer. */}
+      <span role="status" className={enPausa ? "rotulo-dipolo-pausa" : "sr-only"}>
+        {enPausa ? "En pausa: pulsa Reanudar" : ""}
+      </span>
     </div>
   );
 }

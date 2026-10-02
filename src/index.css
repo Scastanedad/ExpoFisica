@@ -293,6 +293,11 @@ a {
   margin: 4px 0 14px;
 }
 
+/* Estación 03: el alto no cambia al alternar objeto (dos líneas reservadas en --reserva-v). */
+.instrucciones-estable {
+  min-height: 2.8em;
+}
+
 /* Instrucciones de cabecera: dos variantes de texto (fase 2 §B5). La corta solo se ve en
    pantallas angostas (lienzo pegado arriba); `display: none` también la saca del árbol de
    accesibilidad, así que un lector de pantalla no las anuncia las dos. */
@@ -720,7 +725,8 @@ a {
   color: var(--accent);
 }
 
-.boton-colocar[aria-pressed="true"] {
+.boton-colocar[aria-pressed="true"],
+.boton-colocar[data-activo="true"] {
   border-style: solid;
   border-color: var(--accent);
   background: rgba(34, 211, 238, 0.12);
@@ -800,7 +806,7 @@ a {
   font-size: 22px;
   line-height: 1;
   border-radius: 50%;
-  border: 1px solid rgba(148, 163, 184, 0.45);
+  border: 1px solid rgba(148, 163, 184, 0.75);
   background: rgba(30, 41, 59, 0.55);
   color: var(--text);
   cursor: pointer;
@@ -817,7 +823,7 @@ a {
 }
 
 .boton-paso[aria-disabled="true"]:hover {
-  border-color: rgba(148, 163, 184, 0.45);
+  border-color: rgba(148, 163, 184, 0.75);
   color: var(--text);
 }
 
@@ -1245,7 +1251,11 @@ a {
 }
 
 /* Subtítulos dentro de las notas (Dibujo / Física / Movimiento / Energía): agrupan sin ser
-   una lista anidada. `aria-hidden`: son orientación visual, el contenido ya tiene sentido en orden. */
+   una lista anidada. `role="presentation"` + <strong>: el texto sigue siendo accesible. */
+.notas-subtitulo strong {
+  font-weight: inherit;
+}
+
 .notas-subtitulo {
   margin-top: 10px;
   font-family: var(--mono);

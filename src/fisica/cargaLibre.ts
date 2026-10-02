@@ -235,7 +235,13 @@ export function pasoCargaLibre(
   let intermedio: EstadoCargaLibre = { x, y, vx, vy };
   if (params.modoCampo === "puntual" && params.cargaFuente) {
     const r = aplicarZonaExclusion(intermedio.x, intermedio.y, intermedio.vx, intermedio.vy, params.cargaFuente, params.distMinFuente ?? DIST_MIN_EXCLUSION_CARGA_LIBRE);
-    intermedio = { x: r.x, y: r.y, vx: r.vx, vy: r.vy };
+    // La exclusión puede empujar fuera de las paredes (fuente pegada a un borde): se reaplica el límite.
+    intermedio = {
+      x: Math.min(hx, Math.max(m.izquierda, r.x)),
+      y: Math.min(hy, Math.max(m.arriba, r.y)),
+      vx: r.vx,
+      vy: r.vy,
+    };
   }
 
   // Segundo half-kick de traslación, con la fuerza en la posición corregida.

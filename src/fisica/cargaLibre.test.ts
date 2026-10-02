@@ -318,3 +318,58 @@ describe("carga libre: límites coherentes con lo dibujado", () => {
     expect(minDist).toBeLessThan(41);
   });
 });
+
+describe("carga libre: invariantes de Coulomb (añadidos en la revisión física)", () => {
+  const fuente: PuntoCarga = { x: 350, y: 250, q: 4 };
+
+  test("la fuerza decae como 1/r² (sin softening): F(2r) = F(r)/4", () => {
+    const p = { ...puntual(fuente, 2), soft2: 0 };
+    const f1 = Math.hypot(...fuerzaSobreCargaLibre(estadoInicialCargaLibre(350 + 50, 250), p));
+    const f2 = Math.hypot(...fuerzaSobreCargaLibre(estadoInicialCargaLibre(350 + 100, 250), p));
+    expect(f1 / f2).toBeCloseTo(4, 10);
+  });
+
+  test("tercera ley: F sobre la carga libre = −F sobre la fuente debida a ella; repulsiva con q·Q > 0", () => {
+    const pos = { x: 410, y: 310 };
+    const p = { ...puntual(fuente, 3), soft2: 0 };
+    const [fx, fy] = fuerzaSobreCargaLibre(estadoInicialCargaLibre(pos.x, pos.y), p);
+    const [ex, ey] = campoTotalEnPunto(fuente.x, fuente.y, [{ ...pos, q: 3 }], null, 0);
+    expect(fx).toBeCloseTo(-ex * fuente.q, 12);
+    expect(fy).toBeCloseTo(-ey * fuente.q, 12);
+    expect(fx * (pos.x - fuente.x) + fy * (pos.y - fuente.y)).toBeGreaterThan(0);
+  });
+
+  test("pasoAvanceCargaLibre no muta sus entradas (estado, parámetros, fuente)", () => {
+    const e = Object.freeze(estadoInicialCargaLibre(200, 300, 1, 2));
+    const f = Object.freeze({ ...fuente });
+    const p = Object.freeze({ ...puntual(f, 1) });
+    expect(() => pasoAvanceCargaLibre(e, p, DT, Object.freeze({ ...LIMITES }))).not.toThrow();
+    expect(e).toEqual({ x: 200, y: 300, vx: 1, vy: 2 });
+  });
+
+  test("energía con rebotes al máximo de la UI (300 kV, 5 µC, 3×, frames de 50 ms): deriva < 0.1 %", () => {
+    const eF = campoUniformeASim(campoPlacas("vertical", 1, 300_000, pxAMetros(500)));
+    const p = uniforme(eF, 5);
+    let e = estadoInicialCargaLibre(200, 60, 40, 10);
+    const inicial = energiaTotalJ(e, p);
+    const escala = Math.abs(calcularLecturaCargaLibre(estadoInicialCargaLibre(200, 490), p).energiaJ - calcularLecturaCargaLibre(e, p).energiaJ);
+    let maxDeriva = 0;
+    for (let t = 0; t < 60; t += 0.05) {
+      e = pasoAvanceCargaLibre(e, p, 0.05 * DILATACION_CARGA_LIBRE * 3, LIMITES);
+      maxDeriva = Math.max(maxDeriva, Math.abs(energiaTotalJ(e, p) - inicial) / escala);
+    }
+    expect(maxDeriva).toBeLessThan(1e-3);
+  });
+
+  test("la zona de exclusión junto a una pared nunca deja la carga fuera del lienzo", () => {
+    // Fuente pegada al borde izquierdo y carga entre ella y la pared: la exclusión la empujaría hacia fuera.
+    const fuente: PuntoCarga = { x: 25, y: 250, q: 1 };
+    const p = { ...puntual(fuente, 1), distMinFuente: 40 };
+    const e = estadoInicialCargaLibre(RADIO_CARGA_PX + 1, 250, 0, 0);
+    const r = pasoAvanceCargaLibre(e, p, DT, LIMITES);
+    expect(r.x).toBeGreaterThanOrEqual(RADIO_CARGA_PX);
+    expect(r.x).toBeLessThanOrEqual(LIMITES.ancho - RADIO_CARGA_PX);
+    expect(r.y).toBeGreaterThanOrEqual(RADIO_CARGA_PX);
+    expect(r.y).toBeLessThanOrEqual(LIMITES.alto - RADIO_CARGA_PX);
+  });
+});

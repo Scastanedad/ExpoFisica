@@ -80,11 +80,11 @@ interface RefsObjetos {
   fuenteRef: RefObject<Posicion>;
 }
 
-/** Coloca el dipolo o la carga libre (en reposo) o la carga fuente en (x, y), limitado a la zona de arrastre. */
+/** Coloca el dipolo o la carga libre (ambos en reposo, también sin giro) o la carga fuente en (x, y), limitado a la zona de arrastre. */
 function colocarEn({ dipoloRef, cargaLibreRef, fuenteRef }: RefsObjetos, id: string, x: number, y: number): void {
   const p = limitarPosicion(x, y, ANCHO_ESCENA, ALTO_ESCENA);
   if (id === ID_DIPOLO) {
-    dipoloRef.current = { ...dipoloRef.current, cx: p.x, cy: p.y, vx: 0, vy: 0 };
+    dipoloRef.current = { ...dipoloRef.current, cx: p.x, cy: p.y, vx: 0, vy: 0, omega: 0 };
   } else if (id === ID_CARGA_LIBRE) {
     cargaLibreRef.current = estadoInicialCargaLibre(p.x, p.y);
   } else if (id === ID_CARGA_FUENTE) {
@@ -327,6 +327,8 @@ export function CanvasCampoContinuo({ controladorRef }: Props) {
 
     let arrastrandoObjeto = false;
     let arrastrandoFuente = false;
+    /** Puntero que agarró el objeto: los demás (segundo dedo) se ignoran mientras dura el arrastre. */
+    let punteroArrastre: number | null = null;
     /** centro − puntero al agarrar: el objeto no "salta" al puntero (agarrar por una carga extrema). */
     let desfase: Posicion = { x: 0, y: 0 };
     let seleccionPrevia: { id: string | null; armada: boolean } | null = null;
@@ -374,6 +376,7 @@ export function CanvasCampoContinuo({ controladorRef }: Props) {
       if (!arrastrandoObjeto && !arrastrandoFuente) return;
       arrastrandoObjeto = false;
       arrastrandoFuente = false;
+      punteroArrastre = null;
       arrastrandoObjetoRef.current = false;
       const previa = seleccionPrevia;
       seleccionPrevia = null;
@@ -387,6 +390,7 @@ export function CanvasCampoContinuo({ controladorRef }: Props) {
       if ((sobreFuente(p) || sobreObjeto(p)) && e.cancelable) e.preventDefault();
     }
     function onPointerDown(e: PointerEvent) {
+      if (punteroArrastre !== null) return; // ya hay un arrastre en curso con otro puntero
       if (e.pointerType === "mouse" && e.button !== 0) return;
       const p = aLogicas(e.clientX, e.clientY);
       const enFuente = sobreFuente(p);
@@ -408,6 +412,7 @@ export function CanvasCampoContinuo({ controladorRef }: Props) {
           arrastrandoObjeto = true;
           arrastrandoObjetoRef.current = true;
         }
+        punteroArrastre = e.pointerId;
         canvas!.setPointerCapture(e.pointerId);
         s.seleccionar(enFuente ? ID_CARGA_FUENTE : idObjeto(), false); // muestra el anillo mientras se agarra
         actualizarCursor(p);
@@ -418,6 +423,7 @@ export function CanvasCampoContinuo({ controladorRef }: Props) {
     function onPointerMove(e: PointerEvent) {
       const bruto = aLogicas(e.clientX, e.clientY);
       if (arrastrandoObjeto || arrastrandoFuente) {
+        if (e.pointerId !== punteroArrastre) return;
         const destino = limitar({ x: bruto.x + desfase.x, y: bruto.y + desfase.y });
         colocarEn(refsObjetos, arrastrandoFuente ? ID_CARGA_FUENTE : idObjeto(), destino.x, destino.y);
         return;
@@ -434,6 +440,7 @@ export function CanvasCampoContinuo({ controladorRef }: Props) {
     function onPointerUp(e: PointerEvent) {
       const p = aLogicas(e.clientX, e.clientY);
       if (arrastrandoObjeto || arrastrandoFuente) {
+        if (e.pointerId !== punteroArrastre) return;
         terminarArrastre();
         actualizarCursor(p);
         return;
@@ -449,7 +456,8 @@ export function CanvasCampoContinuo({ controladorRef }: Props) {
       }
     }
     // Gesto cancelado o captura perdida: el objeto queda donde estaba.
-    function onPointerCancel() {
+    function onPointerCancel(e: Event) {
+      if (punteroArrastre !== null && (e as PointerEvent).pointerId !== punteroArrastre) return;
       terminarArrastre();
       toque = null;
     }
