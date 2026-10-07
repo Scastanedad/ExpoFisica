@@ -1,129 +1,157 @@
 /**
- * Canvas de la estación 5 (Ley de Gauss): dibuja un escenario 3D de forma estática y bajo demanda (sin bucle continuo:
- * un solo `requestAnimationFrame` por cambio de props o de tamaño). Las posiciones de las cargas no pasan por estado de
- * React: el padre las pasa como props de solo lectura y el motor (`render/gauss3d/motor.ts`) las copia a su geometría.
- * La interacción (arrastre, sliders) es de la fase 3; aquí solo hay dibujo.
+ * Canvas de la estación 5 (Ley de Gauss). Dibuja bajo demanda (sin bucle continuo: un `requestAnimationFrame` por
+ * cambio, y sin dibujo si la firma no cambia) y traduce los eventos del puntero y del teclado a llamadas del
+ * controlador (`controladorGauss3d.ts`), que guarda las posiciones x, y de las cargas fuera de React.
+ *
+ *  - Arrastre sobre una carga: la mueve en su plano horizontal (intersección rayo–plano).
+ *  - Arrastre en el vacío: gira la vista (azimut). La rueda NO se captura.
+ *  - Flechas del teclado (lienzo enfocado): mueven la carga seleccionada (WCAG 2.5.7).
+ *  - `touch-action: pan-y pinch-zoom`: el dedo vertical sigue desplazando la página; sobre una carga se bloquea.
  */
-import { useEffect, useRef } from "react";
-import type { Carga3D, Superficie } from "../fisica/gauss3d/tipos";
+import { useEffect, useRef, type KeyboardEvent as TeclaReact, type RefObject } from "react";
+import { useGauss3dStore } from "../store/gauss3dStore";
+import { crearControladorGauss3D, type ControladorGauss3D } from "./controladorGauss3d";
 import { DPR_MAXIMO } from "./dimensiones";
-import { crearMotorGauss3D, type EntradaMotor, type LecturaGauss3D, type MotorGauss3D } from "./gauss3d/motor";
 
 export interface PropsCanvasGauss3D {
-  superficie: Superficie;
-  cargas: readonly Carga3D[];
-  mostrar: { lineas: boolean; flujo: boolean; campo: boolean };
-  /** Radianes. */
-  azimut: number;
-  /** Radianes, 15°–85°. */
-  inclinacion: number;
-  zoom?: number;
-  /** 0.2…1 (opacidad de las caras de la superficie). */
-  opacidad?: number;
+  /** Se publica aquí el controlador (para los controles que viven fuera del lienzo). */
+  controladorRef: RefObject<ControladorGauss3D | null>;
   /** Descripción para lectores de pantalla. */
   descripcion: string;
-  /** Se llama tras recalcular la geometría (no por cuadro). */
-  alLeer?: (l: LecturaGauss3D) => void;
+  /** Id del elemento con las instrucciones de uso del teclado (`aria-describedby`). */
+  idAyuda?: string;
+  /** Texto para la región viva (movimiento con el teclado). */
+  anunciar?: (texto: string) => void;
 }
 
-export function CanvasGauss3D({
-  superficie,
-  cargas,
-  mostrar,
-  azimut,
-  inclinacion,
-  zoom = 1,
-  opacidad = 1,
-  descripcion,
-  alLeer,
-}: PropsCanvasGauss3D) {
+export function CanvasGauss3D({ controladorRef, descripcion, idAyuda, anunciar }: PropsCanvasGauss3D) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const motorRef = useRef<MotorGauss3D | null>(null);
-  const propsRef = useRef({ superficie, cargas, mostrar, azimut, inclinacion, zoom, opacidad, alLeer });
-  const tamRef = useRef({ ancho: 0, alto: 0, dpr: 1 });
-  const idFrameRef = useRef(0);
-  const forzarRef = useRef(true);
-  const pedirRef = useRef<() => void>(() => {});
-
+  const anunciarRef = useRef(anunciar);
   useEffect(() => {
-    propsRef.current = { superficie, cargas, mostrar, azimut, inclinacion, zoom, opacidad, alLeer };
-    pedirRef.current();
+    anunciarRef.current = anunciar;
   });
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    if (!motorRef.current) motorRef.current = crearMotorGauss3D();
-    const motor = motorRef.current;
-
-    function pintar() {
-      idFrameRef.current = 0;
-      const cv = canvasRef.current;
-      const ctx = cv?.getContext("2d", { alpha: false });
-      const { ancho, alto, dpr } = tamRef.current;
-      if (!cv || !ctx || ancho < 2 || alto < 2) return;
-      const p = propsRef.current;
-      const entrada: EntradaMotor = {
-        escenario: { superficie: p.superficie, cargas: p.cargas, calidad: motor.calidad() as 0 | 1 | 2 },
-        camara: { azimut: p.azimut, inclinacion: p.inclinacion, zoom: p.zoom },
-        ancho,
-        alto,
-        dpr,
-        mostrar: p.mostrar,
-        opacidad: p.opacidad,
-        unidad: Math.min(1.6, Math.max(1, ancho / 900)),
-      };
-      const cambio = motor.actualizar(entrada);
-      if (cambio === "igual" && !forzarRef.current) return;
-      forzarRef.current = false;
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-      motor.dibujar(ctx, entrada);
-      const g = motor.geometria();
-      if (g) cv.dataset.calidad = g.malla.tipo + ":" + g.calidad;
-      if (cambio === "geometria") {
-        const l = motor.lectura();
-        if (l) p.alLeer?.(l);
-      }
-    }
-
-    function pedir() {
-      if (idFrameRef.current === 0) idFrameRef.current = requestAnimationFrame(pintar);
-    }
-    pedirRef.current = pedir;
+    const store = useGauss3dStore;
+    const ctrl = crearControladorGauss3D({
+      leerUI: () => store.getState(),
+      corregirZ: (id, z) => store.getState().corregirZ(id, z),
+      seleccionar: (i) => store.getState().seleccionar(i),
+      publicarLectura: (l) => {
+        canvas.dataset.calidad = `${l.tipo}:${l.calidad}`;
+        store.getState().publicarLectura(l);
+      },
+      publicarAzimutDeg: (g) => store.getState().setAzimutDeg(g),
+      anunciar: (t) => anunciarRef.current?.(t),
+      pedirCuadro: (cb) => requestAnimationFrame(() => cb()),
+      cancelarCuadro: (id) => cancelAnimationFrame(id),
+      fijarTemporizador: (cb, ms) => window.setTimeout(cb, ms),
+      cancelarTemporizador: (id) => window.clearTimeout(id),
+      ahora: () => performance.now(),
+    });
+    controladorRef.current = ctrl;
+    const cancelarSuscripcion = store.subscribe((nuevo, previo) => ctrl.alCambiarUI(nuevo, previo));
 
     function medir() {
-      const cv = canvasRef.current;
-      if (!cv) return;
-      const r = cv.getBoundingClientRect();
+      const r = canvas!.getBoundingClientRect();
       if (r.width <= 0 || r.height <= 0) return;
       const dpr = Math.min(window.devicePixelRatio || 1, DPR_MAXIMO);
       const bw = Math.round(r.width * dpr);
       const bh = Math.round(r.height * dpr);
-      if (cv.width !== bw || cv.height !== bh) {
-        cv.width = bw;
-        cv.height = bh;
+      if (canvas!.width !== bw || canvas!.height !== bh) {
+        canvas!.width = bw;
+        canvas!.height = bh;
       }
-      tamRef.current = { ancho: r.width, alto: r.height, dpr };
-      forzarRef.current = true;
-      pedir();
+      const ctx = canvas!.getContext("2d", { alpha: false });
+      ctx?.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctrl.fijarLienzo(ctx, r.width, r.height, dpr);
     }
     medir();
     const observador = new ResizeObserver(medir);
     observador.observe(canvas);
+
+    function local(e: PointerEvent) {
+      const r = canvas!.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    }
+    let activo = -1;
+
+    function onPointerDown(e: PointerEvent) {
+      if (e.pointerType === "mouse" && e.button !== 0) return;
+      if (activo !== -1) return; // un solo puntero a la vez (el segundo dedo es zoom/scroll del navegador)
+      const p = local(e);
+      activo = e.pointerId;
+      canvas!.setPointerCapture(e.pointerId);
+      canvas!.dataset.gesto = ctrl.punteroAbajo(p.x, p.y);
+    }
+    function onPointerMove(e: PointerEvent) {
+      const p = local(e);
+      if (activo === e.pointerId) {
+        ctrl.punteroMueve(p.x, p.y);
+      } else if (activo === -1 && e.pointerType === "mouse") {
+        const sobre = ctrl.hayCargaBajo(p.x, p.y);
+        if ((canvas!.dataset.sobre === "carga") !== sobre) canvas!.dataset.sobre = sobre ? "carga" : "";
+      }
+    }
+    function terminar(e: PointerEvent, cancelado: boolean) {
+      if (activo !== e.pointerId) return;
+      activo = -1;
+      delete canvas!.dataset.gesto;
+      if (cancelado) ctrl.punteroCancelado();
+      else {
+        const p = local(e);
+        ctrl.punteroMueve(p.x, p.y);
+        ctrl.punteroArriba();
+      }
+    }
+    const onPointerUp = (e: PointerEvent) => terminar(e, false);
+    const onPointerCancel = (e: PointerEvent) => terminar(e, true);
+    // Scroll vertical con el dedo salvo que el toque empiece sobre una carga.
+    function onTouchStart(e: TouchEvent) {
+      if (e.touches.length !== 1 || !e.cancelable) return;
+      const r = canvas!.getBoundingClientRect();
+      const t = e.touches[0];
+      if (ctrl.hayCargaBajo(t.clientX - r.left, t.clientY - r.top)) e.preventDefault();
+    }
+
+    canvas.addEventListener("pointerdown", onPointerDown);
+    canvas.addEventListener("pointermove", onPointerMove);
+    canvas.addEventListener("pointerup", onPointerUp);
+    canvas.addEventListener("pointercancel", onPointerCancel);
+    canvas.addEventListener("lostpointercapture", onPointerCancel);
+    canvas.addEventListener("touchstart", onTouchStart, { passive: false });
     return () => {
+      canvas.removeEventListener("pointerdown", onPointerDown);
+      canvas.removeEventListener("pointermove", onPointerMove);
+      canvas.removeEventListener("pointerup", onPointerUp);
+      canvas.removeEventListener("pointercancel", onPointerCancel);
+      canvas.removeEventListener("lostpointercapture", onPointerCancel);
+      canvas.removeEventListener("touchstart", onTouchStart);
       observador.disconnect();
-      if (idFrameRef.current) cancelAnimationFrame(idFrameRef.current);
-      idFrameRef.current = 0;
-      pedirRef.current = () => {};
+      cancelarSuscripcion();
+      ctrl.destruir();
+      controladorRef.current = null;
     };
-  }, []);
+  }, [controladorRef]);
+
+  function alPulsarTecla(e: TeclaReact<HTMLCanvasElement>) {
+    if (e.altKey || e.ctrlKey || e.metaKey) return;
+    if (controladorRef.current?.tecla(e.key, e.shiftKey)) e.preventDefault(); // que las flechas no desplacen la página
+  }
 
   return (
     <canvas
       ref={canvasRef}
       className="lienzo lienzo-gauss3d"
       role="img"
+      tabIndex={0}
       aria-label={descripcion}
+      aria-describedby={idAyuda}
+      aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight"
+      onKeyDown={alPulsarTecla}
+      onKeyUp={() => controladorRef.current?.soltar()}
     />
   );
 }

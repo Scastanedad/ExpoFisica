@@ -26,6 +26,13 @@ export interface EntradaMotor {
   opacidad: number;
   /** Unidad de tamaño (≥ 1, ver `OpcionesDibujo3D`); 1 por defecto. */
   unidad?: number;
+  /**
+   * Radio de encuadre fijo (u): si se da, sustituye al automático (superficie + cargas). La UI lo usa mientras se
+   * arrastra una carga para que la vista no se reencuadre bajo el puntero. 0/undefined = automático.
+   */
+  encuadre?: number;
+  /** Índice de la carga seleccionada (se dibuja con un anillo); -1/undefined = ninguna. */
+  seleccion?: number;
 }
 
 /** Lo que la UI puede publicar (≤ 10 Hz, nunca por cuadro) tras recalcular la geometría. */
@@ -80,12 +87,14 @@ export function crearMotorGauss3D(opciones: { calidadInicial?: number } = {}): M
         dpr: e.dpr,
         mostrar: e.mostrar,
         opacidad: e.opacidad,
+        encuadre: e.encuadre ?? 0,
       };
       const cambio = firma.comparar(datos);
       if (cambio === "igual" && geom) return cambio;
       if (cambio === "geometria" || !geom) {
         geom = construirGeometria(estado, e.escenario, e.mostrar);
-        gestor.registrar(geom.msCalculo);
+        // Solo se mide el cálculo a la calidad vigente: el grueso del arrastre es más rápido y engañaría al gestor.
+        if (e.escenario.calidad === gestor.indice()) gestor.registrar(geom.msCalculo);
         lectura = {
           phi: geom.flujo.total,
           qEnc: geom.flujo.qEnc,
@@ -98,7 +107,7 @@ export function crearMotorGauss3D(opciones: { calidadInicial?: number } = {}): M
           msCalculo: geom.msCalculo,
         };
       }
-      derivarCamara(datos.camara, geom.rEncuadre, cam);
+      derivarCamara(datos.camara, e.encuadre && e.encuadre > 0 ? e.encuadre : geom.rEncuadre, cam);
       construirPasadas(pasadas, geom, cam, e.ancho, e.alto);
       firma.guardar(datos);
       return cambio === "igual" ? "camara" : cambio;
@@ -112,6 +121,7 @@ export function crearMotorGauss3D(opciones: { calidadInicial?: number } = {}): M
         mostrarFlujo: e.mostrar.flujo,
         opacidad: e.opacidad,
         mostrarSuelo: true,
+        seleccion: e.seleccion ?? -1,
       };
       dibujarEscenaGauss3D(ctx, geom, pasadas, cam, o);
     },

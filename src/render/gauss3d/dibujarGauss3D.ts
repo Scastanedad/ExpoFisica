@@ -21,6 +21,7 @@ const AZUL = "#2563eb";
 const RGB_NEUTRO = "148, 163, 184";
 const RGB_HIELO = "226, 232, 240";
 const RGB_AMBAR = "251, 191, 36";
+const COLOR_SELECCION = "#22d3ee";
 const COLOR_TEXTO = "#e5e7eb";
 const COLOR_TEXTO_TENUE = "#8b93a7";
 const HALO_TEXTO = "rgba(5, 7, 13, 0.9)";
@@ -37,6 +38,8 @@ export interface OpcionesDibujo3D {
   opacidad: number;
   /** Cuadrícula y sombras del suelo. */
   mostrarSuelo: boolean;
+  /** Índice de la carga seleccionada (anillo cian: lo interactivo); -1 o ausente = ninguna. */
+  seleccion?: number;
 }
 
 /** Tablas de estilos que dependen de la opacidad (se rehacen solo si cambia). */
@@ -285,6 +288,16 @@ function dibujarCargaDisco(ctx: Ctx3D, geom: GeometriaGauss3D, p: Pasadas, i: nu
   ctx.textAlign = "center";
   ctx.textBaseline = "middle";
   ctx.fillText(positiva ? "+" : "−", x, y + 1);
+  if (o.seleccion === i) {
+    // anillo cian discontinuo: esta es la carga que mueven los controles
+    ctx.beginPath();
+    ctx.arc(x, y, r + 7 * u, 0, Math.PI * 2);
+    ctx.setLineDash([5 * u, 3 * u]);
+    ctx.lineWidth = 2 * u;
+    ctx.strokeStyle = COLOR_SELECCION;
+    ctx.stroke();
+    ctx.setLineDash([]);
+  }
 }
 
 /** Contenido de una pasada (2 = detrás de la cara delantera, 4 = delante): sombras, caídas, líneas, flechas y cargas. */

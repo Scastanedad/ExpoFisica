@@ -14,6 +14,8 @@ export interface DatosFirma3D {
   dpr: number;
   mostrar: { lineas: boolean; flujo: boolean; campo: boolean };
   opacidad: number;
+  /** Radio de encuadre fijo (0 = automático): cambia solo la cámara. */
+  encuadre?: number;
 }
 
 export type CambioFirma3D = "igual" | "camara" | "geometria";
@@ -74,7 +76,7 @@ function escribirCamara(d: DatosFirma3D, out: Float64Array): void {
   out[6] = d.dpr;
   out[7] = d.opacidad;
   out[8] = d.mostrar.flujo ? 1 : 0;
-  out[9] = 0;
+  out[9] = d.encuadre ?? 0;
 }
 
 export function crearFirma3D(): Firma3D {
@@ -102,7 +104,8 @@ export function crearFirma3D(): Firma3D {
         camara[5] !== c.alto ||
         camara[6] !== d.dpr ||
         camara[7] !== d.opacidad ||
-        camara[8] !== (d.mostrar.flujo ? 1 : 0)
+        camara[8] !== (d.mostrar.flujo ? 1 : 0) ||
+        camara[9] !== (d.encuadre ?? 0)
       ) {
         return "camara";
       }

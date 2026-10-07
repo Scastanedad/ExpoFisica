@@ -1,160 +1,108 @@
 /**
- * Estación 5 · Ley de Gauss — PÁGINA PROVISIONAL de la fase 2 (render estático): permite ver los escenarios 1–9 y
- * cambiar forma, capas y vista para verificar el dibujo. La UI final (store, arrastre, deslizadores reducidos) es de la
- * fase 3; aquí no hay interacción con el lienzo.
+ * Estación 5 · Ley de Gauss (`/ley-de-gauss`). Una superficie fija en el origen y hasta dos cargas que se arrastran
+ * por el suelo (la altura es el deslizador vertical junto al lienzo). Estado de UI en `store/gauss3dStore.ts`; las
+ * posiciones x, y, el azimut en curso y la calidad de cálculo viven en el controlador (`render/controladorGauss3d.ts`).
  */
-import { useMemo, useState } from "react";
+import { useId, useRef, useState } from "react";
 import { Link } from "react-router-dom";
+import { formatDistancia } from "../fisica/escala";
 import { ESCENARIOS } from "../fisica/gauss3d/escenarios";
-import { crearSuperficie } from "../fisica/gauss3d/superficies";
-import type { TipoSuperficie } from "../fisica/gauss3d/tipos";
-import { formatFlujoSI, formatPhi } from "../fisica/gauss3d/unidades";
+import { RANGOS } from "../fisica/gauss3d/constantes";
+import { uAMetros } from "../fisica/gauss3d/unidades";
 import { useTituloDocumento } from "../hooks/useTituloDocumento";
 import { CanvasGauss3D } from "../render/CanvasGauss3D";
-import type { LecturaGauss3D } from "../render/gauss3d/motor";
+import type { ControladorGauss3D } from "../render/controladorGauss3d";
+import { Z_MAX, Z_MIN, Z_PASO, useGauss3dStore } from "../store/gauss3dStore";
+import { PanelGauss3D } from "../ui/PanelGauss3D";
+import { RotuloGauss3D } from "../ui/RotuloGauss3D";
 
-const FORMAS: ReadonlyArray<{ id: TipoSuperficie; nombre: string }> = [
-  { id: "parche", nombre: "Parche" },
-  { id: "esfera", nombre: "Esfera" },
-  { id: "cubo", nombre: "Cubo" },
-  { id: "cilindro", nombre: "Cilindro" },
-];
-
-const aRad = (g: number) => (g * Math.PI) / 180;
+function descripcionEscena(forma: string, nCargas: number, escenario: string): string {
+  const nombre: Record<string, string> = {
+    parche: "un parche plano",
+    esfera: "una esfera",
+    cubo: "un cubo",
+    cilindro: "un cilindro",
+  };
+  return `Escena 3D: ${nombre[forma] ?? forma} como superficie gaussiana, con ${nCargas === 1 ? "una carga" : "dos cargas"}. Escenario: ${escenario}. Arrastra una carga para moverla o usa las flechas del teclado.`;
+}
 
 export function LeyDeGauss() {
   useTituloDocumento("Ley de Gauss · ExpoFísica");
-  const [id, setId] = useState(2);
-  const [fuera, setFuera] = useState(false);
-  const [forma, setForma] = useState<TipoSuperficie | "">("");
-  const def = ESCENARIOS[id - 1];
-  const [mostrar, setMostrar] = useState(def.mostrar);
-  const [azimutDeg, setAzimutDeg] = useState(35);
-  const [inclinacionDeg, setInclinacionDeg] = useState(30);
-  const [lectura, setLectura] = useState<LecturaGauss3D | null>(null);
+  const controladorRef = useRef<ControladorGauss3D | null>(null);
+  const [anuncio, setAnuncio] = useState("");
+  const idAyuda = useId();
+  const forma = useGauss3dStore((s) => s.forma);
+  const nCargas = useGauss3dStore((s) => s.cargas.length);
+  const escenarioId = useGauss3dStore((s) => s.escenarioId);
+  const seleccionada = useGauss3dStore((s) => s.seleccionada);
+  const carga = useGauss3dStore((s) => s.cargas[s.seleccionada]);
+  const setZ = useGauss3dStore((s) => s.setZ);
 
-  const cargas = useMemo(() => (fuera && def.variante ? def.variante.cargas : def.cargas), [def, fuera]);
-  const superficie = useMemo(() => (forma ? crearSuperficie(forma) : def.superficie), [def, forma]);
-
-  function elegir(n: number) {
-    const d = ESCENARIOS[n - 1];
-    setId(n);
-    setFuera(false);
-    setForma("");
-    setMostrar(d.mostrar);
-    setAzimutDeg(Math.round((d.vista.azimut * 180) / Math.PI));
-    setInclinacionDeg(Math.round((d.vista.inclinacion * 180) / Math.PI));
+  function anunciar(texto: string) {
+    setAnuncio((previo) => (previo === texto ? `${texto} ` : texto));
   }
 
-  const descripcion = `Escena 3D de la superficie gaussiana (${superficie.tipo}) con ${cargas.length === 1 ? "una carga" : "dos cargas"}: ${def.nombre}.`;
+  const alturaTexto = carga ? (carga.z === 0 ? "0 cm" : formatDistancia(uAMetros(carga.z))) : "";
+  const soltar = () => controladorRef.current?.soltar();
 
   return (
-    <main className="pagina-simulador">
+    // --reserva-v/--reserva-lateral: cabecera + instrucciones + rótulo bajo el lienzo + margen.
+    <main
+      className="pagina-simulador"
+      style={{ ["--reserva-v" as string]: "176px", ["--reserva-lateral" as string]: "150px" }}
+    >
       <header className="cabecera-simulador">
         <Link to="/" className="volver">
           ← Estaciones
         </Link>
         <h1>Ley de Gauss</h1>
       </header>
-      <p className="instrucciones instrucciones-estable">
-        Vista provisional (fase 2): elige un escenario para ver la superficie, las líneas de campo y el flujo.
+      <p className="instrucciones instrucciones-estable instrucciones-larga">
+        Una superficie imaginaria y una o dos cargas: arrastra las cargas por el suelo, súbelas o bájalas con el deslizador
+        vertical y mira cuánto campo atraviesa la superficie (el flujo, Φ).
+      </p>
+      <p className="instrucciones instrucciones-estable instrucciones-corta">
+        Arrastra las cargas por el suelo y mira cuánto campo atraviesa la superficie.
+      </p>
+      <p className="sr-only" aria-live="polite">
+        {anuncio}
       </p>
       <div className="simulador">
         <div className="simulador-lienzo">
-          <CanvasGauss3D
-            superficie={superficie}
-            cargas={cargas}
-            mostrar={mostrar}
-            azimut={aRad(azimutDeg)}
-            inclinacion={aRad(inclinacionDeg)}
-            descripcion={descripcion}
-            alLeer={setLectura}
-          />
+          <div className="gauss3d-marco">
+            <CanvasGauss3D
+              controladorRef={controladorRef}
+              descripcion={descripcionEscena(forma, nCargas, ESCENARIOS[escenarioId - 1].nombre)}
+              idAyuda={idAyuda}
+              anunciar={anunciar}
+            />
+            <label className="gauss3d-altura">
+              <span className="gauss3d-altura-etiqueta">
+                Altura z{nCargas > 1 ? ` carga ${seleccionada + 1}` : ""}
+              </span>
+              <input
+                type="range"
+                className="gauss3d-altura-barra"
+                min={Z_MIN}
+                max={Z_MAX}
+                step={Z_PASO}
+                value={carga?.z ?? 0}
+                aria-orientation="vertical"
+                aria-label={`Altura z de la carga ${seleccionada + 1}, entre ${formatDistancia(uAMetros(RANGOS.carga.z.min))} y ${formatDistancia(uAMetros(RANGOS.carga.z.max))}`}
+                aria-valuetext={`${alturaTexto} sobre el suelo`}
+                onChange={(e) => setZ(Number(e.target.value))}
+                onPointerUp={soltar}
+                onPointerCancel={soltar}
+                onKeyUp={soltar}
+                onBlur={soltar}
+              />
+              <output className="gauss3d-altura-valor">{alturaTexto}</output>
+            </label>
+          </div>
+          <RotuloGauss3D />
         </div>
         <div className="simulador-lateral gauss3d-lateral">
-          <div className="gauss3d-escenarios" role="group" aria-label="Escenarios">
-            {ESCENARIOS.map((e) => (
-              <button
-                key={e.id}
-                type="button"
-                className="gauss3d-boton"
-                aria-pressed={e.id === id}
-                aria-label={`Escenario ${e.id}: ${e.nombre}`}
-                title={e.nombre}
-                onClick={() => elegir(e.id)}
-              >
-                {e.id}
-              </button>
-            ))}
-          </div>
-          <p className="gauss3d-titulo">
-            {def.id}. {def.nombre}
-          </p>
-          {def.variante && (
-            <button type="button" className="gauss3d-boton gauss3d-ancho" aria-pressed={fuera} onClick={() => setFuera((v) => !v)}>
-              {fuera ? "Carga fuera" : "Carga dentro"}
-            </button>
-          )}
-          <label className="gauss3d-campo">
-            Forma
-            <select value={forma} onChange={(e) => setForma(e.target.value as TipoSuperficie | "")}>
-              <option value="">Del escenario</option>
-              {FORMAS.map((f) => (
-                <option key={f.id} value={f.id}>
-                  {f.nombre}
-                </option>
-              ))}
-            </select>
-          </label>
-          <fieldset className="gauss3d-capas">
-            <legend>Capas</legend>
-            {(
-              [
-                ["lineas", "Líneas de campo"],
-                ["flujo", "Flujo (parches)"],
-                ["campo", "Flechas del campo E"],
-              ] as const
-            ).map(([k, nombre]) => (
-              <label key={k}>
-                <input type="checkbox" checked={mostrar[k]} onChange={(e) => setMostrar({ ...mostrar, [k]: e.target.checked })} />
-                {nombre}
-              </label>
-            ))}
-          </fieldset>
-          <label className="control-deslizador">
-            Giro
-            <input type="range" min={-180} max={180} step={5} value={azimutDeg} onChange={(e) => setAzimutDeg(Number(e.target.value))} />
-            <output>{azimutDeg}°</output>
-          </label>
-          <label className="control-deslizador">
-            Altura
-            <input type="range" min={15} max={85} step={5} value={inclinacionDeg} onChange={(e) => setInclinacionDeg(Number(e.target.value))} />
-            <output>{inclinacionDeg}°</output>
-          </label>
-          {lectura && (
-            <dl className="gauss3d-lectura" aria-live="off">
-              <div>
-                <dt>Flujo</dt>
-                <dd>{formatPhi(lectura.phi)}</dd>
-              </div>
-              <div>
-                <dt>En SI</dt>
-                <dd>{formatFlujoSI(lectura.phi)}</dd>
-              </div>
-              <div>
-                <dt>Carga encerrada</dt>
-                <dd>{lectura.qEnc.toFixed(2)} µC</dd>
-              </div>
-              {lectura.nLineas > 0 && lectura.tipo !== "parche" && (
-                <div>
-                  <dt>Líneas que salen / entran</dt>
-                  <dd>
-                    {lectura.salen} / {lectura.entran}
-                  </dd>
-                </div>
-              )}
-            </dl>
-          )}
+          <PanelGauss3D controladorRef={controladorRef} anunciar={anunciar} idAyuda={idAyuda} />
         </div>
       </div>
     </main>
