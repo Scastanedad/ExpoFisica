@@ -44,6 +44,14 @@ const ESTACIONES: Estacion[] = [
       "El mismo campo sobre un conductor y un aislante: los electrones libres del conductor apartan el campo de su interior.",
     ruta: "/materiales",
   },
+  {
+    numero: "05",
+    etiqueta: "Cuenta el campo que pasa",
+    titulo: "Ley de Gauss",
+    descripcion:
+      "Mueve cargas en 3D alrededor de una superficie imaginaria y mide cuánto campo la atraviesa: el flujo depende de la carga que encierra.",
+    ruta: "/ley-de-gauss",
+  },
 ];
 
 /**
