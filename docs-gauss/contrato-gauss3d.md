@@ -327,3 +327,18 @@ Los 7 desvíos de §10 son físicamente legítimos, ninguno oculta un error: (1)
 Cambios: `cruces.ts` + `lineasPorUCEfectivo` y su test en `cruces.test.ts`. No toqué tolerancias ni otros tests.
 
 Pendientes (no bloqueantes): (a) Φ_SI y las lecturas deben tomar `total` de `calcularFlujo`, nunca el conteo de líneas; (b) caso extremo `fin=2`: cubo a=16 con par casi neutro (+5, −4.95) a 1.2 u en (12,12,10) agota 256 puntos en 1 de 101 líneas (línea cortada fuera de la superficie, el neto sigue exacto); la UI puede ignorarlo o subir `MAX_PUNTOS_LINEA`/limitar |q| desiguales; (c) legibilidad y móvil (Fase 6); (d) con parche, ninguna cuenta de líneas es medida de Φ.
+
+## 12. Revisión fase 2 (fisico-revisor)
+
+**Veredicto: APRUEBA.** `npm test` (986 + 1 skip), `npm run build` y `npm run lint` en verde, antes y después del único cambio.
+
+Dibujado = calculado (revisado en código y en las 9 capturas pc/móvil + variantes cubo/cilindro/fuera):
+- Parches: rojo = Φ_p > 0 (sale, E·n > 0 con la normal exterior), azul = entra. Esc. 6 (carga arriba): casquete superior azul, inferior rojo; esc. 7: rojo junto a +, azul junto a −; esc. 3 fuera: cara próxima a la carga azul, la lejana roja. El parche (esc. 1, 8) es rojo con n = +z y la carga debajo: correcto.
+- Saturación: banda lineal en |E_n|/tope, tope = percentil 98 (acota sin deformar el orden relativo; <4 % del tope = neutro). Es relativa a la escena: no compara escenas (esfera uniforme siempre sale a tope). Alfa 0.19→0.46 comprime el contraste entre bandas, pero es monótona.
+- Líneas: puntas en el orden de la polilínea (ya orientada con E por `guardarLinea`): salen de + y entran en −. El corte a 2.7·rRef (> radio de encuadre ≥ 1.1·r_sup) queda siempre fuera de la superficie, así que no cambia salen/entran; el desvanecimiento por distancia solo es alfa.
+- Flechas E: salen centradas en el punto de la superficie, a favor de E (punta en +E); longitud = rEncuadre·(0.06 + 0.1·√(|E|/|E|max)). Es relativa a cada escena (esc. 4: la |E| baja con R² pero las flechas no se acortan) y con raíz: la UI de fase 3 debe rotular E en N/C (contrato §1) y decir «longitud no a escala».
+- Suelo/sombras/caídas en z = 0 con la carga proyectada en (x, y, 0); caída partida en los cruces; carga bajo el parche (esc. 8) va a la pasada 2 (detrás), correcto. Las 4 pasadas sin errores de oclusión visibles en esfera, cubo y cilindro.
+
+Cambio: `pasadas.ts` (`lineas`): al saltar un segmento detrás del plano cercano, `hA` no se actualizaba y el siguiente tramo partía de un estado «oculto» obsoleto (bisección mal sembrada). Una línea, sin tests nuevos necesarios.
+
+Pendientes para revisor-ui (fase 3, solo visuales): parches de malla gruesa con borde escalonado en esc. 3 fuera (mostrar contorno de parche o subir calidad en reposo); sin leyenda de color (rojo = sale, azul = entra) ni escala de flechas; la tapa de la esfera dibuja anillos de polo; sombra de carga (rho 0.55) casi invisible en esc. 1.

@@ -29,3 +29,6 @@ dist-ssr
 .claude/
 CLAUDE.md
 skills-lock.json
+
+# Capturas de verificación visual (Playwright)
+capturas-gauss/

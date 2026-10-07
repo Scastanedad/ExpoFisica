@@ -4,6 +4,7 @@ import { CargasEnReposo } from "./pages/CargasEnReposo";
 import { CargasEnMovimiento } from "./pages/CargasEnMovimiento";
 import { CampoContinuo } from "./pages/CampoContinuo";
 import { Materiales } from "./pages/Materiales";
+import { LeyDeGauss } from "./pages/LeyDeGauss";
 
 function App() {
   return (
@@ -18,6 +19,7 @@ function App() {
         {/* Ruta anterior (la estación se llamaba "Dipolos"): se mantiene para no romper enlaces ni QR ya impresos. */}
         <Route path="/dipolos" element={<Navigate to="/campo-continuo" replace />} />
         <Route path="/materiales" element={<Materiales />} />
+        <Route path="/ley-de-gauss" element={<LeyDeGauss />} />
       </Routes>
     </BrowserRouter>
   );

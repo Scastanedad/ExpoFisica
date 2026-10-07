@@ -1916,3 +1916,117 @@ a {
   text-transform: uppercase;
   color: var(--text-dim);
 }
+
+/* ---------- Estación 5 · Ley de Gauss (página provisional de la fase 2) ---------- */
+
+.lienzo-gauss3d {
+  width: 100%;
+  height: min(112vw, 62svh);
+  min-height: 300px;
+  max-width: none;
+}
+
+@media (min-width: 900px) and (min-height: 560px) {
+  .lienzo-gauss3d {
+    height: calc(100svh - var(--reserva-v, 96px) - 8px);
+    min-height: 360px;
+    max-height: 860px;
+  }
+}
+
+.gauss3d-lateral {
+  font-family: var(--mono);
+  font-size: 14px;
+}
+
+.gauss3d-escenarios {
+  display: grid;
+  grid-template-columns: repeat(9, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.gauss3d-boton {
+  min-width: 36px;
+  min-height: 44px;
+  font-family: var(--mono);
+  font-size: 14px;
+  padding: 6px 8px;
+  border-radius: 8px;
+  border: 1px solid var(--borde);
+  background: rgba(11, 16, 32, 0.5);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.gauss3d-boton:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.gauss3d-boton[aria-pressed="true"] {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: rgba(34, 211, 238, 0.12);
+}
+
+.gauss3d-ancho {
+  width: 100%;
+}
+
+.gauss3d-titulo {
+  margin: 0;
+  color: var(--text);
+}
+
+.gauss3d-campo {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+}
+
+.gauss3d-campo select {
+  flex: 1;
+  min-height: 44px;
+  font: inherit;
+  color: var(--text);
+  background: rgba(11, 16, 32, 0.8);
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 0 8px;
+}
+
+.gauss3d-capas {
+  border: 1px solid var(--borde);
+  border-radius: 8px;
+  padding: 4px 10px 8px;
+  margin: 0;
+}
+
+.gauss3d-capas label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 36px;
+}
+
+.gauss3d-lectura {
+  margin: 0;
+  display: grid;
+  gap: 6px;
+}
+
+.gauss3d-lectura > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.gauss3d-lectura dt {
+  color: var(--text-dim);
+}
+
+.gauss3d-lectura dd {
+  margin: 0;
+  color: var(--text);
+}
