@@ -5,6 +5,7 @@
  *   dibujar(ctx, entrada) → pinta las 4 pasadas con lo último calculado.
  * Los buffers viven en el motor y se reutilizan; no hay asignaciones por cuadro.
  */
+import { cargasEncerradas } from "../../fisica/gauss3d/superficies";
 import type { Escenario } from "../../fisica/gauss3d/tipos";
 import { crearGestorCalidad } from "../calidadCampo";
 import { crearCamaraProy, derivarCamara, FOV_DEF, type CamaraProy } from "./camara";
@@ -48,7 +49,12 @@ export interface LecturaGauss3D {
   tipo: string;
   calidad: string;
   msCalculo: number;
+  /** Por carga: signo/valor, si está estrictamente dentro de la superficie y si está en el centro (≤ 0.1 u). */
+  cargas: ReadonlyArray<{ q: number; dentro: boolean; centrada: boolean }>;
 }
+
+/** Una carga a menos de esta distancia (u) del origen cuenta como «en el centro» para los textos. */
+export const TOL_CENTRO = 0.1;
 
 export interface MotorGauss3D {
   actualizar(e: EntradaMotor): CambioFirma3D;
@@ -59,6 +65,15 @@ export interface MotorGauss3D {
   lectura(): LecturaGauss3D | null;
   /** Calidad vigente según el gestor (0 alta … 2 baja); la usa quien construye el `Escenario`. */
   calidad(): number;
+}
+
+function lecturaCargas(geom: GeometriaGauss3D): LecturaGauss3D["cargas"] {
+  const dentro = new Set(cargasEncerradas(geom.superficie, geom.cargas));
+  return geom.cargas.map((c, i) => ({
+    q: c.q,
+    dentro: dentro.has(i),
+    centrada: Math.hypot(c.x, c.y, c.z) <= TOL_CENTRO,
+  }));
 }
 
 const NOMBRES_CALIDAD = ["alta", "media", "baja"];
@@ -105,6 +120,7 @@ export function crearMotorGauss3D(opciones: { calidadInicial?: number } = {}): M
           tipo: geom.superficie.tipo,
           calidad: NOMBRES_CALIDAD[geom.calidad] ?? "alta",
           msCalculo: geom.msCalculo,
+          cargas: lecturaCargas(geom),
         };
       }
       derivarCamara(datos.camara, e.encuadre && e.encuadre > 0 ? e.encuadre : geom.rEncuadre, cam);

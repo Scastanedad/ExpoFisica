@@ -29,6 +29,9 @@ export const SEPARACION_PUNTAS_PX = 110;
 const CAP_SEG_LINEAS = MAX_PUNTOS_TOTAL + 8192;
 const CAP_PUNTAS = 4096;
 const CAP_CAMPO = 512;
+const CAP_MARCAS = 2048;
+/** Paso (u) a lo largo de la línea para orientar la punta de un marcador de cruce cuando el segmento proyecta casi a un punto. */
+const PASO_DIR_MARCA = 0.4;
 
 export interface BufferSegmentos {
   n: number;
@@ -63,6 +66,21 @@ export interface BufferPuntas {
   inicio: Uint32Array;
 }
 
+/**
+ * Marcadores de cruce línea–superficie: posición en pantalla, dirección (unitaria, en pantalla) de la línea orientada
+ * con E y sentido (+1 sale: relleno, −1 entra: anillo). `dx = dy = 0` si la línea apunta al ojo (sin punta).
+ */
+export interface BufferMarcas {
+  n: number;
+  cap: number;
+  x: Float32Array;
+  y: Float32Array;
+  dx: Float32Array;
+  dy: Float32Array;
+  sentido: Int8Array;
+  pasada: Uint8Array;
+}
+
 export interface Pasadas {
   // proyección de la malla
   capV: number;
@@ -95,6 +113,8 @@ export interface Pasadas {
   caida: BufferSegmentos;
   campo: BufferSegmentos;
   puntasCampo: BufferPuntas;
+  /** Cruces línea–superficie (solo con las líneas visibles). */
+  marcas: BufferMarcas;
   /** Radio de referencia (u) para el desvanecimiento de las líneas = radio de encuadre. */
   rRef: number;
   /** Las líneas se recortan más allá de `corteRel`·rRef del origen (Infinity = no recortar). */
@@ -148,6 +168,19 @@ function crearBufferPuntas(cap: number): BufferPuntas {
   };
 }
 
+function crearBufferMarcas(cap: number): BufferMarcas {
+  return {
+    n: 0,
+    cap,
+    x: new Float32Array(cap),
+    y: new Float32Array(cap),
+    dx: new Float32Array(cap),
+    dy: new Float32Array(cap),
+    sentido: new Int8Array(cap),
+    pasada: new Uint8Array(cap),
+  };
+}
+
 export function crearPasadas(): Pasadas {
   return {
     capV: 0,
@@ -176,6 +209,7 @@ export function crearPasadas(): Pasadas {
     caida: crearBufferSegmentos(16),
     campo: crearBufferSegmentos(CAP_CAMPO),
     puntasCampo: crearBufferPuntas(CAP_CAMPO),
+    marcas: crearBufferMarcas(CAP_MARCAS),
     margenPx: 80,
     rRef: 1,
     corteRel: 2.7,
@@ -438,8 +472,12 @@ export function construirPasadas(p: Pasadas, geom: GeometriaGauss3D, cam: Camara
   p.lineas.n = 0;
   p.lineas.descartados = 0;
   p.puntas.n = 0;
+  p.marcas.n = 0;
   const L = geom.lineas;
-  if (geom.conLineas && L.n > 0) lineas(p, geom, cam);
+  if (geom.conLineas && L.n > 0) {
+    lineas(p, geom, cam);
+    marcasCruce(p, geom, cam);
+  }
 
   // --- flechas de campo E ---
   p.campo.n = 0;
@@ -605,6 +643,58 @@ function lineas(p: Pasadas, geom: GeometriaGauss3D, cam: CamaraProy): void {
       }
       hA = hB;
     }
+  }
+}
+
+/**
+ * Marcadores de los cruces: relleno = la línea sale, anillo = entra (no dependen del color); la punta sigue el sentido
+ * de E sobre la línea. Delante/detrás: como las flechas de campo, con el punto adelantado un pelo hacia el ojo.
+ */
+function marcasCruce(p: Pasadas, geom: GeometriaGauss3D, cam: CamaraProy): void {
+  const sup = geom.superficie;
+  const L = geom.lineas;
+  const C = geom.cruces;
+  const P = L.puntos;
+  const ox = p.ojo[0];
+  const oy = p.ojo[1];
+  const oz = p.ojo[2];
+  const t = p.tmp;
+  const M = p.marcas;
+  for (let o = 0; o < C.n; o++) {
+    if (M.n >= M.cap) return;
+    const x = C.posicion[3 * o];
+    const y = C.posicion[3 * o + 1];
+    const z = C.posicion[3 * o + 2];
+    const g = C.segmento[o];
+    // dirección 3D de la línea en el cruce (segmento a→b, a favor de E)
+    let ux = P[3 * g + 3] - P[3 * g];
+    let uy = P[3 * g + 4] - P[3 * g + 1];
+    let uz = P[3 * g + 5] - P[3 * g + 2];
+    const lu = Math.hypot(ux, uy, uz);
+    if (!(lu > 1e-9)) continue;
+    ux /= lu;
+    uy /= lu;
+    uz /= lu;
+    proyectarPunto(cam, x, y, z, t, 0);
+    proyectarPunto(cam, x + ux * PASO_DIR_MARCA, y + uy * PASO_DIR_MARCA, z + uz * PASO_DIR_MARCA, t, 4);
+    if (t[2] < cam.zCercano || t[6] < cam.zCercano) continue;
+    const sx = t[0];
+    const sy = t[1];
+    if (!(Number.isFinite(sx) && Number.isFinite(sy))) continue;
+    if (fuera(p, sx, sy, sx, sy)) continue;
+    const dx = t[4] - sx;
+    const dy = t[5] - sy;
+    const l = Math.hypot(dx, dy);
+    const nx = x + (ox - x) * 0.002;
+    const ny = y + (oy - y) * 0.002;
+    const nz = z + (oz - z) * 0.002;
+    const i = M.n++;
+    M.x[i] = sx;
+    M.y[i] = sy;
+    M.dx[i] = l > 1e-3 ? dx / l : 0;
+    M.dy[i] = l > 1e-3 ? dy / l : 0;
+    M.sentido[i] = C.sentido[o];
+    M.pasada[i] = oculto(p, sup, nx, ny, nz) ? PASADA_DETRAS : PASADA_DELANTE;
   }
 }
 

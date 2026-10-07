@@ -342,3 +342,25 @@ Dibujado = calculado (revisado en código y en las 9 capturas pc/móvil + varian
 Cambio: `pasadas.ts` (`lineas`): al saltar un segmento detrás del plano cercano, `hA` no se actualizaba y el siguiente tramo partía de un estado «oculto» obsoleto (bisección mal sembrada). Una línea, sin tests nuevos necesarios.
 
 Pendientes para revisor-ui (fase 3, solo visuales): parches de malla gruesa con borde escalonado en esc. 3 fuera (mostrar contorno de parche o subir calidad en reposo); sin leyenda de color (rojo = sale, azul = entra) ni escala de flechas; la tapa de la esfera dibuja anillos de polo; sombra de carga (rho 0.55) casi invisible en esc. 1.
+
+## 13. Revisión fase 4 (fisico-revisor)
+
+**Veredicto: APRUEBA** (con los cambios de texto de abajo, ya aplicados). `npm test`, `npm run build` y `npm run lint` en verde tras los cambios.
+
+Verificado contra la física (todas las frases de `textosGauss3D.ts`, incluidas las condicionales):
+- Φ = q_enc/ε₀ solo en cerradas; el parche avisa y no encierra carga. Φ_SI = 4πK·1e-6·Φ: 4 µC/ε₀ = 451,8 kN·m²/C (captura esc. 9 coincide).
+- E = kq/R²: 3 µC a 5 cm = 10,8 MN/C; 4 µC a 5 cm = 14,4 MN/C (test añadido). Sin simetría solo se da el valor medio de E⊥ = Φ/(4πR²), ahora con el sentido («hacia dentro») si q < 0.
+- Líneas: «entra tanto como sale» (fuera, dipolo ±) es identidad; test de barrido (3 formas × 3 calidades × carga fuera ±/dipolo) confirma salen = entran. La nota «20 líneas/µC» solo sale con carga única, calidad alta y neto = |q|·20 exacto (coherente con `lineasPorUCEfectivo`).
+- Marcadores: nuevo test que, para 10 configuraciones (cargas ±, dentro/fuera, esfera/cubo/cilindro/parche, calidad alta y baja), comprueba que punto lleno ⇔ E·n > 0 en el cruce (anillo ⇔ < 0) con E de `campoEn` y que la punta en pantalla sigue a E. Las líneas hacia atrás se guardan invertidas, así que el sentido es siempre el de E.
+
+Cambios (todos en `textosGauss3D.ts`, con tests en `textosGauss3D.test.ts` y `marcas.test.ts`):
+1. «La carga de fuera no cambia Φ» → «no cambia el Φ total (sí el flujo local, zona a zona)»: el total no cambia, pero el reparto por parches sí.
+2. Esc. 6 con una segunda carga ya dentro: «Φ cambia de golpe a 0» era falso; ahora «cambia en q/ε₀ (la de esa carga)».
+3. Esc. 7 con cargas del mismo signo: ya no dice «de la carga + a la −» ni habla de dipolo.
+4. Esc. 3 con cubo/cilindro: «Saca la carga de la esfera» → «de la superficie».
+5. Parche: «en neto, el campo cruza…» (Φ es neto, puede haber cruces en ambos sentidos) y Φ≈0 admite que el campo «lo roza». Sin cos θ.
+6. E en esc. 4/9 con «≈»: «centrada» admite hasta 0,1 u de desvío, y con R = 2 u el E local varía ~10 % aunque la media Φ/A es exacta.
+7. Esc. 9: «solo si hay simetría, por ejemplo una esfera…» (cilindro/plano también la tienen); con dos cargas «deja una sola carga en el centro».
+8. Nota de calidad: «hay menos líneas dibujadas» podía ser falso en calidad media (120 líneas bastan para q ≤ 6); ahora «pueden dibujarse menos…». La nota de 20 líneas/µC dice «salen/entran en neto» según el signo (antes «líneas netas» con q < 0 contradecía «netas: −60»).
+
+Pendientes (no bloqueantes): (a) visual: marcadores pequeños (radio 4,2 px) y muy juntos en esc. 3/9; panel «Qué se muestra» recortado a 1366×650 (visible en capturas pc: la fila Líneas/Flujo/Campo E queda cortada); (b) la lectura se publica a ≤10 Hz y los textos usan `tamano` actual con `cargas` de la lectura: ≤100 ms de desfase al arrastrar, inocuo; (c) caso `fin=2` de fase 1 sigue siendo el único modo de romper «salen = entran» (cubo 16, par casi neutro), no alcanzable con los rangos de la UI de los escenarios.

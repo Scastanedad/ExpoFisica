@@ -55,6 +55,8 @@ export interface LecturaGauss {
   nLineas: number;
   tipo: string;
   calidad: string;
+  /** Por carga: q (µC), si está dentro de la superficie y si está en el centro. */
+  cargas: ReadonlyArray<{ q: number; dentro: boolean; centrada: boolean }>;
   /** Posición (x, y) de cada carga, en u: alimenta los campos numéricos de «Avanzado». */
   xy: ReadonlyArray<readonly [number, number]>;
 }

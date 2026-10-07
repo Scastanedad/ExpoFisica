@@ -7,7 +7,7 @@
  * Alternativas al arrastre (WCAG 2.5.7): flechas del teclado sobre el lienzo enfocado (en `CanvasGauss3D`), x/y
  * numéricos, botones ±15° de azimut y selector de carga.
  */
-import { useId, useState, type RefObject } from "react";
+import { useId, useState, type ReactNode, type RefObject } from "react";
 import { Q_MAX, Q_MIN, Q_PASO } from "../fisica/carga";
 import { formatDistancia } from "../fisica/escala";
 import { MAX_CARGAS, RANGOS } from "../fisica/gauss3d/constantes";
@@ -62,6 +62,8 @@ interface Props {
   anunciar: (texto: string) => void;
   /** Id del párrafo de ayuda de movimiento (lo referencia el lienzo con aria-describedby). */
   idAyuda: string;
+  /** Contenido justo bajo los botones de escenario (los textos educativos en móvil). */
+  bajoEscenarios?: ReactNode;
 }
 
 /** Entero con coma decimal como el resto de la interfaz: «2,5». */
@@ -111,7 +113,7 @@ function CampoNumerico({
   );
 }
 
-export function PanelGauss3D({ controladorRef, anunciar, idAyuda }: Props) {
+export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios }: Props) {
   const escenarioId = useGauss3dStore((s) => s.escenarioId);
   const fuera = useGauss3dStore((s) => s.fuera);
   const forma = useGauss3dStore((s) => s.forma);
@@ -216,6 +218,7 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda }: Props) {
             {fuera ? "La carga está fuera · ponerla dentro" : "La carga está dentro · ponerla fuera"}
           </button>
         )}
+        {bajoEscenarios}
       </div>
 
       <div className="panel-dipolo-grupo">

@@ -2085,6 +2085,84 @@ a {
   border-top: 3px solid #fbbf24;
 }
 
+.gauss3d-marca {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  flex: 0 0 auto;
+}
+
+.gauss3d-marca-sale {
+  background: #f87171;
+  border: 1.5px solid #05070d;
+}
+
+.gauss3d-marca-entra {
+  background: #05070d;
+  border: 2.5px solid #60a5fa;
+}
+
+.gauss3d-conteo {
+  margin: 2px 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 14px;
+  color: var(--text-dim);
+}
+
+.gauss3d-conteo strong {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.gauss3d-nota {
+  flex-basis: 100%;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.gauss3d-texto {
+  margin: 6px 0 0;
+  padding: 6px 0 0;
+  border-top: 1px solid rgba(120, 170, 255, 0.2);
+  font-size: 14px;
+  line-height: 1.35;
+  color: var(--text-dim);
+}
+
+.gauss3d-texto p {
+  margin: 2px 0;
+}
+
+.gauss3d-texto b {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.gauss3d-texto-titulo {
+  margin: 0 0 2px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Textos y leyenda: junto al lienzo en pantalla ancha; en móvil arriba de los controles (el lienzo pegado no crece). */
+.gauss3d-textos-ancho {
+  display: none;
+}
+
+@media (min-width: 900px) {
+  .gauss3d-textos-ancho {
+    display: block;
+  }
+
+  .gauss3d-textos-movil {
+    display: none;
+  }
+}
+
 .gauss3d-lateral {
   font-family: var(--mono);
   font-size: 14px;

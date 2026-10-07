@@ -1,32 +1,104 @@
 /**
- * Bajo el lienzo de la estación 5: lectura mínima de Φ y de la carga encerrada (la lectura completa con textos
- * educativos es de la fase 4), leyenda del color del flujo y nota sobre las flechas del campo E.
+ * Bajo el lienzo de la estación 5: lectura de Φ y de la carga encerrada (en µC/ε₀ y en SI), conteo real de líneas
+ * que salen / entran / netas, leyenda (color del flujo, marcadores de cruce y flechas de E) y los textos educativos
+ * del escenario (`textosGauss3D.ts`), que cambian con lo que hace el visitante.
  * Sin aria-live: la región viva limitada es de la fase 5.
  */
 import { formatFlujoSI, formatPhi } from "../fisica/gauss3d/unidades";
+import type { TipoSuperficie } from "../fisica/gauss3d/tipos";
 import { useGauss3dStore } from "../store/gauss3dStore";
+import { textoConteo, textoEscenario } from "./textosGauss3D";
 
 /** Coma decimal como el resto de la interfaz. */
 const coma = (t: string) => t.replace(/(\d)\.(\d)/g, "$1,$2");
 
-export function RotuloGauss3D() {
+const qConSigno = (q: number) => coma(`${q < -0.005 ? "−" : q > 0.005 ? "+" : ""}${Math.abs(q).toFixed(2)}`);
+
+/** Los residuos de redondeo (≈ 1e-12) no se muestran como flujo. */
+const sinResiduo = (v: number) => (Math.abs(v) < 1e-9 ? 0 : v);
+
+function useDatos() {
   const lectura = useGauss3dStore((s) => s.lectura);
+  const escenarioId = useGauss3dStore((s) => s.escenarioId);
+  const tamano = useGauss3dStore((s) => s.tamano);
+  const thetaDeg = useGauss3dStore((s) => s.thetaDeg);
   const flujo = useGauss3dStore((s) => s.mostrar.flujo);
   const campo = useGauss3dStore((s) => s.mostrar.campo);
+  const lineas = useGauss3dStore((s) => s.mostrar.lineas);
+
+  const forma = (lectura?.tipo ?? "esfera") as TipoSuperficie;
+  const cerrada = lectura !== null && lectura.tipo !== "parche";
+  const conteo = lectura
+    ? textoConteo({
+        salen: lectura.salen,
+        entran: lectura.entran,
+        calidad: lectura.calidad,
+        forma,
+        cargas: lectura.cargas,
+        nLineas: lineas ? lectura.nLineas : 0,
+      })
+    : null;
+  const texto = lectura
+    ? textoEscenario({ escenario: escenarioId, forma, tamano, thetaDeg, cargas: lectura.cargas, phi: sinResiduo(lectura.phi) })
+    : null;
+
+  return { lectura, conteo, texto, cerrada, flujo, campo, lineas };
+}
+
+export function RotuloGauss3D() {
+  const { lectura, conteo, cerrada } = useDatos();
   return (
     <div className="gauss3d-rotulo">
       <p className="gauss3d-lectura-fila" aria-label="Lectura del flujo">
         {lectura ? (
           <>
-            <strong>{coma(formatPhi(lectura.phi))}</strong>
-            <span>{coma(formatFlujoSI(lectura.phi))}</span>
-            {lectura.tipo !== "parche" ? <span>q_enc = {coma(lectura.qEnc.toFixed(2)).replace("-", "−")} µC</span> : <span>sin carga encerrada</span>}
+            <strong>{coma(formatPhi(sinResiduo(lectura.phi)))}</strong>
+            <span title="Φ en newton por metro cuadrado sobre culombio">= {coma(formatFlujoSI(sinResiduo(lectura.phi)))}</span>
+            {cerrada ? (
+              <span title="Carga encerrada por la superficie">
+                q_enc = {qConSigno(lectura.qEnc)} µC
+              </span>
+            ) : (
+              <span>sin carga encerrada</span>
+            )}
           </>
         ) : (
           <span>Calculando…</span>
         )}
       </p>
-      <ul className="gauss3d-leyenda" aria-label="Leyenda de colores">
+      {conteo && (
+        <p className="gauss3d-conteo" aria-label="Líneas de campo que cruzan la superficie">
+          <span>{conteo.salen}</span>
+          <span>{conteo.entran}</span>
+          <strong>{conteo.netas}</strong>
+          {conteo.nota && <span className="gauss3d-nota">{conteo.nota}</span>}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** Textos educativos y leyenda. `clase` decide dónde se muestra (junto al lienzo en pantalla ancha, arriba de los controles en móvil). */
+export function TextosGauss3D({ clase }: { clase: string }) {
+  const { texto, flujo, campo, lineas } = useDatos();
+  return (
+    <div className={`gauss3d-rotulo ${clase}`}>
+      {texto && (
+        <section className="gauss3d-texto" aria-label="Qué mirar y qué pasa">
+          <h2 className="gauss3d-texto-titulo">{texto.titulo}</h2>
+          <p>
+            <b>Qué mirar.</b> {texto.mirar}
+          </p>
+          <p>
+            <b>Qué pasa.</b> {texto.pasa}
+          </p>
+          <p>
+            <b>Por qué.</b> {texto.porque}
+          </p>
+          <p className="gauss3d-nota">Φ se da en µC/ε₀ (carga dividida por ε₀) y en N·m²/C.</p>
+        </section>
+      )}
+      <ul className="gauss3d-leyenda" aria-label="Leyenda">
         {flujo && (
           <>
             <li>
@@ -36,6 +108,18 @@ export function RotuloGauss3D() {
             <li>
               <i className="gauss3d-muestra gauss3d-muestra-entra" aria-hidden="true" />
               Azul: el campo entra
+            </li>
+          </>
+        )}
+        {lineas && (
+          <>
+            <li>
+              <i className="gauss3d-marca gauss3d-marca-sale" aria-hidden="true" />
+              Punto lleno: una línea sale
+            </li>
+            <li>
+              <i className="gauss3d-marca gauss3d-marca-entra" aria-hidden="true" />
+              Anillo: una línea entra
             </li>
           </>
         )}

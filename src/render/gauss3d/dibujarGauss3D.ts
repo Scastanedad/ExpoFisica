@@ -233,6 +233,57 @@ function rellenarPuntas(ctx: Ctx3D, b: BufferPuntas, clave: number, tam: number)
   return true;
 }
 
+/** Radio (px, ×u) del disco de un marcador de cruce. */
+export const RADIO_MARCA = 4.2;
+
+/**
+ * Cruces línea–superficie: SALE = disco relleno (rojo claro), ENTRA = anillo hueco (azul claro); los dos llevan una
+ * punta que sigue el sentido de E sobre la línea. La forma (relleno/anillo) basta sin el color.
+ */
+function marcasDeCruce(ctx: Ctx3D, p: Pasadas, pasada: number, u: number): void {
+  const M = p.marcas;
+  if (M.n === 0) return;
+  const r = RADIO_MARCA * u;
+  for (let sentido = 1; sentido >= -1; sentido -= 2) {
+    const sale = sentido === 1;
+    const rgb = sale ? RGB_ROJO_CLARO : RGB_AZUL_CLARO;
+    let hay = false;
+    // discos (sale: rellenos; entra: fondo oscuro + anillo)
+    ctx.beginPath();
+    for (let i = 0; i < M.n; i++) {
+      if (M.pasada[i] !== pasada || M.sentido[i] !== sentido) continue;
+      ctx.moveTo(M.x[i] + r, M.y[i]);
+      ctx.arc(M.x[i], M.y[i], r, 0, Math.PI * 2);
+      hay = true;
+    }
+    if (!hay) continue;
+    ctx.fillStyle = sale ? `rgb(${rgb})` : HALO_TEXTO;
+    ctx.fill();
+    ctx.lineWidth = (sale ? 1.2 : 2) * u;
+    ctx.strokeStyle = sale ? "rgba(5, 7, 13, 0.85)" : `rgb(${rgb})`;
+    ctx.stroke();
+    // puntas orientadas (siempre rellenas, a un lado del disco)
+    ctx.beginPath();
+    const base = r + 1.5 * u;
+    const largo = 6.5 * u;
+    const ancho = 3.6 * u;
+    for (let i = 0; i < M.n; i++) {
+      if (M.pasada[i] !== pasada || M.sentido[i] !== sentido) continue;
+      const dx = M.dx[i];
+      const dy = M.dy[i];
+      if (dx === 0 && dy === 0) continue;
+      const bx = M.x[i] + dx * base;
+      const by = M.y[i] + dy * base;
+      ctx.moveTo(bx + dx * largo, by + dy * largo);
+      ctx.lineTo(bx - dy * ancho, by + dx * ancho);
+      ctx.lineTo(bx + dy * ancho, by - dx * ancho);
+      ctx.closePath();
+    }
+    ctx.fillStyle = `rgb(${rgb})`;
+    ctx.fill();
+  }
+}
+
 function dibujarSombra(ctx: Ctx3D, geom: GeometriaGauss3D, p: Pasadas, cam: CamaraProy, i: number, u: number): void {
   const c = geom.cargas[i];
   const rho = 0.55;
@@ -346,6 +397,8 @@ export function dibujarContenido(
       ctx.fill();
     }
   }
+
+  marcasDeCruce(ctx, p, pasada, u);
 
   // flechas del campo E (ámbar): cuerpo y punta
   for (let b = 0; b < ALFA_CAMPO.length; b++) {

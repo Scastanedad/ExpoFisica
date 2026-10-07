@@ -219,6 +219,7 @@ export function crearControladorGauss3D(deps: DepsControlador): ControladorGauss
       nLineas: l.nLineas,
       tipo: l.tipo,
       calidad: l.calidad,
+      cargas: l.cargas,
       xy: cargas.map((c) => [c.x, c.y] as const),
     });
   }

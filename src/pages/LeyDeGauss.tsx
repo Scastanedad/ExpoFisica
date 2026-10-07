@@ -14,7 +14,7 @@ import { CanvasGauss3D } from "../render/CanvasGauss3D";
 import type { ControladorGauss3D } from "../render/controladorGauss3d";
 import { Z_MAX, Z_MIN, Z_PASO, useGauss3dStore } from "../store/gauss3dStore";
 import { PanelGauss3D } from "../ui/PanelGauss3D";
-import { RotuloGauss3D } from "../ui/RotuloGauss3D";
+import { RotuloGauss3D, TextosGauss3D } from "../ui/RotuloGauss3D";
 
 function descripcionEscena(forma: string, nCargas: number, escenario: string): string {
   const nombre: Record<string, string> = {
@@ -100,9 +100,15 @@ export function LeyDeGauss() {
             </label>
           </div>
           <RotuloGauss3D />
+          <TextosGauss3D clase="gauss3d-textos-ancho" />
         </div>
         <div className="simulador-lateral gauss3d-lateral">
-          <PanelGauss3D controladorRef={controladorRef} anunciar={anunciar} idAyuda={idAyuda} />
+          <PanelGauss3D
+            controladorRef={controladorRef}
+            anunciar={anunciar}
+            idAyuda={idAyuda}
+            bajoEscenarios={<TextosGauss3D clase="gauss3d-textos-movil" />}
+          />
         </div>
       </div>
     </main>
