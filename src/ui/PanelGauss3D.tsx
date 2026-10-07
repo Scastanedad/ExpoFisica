@@ -64,6 +64,8 @@ interface Props {
   idAyuda: string;
   /** Contenido justo bajo los botones de escenario (los textos educativos en móvil). */
   bajoEscenarios?: ReactNode;
+  /** Contenido bajo los interruptores (la leyenda, que en pantallas anchas y bajas se muestra aquí y no bajo el lienzo). */
+  bajoInterruptores?: ReactNode;
 }
 
 /** Entero con coma decimal como el resto de la interfaz: «2,5». */
@@ -113,7 +115,7 @@ function CampoNumerico({
   );
 }
 
-export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios }: Props) {
+export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios, bajoInterruptores }: Props) {
   const escenarioId = useGauss3dStore((s) => s.escenarioId);
   const fuera = useGauss3dStore((s) => s.fuera);
   const forma = useGauss3dStore((s) => s.forma);
@@ -213,11 +215,13 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
             </button>
           ))}
         </div>
-        {escenarioId === 3 && def.variante && (
-          <button type="button" className="boton-colocar" data-activo={fuera} aria-pressed={fuera} onClick={alternarFuera}>
-            {fuera ? "La carga está fuera · ponerla dentro" : "La carga está dentro · ponerla fuera"}
-          </button>
-        )}
+        <div className="gauss3d-variante">
+          {escenarioId === 3 && def.variante && (
+            <button type="button" className="boton-colocar" data-activo={fuera} aria-pressed={fuera} onClick={alternarFuera}>
+              {fuera ? "La carga está fuera · ponerla dentro" : "La carga está dentro · ponerla fuera"}
+            </button>
+          )}
+        </div>
         {bajoEscenarios}
       </div>
 
@@ -239,6 +243,7 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
             </label>
           ))}
         </div>
+        {bajoInterruptores}
       </div>
 
       <div className="panel-dipolo-grupo">

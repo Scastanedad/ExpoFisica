@@ -47,6 +47,18 @@ export function CanvasGauss3D({ controladorRef, descripcion, idDescripcion, idAy
       },
       publicarAzimutDeg: (g) => store.getState().setAzimutDeg(g),
       anunciar: (t) => anunciarRef.current?.(t),
+      cambiarResolucion: (d) => {
+        const r = canvas.getBoundingClientRect();
+        const bw = Math.round(r.width * d);
+        const bh = Math.round(r.height * d);
+        if (canvas.width !== bw || canvas.height !== bh) {
+          canvas.width = bw;
+          canvas.height = bh;
+        }
+        const c = canvas.getContext("2d", { alpha: false });
+        c?.setTransform(d, 0, 0, d, 0, 0);
+        return c;
+      },
       pedirCuadro: (cb) => requestAnimationFrame(() => cb()),
       cancelarCuadro: (id) => cancelAnimationFrame(id),
       fijarTemporizador: (cb, ms) => window.setTimeout(cb, ms),

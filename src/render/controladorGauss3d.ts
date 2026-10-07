@@ -33,6 +33,12 @@ export const PASO_TECLADO_U = 1;
 export const PASO_TECLADO_MAYUS_U = 5;
 /** Calidad gruesa durante los gestos continuos (índice de `NIVELES_GAUSS3D`). */
 export const CALIDAD_GRUESA = 2;
+/** Resolución (dpr) del bitmap durante un gesto continuo: menos píxeles que rasterizar por cuadro. */
+export const DPR_GESTO = 1;
+/** Si el cuadro anterior (cálculo + dibujo) tardó más de esto durante un gesto, se salta un cuadro para no encolar trabajo. */
+export const MS_CUADRO_LENTO = 24;
+/** Unidad de tamaño de dibujo según el ancho del lienzo: lienzos estrechos (móvil) dibujan marcadores y trazos mayores. */
+export const unidadParaAncho = (ancho: number) => (ancho < 600 ? 1.25 : Math.min(1.6, Math.max(1, ancho / 900)));
 
 export interface DepsControlador {
   /** Motor de dibujo; por defecto el real. Los tests pueden pasar uno que cuente llamadas. */
@@ -44,6 +50,11 @@ export interface DepsControlador {
   publicarAzimutDeg: (g: number) => void;
   /** Texto para la región viva (movimiento con teclado o numéricos). */
   anunciar?: (texto: string) => void;
+  /**
+   * Cambia la resolución del bitmap del lienzo (dpr) y devuelve el contexto nuevo (o null si no se pudo). Opcional:
+   * durante un gesto continuo se baja a `DPR_GESTO` y al soltar se restaura el dpr del dispositivo.
+   */
+  cambiarResolucion?: (dpr: number) => Ctx3D | null;
   pedirCuadro: (cb: () => void) => number;
   cancelarCuadro: (id: number) => void;
   fijarTemporizador: (cb: () => void, ms: number) => number;
@@ -102,6 +113,10 @@ export function crearControladorGauss3D(deps: DepsControlador): ControladorGauss
   let ancho = 0;
   let alto = 0;
   let dpr = 1;
+  /** dpr del dispositivo (el del bitmap en reposo); `dpr` es el vigente (puede ser el del gesto). */
+  let dprBase = 1;
+  let ultimoCoste = 0;
+  let saltado = false;
 
   let idCuadro = 0;
   let idRefinar = 0;
@@ -117,6 +132,8 @@ export function crearControladorGauss3D(deps: DepsControlador): ControladorGauss
   let ultimaLectura = -Infinity;
 
   const interactuando = () => continuo || gesto?.tipo === "carga";
+  /** Cualquier gesto en curso (incluido el giro de la vista): baja la resolución y cede cuadros si van lentos. */
+  const enGesto = () => interactuando() || gesto?.tipo === "vista";
 
   function cancelarRefinar() {
     if (idRefinar) deps.cancelarTemporizador(idRefinar);
@@ -225,6 +242,23 @@ export function crearControladorGauss3D(deps: DepsControlador): ControladorGauss
 
   function tick() {
     if (!ctx || ancho < 2 || alto < 2) return;
+    // Un cuadro anterior lento durante un gesto: se cede un cuadro (una sola vez seguida) en vez de encolar trabajo.
+    if (enGesto() && ultimoCoste > MS_CUADRO_LENTO && !saltado) {
+      saltado = true;
+      solicitar();
+      return;
+    }
+    saltado = false;
+    const t0 = deps.ahora();
+    const dprObjetivo = enGesto() ? Math.min(dprBase, DPR_GESTO) : dprBase;
+    if (dprObjetivo !== dpr && deps.cambiarResolucion) {
+      const nuevo = deps.cambiarResolucion(dprObjetivo);
+      if (nuevo) {
+        ctx = nuevo;
+        dpr = dprObjetivo;
+        forzar = true;
+      }
+    }
     const ui = deps.leerUI();
     if (ui.azimutDeg !== ultimoAzimutDeg) {
       azimut = aRad(ui.azimutDeg);
@@ -246,7 +280,7 @@ export function crearControladorGauss3D(deps: DepsControlador): ControladorGauss
       dpr,
       mostrar: ui.mostrar,
       opacidad: ui.opacidad,
-      unidad: Math.min(1.6, Math.max(1, ancho / 900)),
+      unidad: unidadParaAncho(ancho),
       encuadre: encuadreFijo,
       seleccion: ui.seleccionada,
     };
@@ -259,6 +293,7 @@ export function crearControladorGauss3D(deps: DepsControlador): ControladorGauss
       forzar = false;
       motor.dibujar(ctx, entrada);
     }
+    ultimoCoste = deps.ahora() - t0;
     if (cambio === "geometria") lecturaPendiente = true;
     if (lecturaPendiente) {
       if (!interactuando() || deps.ahora() - ultimaLectura >= MS_LECTURA) publicar(cargas);
@@ -273,7 +308,7 @@ export function crearControladorGauss3D(deps: DepsControlador): ControladorGauss
 
   function radiosDisco(): Float64Array {
     const g = motor.geometria();
-    const unidad = Math.min(1.6, Math.max(1, ancho / 900));
+    const unidad = unidadParaAncho(ancho);
     const r = new Float64Array(g ? g.cargas.length : 0);
     if (g) for (let i = 0; i < r.length; i++) r[i] = radioCarga3D(g.cargas[i].q, unidad);
     return r;
@@ -317,6 +352,7 @@ export function crearControladorGauss3D(deps: DepsControlador): ControladorGauss
       ancho = a;
       alto = h;
       dpr = d;
+      dprBase = d;
       forzar = true;
       solicitar();
     },

@@ -86,6 +86,8 @@ export function crearMotorGauss3D(opciones: { calidadInicial?: number } = {}): M
   const gestor = crearGestorCalidad(opciones.calidadInicial ?? 0);
   let geom: GeometriaGauss3D | null = null;
   let lectura: LecturaGauss3D | null = null;
+  /** Coste del último dibujo (ms, suavizado): el gestor de calidad cuenta cálculo + dibujo. */
+  let msDibujo = 0;
 
   return {
     actualizar(e) {
@@ -109,7 +111,7 @@ export function crearMotorGauss3D(opciones: { calidadInicial?: number } = {}): M
       if (cambio === "geometria" || !geom) {
         geom = construirGeometria(estado, e.escenario, e.mostrar);
         // Solo se mide el cálculo a la calidad vigente: el grueso del arrastre es más rápido y engañaría al gestor.
-        if (e.escenario.calidad === gestor.indice()) gestor.registrar(geom.msCalculo);
+        if (e.escenario.calidad === gestor.indice()) gestor.registrar(geom.msCalculo + msDibujo);
         lectura = {
           phi: geom.flujo.total,
           qEnc: geom.flujo.qEnc,
@@ -139,7 +141,9 @@ export function crearMotorGauss3D(opciones: { calidadInicial?: number } = {}): M
         mostrarSuelo: true,
         seleccion: e.seleccion ?? -1,
       };
+      const t0 = performance.now();
       dibujarEscenaGauss3D(ctx, geom, pasadas, cam, o);
+      msDibujo = 0.7 * msDibujo + 0.3 * (performance.now() - t0);
     },
     geometria: () => geom,
     pasadas: () => pasadas,

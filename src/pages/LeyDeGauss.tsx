@@ -140,7 +140,9 @@ export function LeyDeGauss() {
             />
             <label className="gauss3d-altura">
               <span className="gauss3d-altura-etiqueta">
-                Altura z{nCargas > 1 ? ` carga ${seleccionada + 1}` : ""}
+                Altura z
+                <br />
+                {nCargas > 1 ? `carga ${seleccionada + 1}` : " "}
               </span>
               <input
                 type="range"
@@ -170,6 +172,7 @@ export function LeyDeGauss() {
             anunciar={anunciar}
             idAyuda={idAyuda}
             bajoEscenarios={<TextosGauss3D clase="gauss3d-textos-movil" />}
+            bajoInterruptores={<TextosGauss3D clase="gauss3d-leyenda-lateral" solo="leyenda" />}
           />
         </div>
       </div>

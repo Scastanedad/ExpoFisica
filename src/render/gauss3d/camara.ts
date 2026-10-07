@@ -16,6 +16,8 @@ export const INCLINACION_MIN = (15 * Math.PI) / 180;
 export const INCLINACION_MAX = (85 * Math.PI) / 180;
 /** Fracción del semialto/semiancho útil que ocupa la esfera de encuadre (deja margen a la perspectiva y a las etiquetas). */
 export const FACTOR_ENCUADRE = 0.92;
+/** Lienzos estrechos (móvil): más aire a los lados para que la superficie y las líneas no toquen el borde. */
+export const FACTOR_ESTRECHO = 0.9;
 /** Los puntos más cerca del ojo que esta fracción de D no se dibujan (plano de recorte cercano). */
 export const FRACCION_PLANO_CERCANO = 0.15;
 
@@ -76,7 +78,7 @@ export function derivarCamara(cam: Camara, rEncuadre: number, out: CamaraProy): 
   const rEnc = Math.max(rEncuadre, 1e-6);
   const tanMedio = Math.tan((Math.max(5, Math.min(90, cam.fov)) * Math.PI) / 360);
   const D = rEnc / tanMedio;
-  const encuadre = (FACTOR_ENCUADRE * 0.5 * Math.min(cam.ancho, cam.alto) * Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, cam.zoom))) / rEnc;
+  const encuadre = (FACTOR_ENCUADRE * (cam.ancho < 500 ? FACTOR_ESTRECHO : 1) * 0.5 * Math.min(cam.ancho, cam.alto) * Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, cam.zoom))) / rEnc;
   out.distancia = D;
   out.encuadre = encuadre;
   out.fPx = encuadre * D;

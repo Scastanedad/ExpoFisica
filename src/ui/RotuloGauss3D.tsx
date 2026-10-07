@@ -55,7 +55,7 @@ export function RotuloGauss3D() {
             <strong>{coma(formatPhi(sinResiduo(lectura.phi)))}</strong>
             <span title="Φ en newton por metro cuadrado sobre culombio">= {coma(formatFlujoSI(sinResiduo(lectura.phi)))}</span>
             {cerrada ? (
-              <span title="Carga encerrada por la superficie">
+              <span className="gauss3d-qenc" title="Carga encerrada por la superficie">
                 q_enc = {qConSigno(lectura.qEnc)} µC
               </span>
             ) : (
@@ -79,11 +79,11 @@ export function RotuloGauss3D() {
 }
 
 /** Textos educativos y leyenda. `clase` decide dónde se muestra (junto al lienzo en pantalla ancha, arriba de los controles en móvil). */
-export function TextosGauss3D({ clase }: { clase: string }) {
+export function TextosGauss3D({ clase, solo }: { clase: string; solo?: "leyenda" }) {
   const { texto, flujo, campo, lineas } = useDatos();
   return (
     <div className={`gauss3d-rotulo ${clase}`}>
-      {texto && (
+      {texto && !solo && (
         <section className="gauss3d-texto" aria-label="Qué mirar y qué pasa">
           <h2 className="gauss3d-texto-titulo">{texto.titulo}</h2>
           <p>
@@ -95,10 +95,9 @@ export function TextosGauss3D({ clase }: { clase: string }) {
           <p>
             <b>Por qué.</b> {texto.porque}
           </p>
-          <p className="gauss3d-nota">Φ se da en µC/ε₀ (carga dividida por ε₀) y en N·m²/C.</p>
         </section>
       )}
-      <ul className="gauss3d-leyenda" aria-label="Leyenda">
+      <ul className="gauss3d-leyenda" aria-label="Leyenda y unidades">
         {flujo && (
           <>
             <li>
@@ -129,6 +128,7 @@ export function TextosGauss3D({ clase }: { clase: string }) {
             Flechas ámbar: dirección de E, su longitud no está a escala
           </li>
         )}
+        <li className="gauss3d-nota gauss3d-pie-unidades">Φ se da en µC/ε₀ (carga dividida por ε₀) y en N·m²/C.</li>
       </ul>
     </div>
   );
