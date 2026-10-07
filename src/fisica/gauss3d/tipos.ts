@@ -49,6 +49,8 @@ export interface Escenario {
   superficie: Superficie;
   cargas: readonly Carga3D[];
   calidad: Calidad3D;
+  /** Nivel de la malla de parches (y del flujo); por defecto el mismo que `calidad`. Permite bajar solo líneas y paso en el arrastre. */
+  calidadMalla?: Calidad3D;
 }
 
 export interface MallaSuperficie {

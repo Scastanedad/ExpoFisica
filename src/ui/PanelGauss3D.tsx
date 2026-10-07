@@ -221,6 +221,26 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
         {bajoEscenarios}
       </div>
 
+      <div className="panel-dipolo-grupo" role="group" aria-labelledby={idInterruptores}>
+        <h2 className="panel-dipolo-titulo" id={idInterruptores}>
+          Qué se muestra
+        </h2>
+        <div className="gauss3d-interruptores">
+          {(
+            [
+              ["lineas", "Líneas", "Líneas de campo y marcadores"],
+              ["flujo", "Flujo", "Flujo (parches de color)"],
+              ["campo", "Campo E", "Campo E (flechas)"],
+            ] as const
+          ).map(([k, corto, largo]) => (
+            <label key={k} className="panel-sonda-check" title={largo}>
+              <input type="checkbox" aria-label={largo} checked={mostrar[k]} onChange={(e) => acc().setMostrar(k, e.target.checked)} />
+              {corto}
+            </label>
+          ))}
+        </div>
+      </div>
+
       <div className="panel-dipolo-grupo">
         <h2 className="panel-dipolo-titulo">La superficie</h2>
         <div className="gauss3d-formas" role="group" aria-label="Forma de la superficie">
@@ -244,6 +264,7 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
             max={rango.max}
             step={rango.paso}
             value={tamano}
+            aria-label={`Tamaño de la superficie: ${MEDIDA[forma]}, entre ${formatDistancia(uAMetros(rango.min))} y ${formatDistancia(uAMetros(rango.max))}`}
             aria-valuetext={`${MEDIDA[forma]} de ${tamanoTexto}`}
             onChange={(e) => acc().setTamano(Number(e.target.value))}
             {...alSoltar}
@@ -286,7 +307,8 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
                 max={Q_MAX}
                 step={Q_PASO}
                 value={Math.abs(carga.q)}
-                aria-valuetext={`${carga.q > 0 ? "positiva" : "negativa"}, ${decimal(Math.abs(carga.q))} microcoulombs`}
+                aria-label={`Magnitud de la carga ${seleccionada + 1}, entre ${decimal(Q_MIN)} y ${decimal(Q_MAX)} microcoulombs`}
+                aria-valuetext={`${carga.q > 0 ? "positiva" : "negativa"}, ${decimal(Math.abs(carga.q))} µC`}
                 onChange={(e) => acc().setQ(Number(e.target.value))}
                 {...alSoltar}
               />
@@ -301,26 +323,6 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
           <button type="button" className="boton-colocar" disabled={cargas.length <= 1} onClick={quitar}>
             Quitar carga
           </button>
-        </div>
-      </div>
-
-      <div className="panel-dipolo-grupo" role="group" aria-labelledby={idInterruptores}>
-        <h2 className="panel-dipolo-titulo" id={idInterruptores}>
-          Qué se muestra
-        </h2>
-        <div className="gauss3d-interruptores">
-          {(
-            [
-              ["lineas", "Líneas", "Líneas de campo y marcadores"],
-              ["flujo", "Flujo", "Flujo (parches de color)"],
-              ["campo", "Campo E", "Campo E (flechas)"],
-            ] as const
-          ).map(([k, corto, largo]) => (
-            <label key={k} className="panel-sonda-check" title={largo}>
-              <input type="checkbox" aria-label={largo} checked={mostrar[k]} onChange={(e) => acc().setMostrar(k, e.target.checked)} />
-              {corto}
-            </label>
-          ))}
         </div>
       </div>
 
@@ -381,6 +383,7 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
                 max={THETA_MAX_DEG}
                 step={5}
                 value={thetaDeg}
+                aria-label="Inclinación del parche, en grados"
                 aria-valuetext={`${thetaDeg} grados`}
                 onChange={(e) => acc().setThetaDeg(Number(e.target.value))}
                 {...alSoltar}
@@ -396,6 +399,7 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
               max={180}
               step={5}
               value={Math.round(azimutDeg)}
+              aria-label="Azimut de la vista, en grados"
               aria-valuetext={`${Math.round(azimutDeg)} grados`}
               onChange={(e) => acc().setAzimutDeg(Number(e.target.value))}
             />
@@ -409,6 +413,7 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
               max={INCLINACION_MAX_DEG}
               step={5}
               value={inclinacionDeg}
+              aria-label="Inclinación de la vista, en grados sobre el suelo"
               aria-valuetext={`${inclinacionDeg} grados sobre el suelo`}
               onChange={(e) => acc().setInclinacionDeg(Number(e.target.value))}
             />
@@ -422,6 +427,7 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
               max={ZOOM_MAX}
               step={0.1}
               value={zoom}
+              aria-label="Zoom de la vista"
               aria-valuetext={`${decimal(zoom)} veces`}
               onChange={(e) => acc().setZoom(Number(e.target.value))}
             />
@@ -435,6 +441,7 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
               max={OPACIDAD_MAX}
               step={0.05}
               value={opacidad}
+              aria-label="Opacidad de la superficie, en por ciento"
               aria-valuetext={`${Math.round(opacidad * 100)} por ciento`}
               onChange={(e) => acc().setOpacidad(Number(e.target.value))}
             />
@@ -446,7 +453,7 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
         <span className="ayuda-puntero-fino">
           Arrastra una carga por el suelo; con las flechas del teclado (lienzo enfocado) se mueve la seleccionada. Su
           altura es el deslizador vertical. Arrastra en el vacío para girar la vista; ↺ y ↻ la giran {PASO_GIRO_DEG}°.
-        </span>
+        </span>{" "}
         <span className="ayuda-puntero-tactil">
           Arrastra una carga por el suelo; su altura es el deslizador vertical junto al lienzo. Arrastra en el vacío para
           girar la vista.

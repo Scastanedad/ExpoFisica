@@ -206,9 +206,10 @@ export function construirGeometria(
   const sup = esc.superficie;
   const cargas = esc.cargas.slice(0, MAX_CARGAS).map((c) => ({ ...c }));
 
-  const clave = claveSuperficie(sup, esc.calidad);
+  const calMalla = esc.calidadMalla ?? esc.calidad;
+  const clave = claveSuperficie(sup, calMalla);
   if (clave !== est.claveMalla || !est.malla || !est.aristas) {
-    est.malla = generarMalla(sup, nivel);
+    est.malla = generarMalla(sup, NIVELES_GAUSS3D[calMalla]);
     est.aristas = construirAristas(est.malla);
     est.claveMalla = clave;
   }

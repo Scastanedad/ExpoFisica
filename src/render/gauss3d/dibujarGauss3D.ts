@@ -233,8 +233,8 @@ function rellenarPuntas(ctx: Ctx3D, b: BufferPuntas, clave: number, tam: number)
   return true;
 }
 
-/** Radio (px, ×u) del disco de un marcador de cruce. */
-export const RADIO_MARCA = 4.2;
+/** Radio (px, ×u) del disco de un marcador de cruce (12 px de diámetro: legible en proyector; era 4,2). */
+export const RADIO_MARCA = 6;
 
 /**
  * Cruces línea–superficie: SALE = disco relleno (rojo claro), ENTRA = anillo hueco (azul claro); los dos llevan una

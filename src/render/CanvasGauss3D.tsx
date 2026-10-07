@@ -16,15 +16,17 @@ import { DPR_MAXIMO } from "./dimensiones";
 export interface PropsCanvasGauss3D {
   /** Se publica aquí el controlador (para los controles que viven fuera del lienzo). */
   controladorRef: RefObject<ControladorGauss3D | null>;
-  /** Descripción para lectores de pantalla. */
+  /** Nombre corto del lienzo (aria-label). La descripción larga de la escena va en `idDescripcion`. */
   descripcion: string;
+  /** Id del elemento (oculto) con la descripción textual de la escena, actualizada al cambiar (`aria-describedby`). */
+  idDescripcion?: string;
   /** Id del elemento con las instrucciones de uso del teclado (`aria-describedby`). */
   idAyuda?: string;
   /** Texto para la región viva (movimiento con el teclado). */
   anunciar?: (texto: string) => void;
 }
 
-export function CanvasGauss3D({ controladorRef, descripcion, idAyuda, anunciar }: PropsCanvasGauss3D) {
+export function CanvasGauss3D({ controladorRef, descripcion, idDescripcion, idAyuda, anunciar }: PropsCanvasGauss3D) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const anunciarRef = useRef(anunciar);
   useEffect(() => {
@@ -148,7 +150,7 @@ export function CanvasGauss3D({ controladorRef, descripcion, idAyuda, anunciar }
       role="img"
       tabIndex={0}
       aria-label={descripcion}
-      aria-describedby={idAyuda}
+      aria-describedby={[idDescripcion, idAyuda].filter(Boolean).join(" ") || undefined}
       aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Shift+ArrowUp Shift+ArrowDown Shift+ArrowLeft Shift+ArrowRight"
       onKeyDown={alPulsarTecla}
       onKeyUp={() => controladorRef.current?.soltar()}

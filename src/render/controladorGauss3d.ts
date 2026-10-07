@@ -15,8 +15,7 @@
 import { DIST_MIN_CARGAS, RANGOS } from "../fisica/gauss3d/constantes";
 import { ajustarCargaFueraDeSuperficie, ajustarDistanciaCargas } from "../fisica/gauss3d/superficies";
 import type { Carga3D } from "../fisica/gauss3d/tipos";
-import { formatDistancia } from "../fisica/escala";
-import { uAMetros } from "../fisica/gauss3d/unidades";
+import { cm } from "../ui/anunciosGauss3D";
 import { normalizarAzimutDeg, superficieDeUI, type EstadoUIGauss3D, type LecturaGauss } from "../store/gauss3dStore";
 import type { Ctx3D } from "./gauss3d/ctx3d";
 import { radioCarga3D } from "./gauss3d/dibujarGauss3D";
@@ -237,6 +236,9 @@ export function crearControladorGauss3D(deps: DepsControlador): ControladorGauss
         superficie: superficieDeUI(ui.forma, ui.tamano, ui.thetaDeg),
         cargas,
         calidad: (interactuando() ? CALIDAD_GRUESA : motor.calidad()) as 0 | 1 | 2,
+        // La malla de parches (y el flujo) cuesta ≤ 0,5 ms a calidad alta frente a 4–5 ms de las líneas (medido):
+        // durante el gesto se mantiene a la calidad del gestor y solo se bajan líneas, paso y flechas (sin borde escalonado).
+        calidadMalla: motor.calidad() as 0 | 1 | 2,
       },
       camara: { azimut, inclinacion: aRad(ui.inclinacionDeg), zoom: ui.zoom },
       ancho,
@@ -291,7 +293,7 @@ export function crearControladorGauss3D(deps: DepsControlador): ControladorGauss
   }
 
   function textoPosicion(i: number, x: number, y: number): string {
-    return `Carga ${i + 1} movida a x = ${formatDistancia(uAMetros(x))}, y = ${formatDistancia(uAMetros(y))}.`;
+    return `Carga ${i + 1} movida a x = ${cm(x)}, y = ${cm(y)}.`;
   }
 
   function punteroArriba() {

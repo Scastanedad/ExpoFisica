@@ -52,7 +52,7 @@ function escribirGeometria(d: DatosFirma3D, out: Float64Array): void {
   out[1] = paramsSuperficie(e.superficie, 0);
   out[2] = paramsSuperficie(e.superficie, 1);
   out[3] = paramsSuperficie(e.superficie, 2);
-  out[4] = e.calidad;
+  out[4] = e.calidad + 3 * (e.calidadMalla ?? e.calidad);
   out[5] = d.mostrar.lineas ? 1 : 0;
   out[6] = d.mostrar.campo ? 1 : 0;
   out[7] = e.cargas.length;

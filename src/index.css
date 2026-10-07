@@ -2322,6 +2322,13 @@ a {
   }
 }
 
+/* Casilla sin marcar: borde ≥ 3:1 sobre el fondo oscuro (WCAG 1.4.11; --text-dim da 6,5:1). */
+.gauss3d-interruptores input:not(:checked) {
+  outline: 2px solid var(--text-dim);
+  outline-offset: -2px;
+  border-radius: 3px;
+}
+
 .gauss3d-interruptores {
   display: grid;
   grid-template-columns: repeat(3, auto);
