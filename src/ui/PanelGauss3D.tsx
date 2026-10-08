@@ -302,7 +302,7 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoFuente, ba
         {carga && (
           <>
             <button type="button" className="boton-colocar" data-activo={carga.q < 0} onClick={cambiarSigno}>
-              {esDipolo ? "Invertir" : "Invertir signo"} · <span aria-hidden="true">{carga.q > 0 ? "+" : "−"}</span>
+              {esDipolo ? "Invertir polaridad" : "Invertir signo"} · <span aria-hidden="true">{carga.q > 0 ? "+" : "−"}</span>
               <span className="sr-only">ahora {carga.q > 0 ? "positiva" : "negativa"}</span>
             </button>
             <label className="control-deslizador control-deslizador-apilado">
