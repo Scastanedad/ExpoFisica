@@ -2171,16 +2171,31 @@ a {
   font-size: 14px;
 }
 
-.gauss3d-escenarios {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 6px;
-}
-
 .gauss3d-formas {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 6px;
+}
+
+/* Botón de figura: icono sobre el nombre; «Cilindro» nunca se parte en dos líneas. */
+.gauss3d-boton-forma {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  min-height: 56px;
+  white-space: nowrap;
+}
+
+.gauss3d-icono {
+  flex: none;
+}
+
+@media (max-width: 420px) {
+  .gauss3d-formas {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .gauss3d-boton {
@@ -2195,7 +2210,6 @@ a {
   background: rgba(11, 16, 32, 0.5);
   color: var(--text);
   cursor: pointer;
-  overflow-wrap: anywhere;
 }
 
 .gauss3d-boton:hover {
@@ -2356,10 +2370,6 @@ a {
     display: block;
   }
 
-  .gauss3d-panel .gauss3d-variante {
-    min-height: 0;
-  }
-
   .gauss3d-leyenda-lateral .gauss3d-leyenda {
     gap: 0 14px;
     line-height: 1.25;
@@ -2398,11 +2408,6 @@ a {
   .pagina-simulador {
     --reserva-v: 336px !important;
   }
-}
-
-/* Reserva el hueco del botón dentro/fuera (solo escenario 3) para que el panel no salte al cambiar de escenario. */
-.gauss3d-variante {
-  min-height: 44px;
 }
 
 /* La leyenda de la columna del panel solo se usa en pantallas anchas y bajas (ver arriba). */

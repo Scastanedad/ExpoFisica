@@ -1,11 +1,11 @@
 /**
- * Controles de la Estación 05 (Ley de Gauss). Panel reducido: 3 deslizadores visibles (tamaño de la superficie, q de
- * la carga seleccionada y, junto al lienzo, su altura z), botones de forma, añadir/quitar carga y vista inicial,
- * 3 interruptores (líneas, flujo, campo E), los 9 escenarios y un panel «Avanzado» plegado (x, y, θ, azimut,
- * inclinación, zoom, opacidad). Todo es estado de UI (`store/gauss3dStore.ts`); x, y viven en el controlador.
+ * Controles de la Estación 05 (Ley de Gauss). Orden: Figura (Esfera · Cubo · Cilindro · Plano, tamaño y, con Plano, la
+ * inclinación θ), Fuente (Una carga | Dipolo, signo, magnitud q, Recolocar), Qué se muestra, La vista y un panel
+ * «Avanzado» plegado (x, y de la carga seleccionada, azimut, inclinación, zoom, opacidad). Todo es estado de UI
+ * (`store/gauss3dStore.ts`); x, y viven en el controlador.
  *
  * Alternativas al arrastre (WCAG 2.5.7): flechas del teclado sobre el lienzo enfocado (en `CanvasGauss3D`), x/y
- * numéricos, botones ±15° de azimut y selector de carga.
+ * numéricos, botones ±15° de azimut y chips +q / −q para elegir la carga que se mueve (en dipolo).
  */
 import { useId, useState, type ReactNode, type RefObject } from "react";
 import { Q_MAX, Q_MIN, Q_PASO } from "../fisica/carga";
@@ -26,12 +26,18 @@ import {
 } from "../store/gauss3dStore";
 import type { Fuente } from "../fisica/gauss3d/presets";
 import type { TipoSuperficie } from "../fisica/gauss3d/tipos";
+import { SelectorSegmentado, type OpcionSegmentada } from "./SelectorSegmentado";
 
 const FORMAS: ReadonlyArray<{ id: TipoSuperficie; nombre: string }> = [
-  { id: "parche", nombre: "Parche" },
   { id: "esfera", nombre: "Esfera" },
   { id: "cubo", nombre: "Cubo" },
   { id: "cilindro", nombre: "Cilindro" },
+  { id: "parche", nombre: "Plano" },
+];
+
+const FUENTES: readonly OpcionSegmentada<Fuente>[] = [
+  { valor: "carga", etiqueta: "Una carga" },
+  { valor: "dipolo", etiqueta: "Dipolo" },
 ];
 
 const MEDIDA: Record<TipoSuperficie, string> = {
@@ -43,14 +49,43 @@ const MEDIDA: Record<TipoSuperficie, string> = {
 
 const PASO_GIRO_DEG = 15;
 
+/** Icono simple de cada figura (decorativo: el nombre ya está en el botón). */
+function IconoForma({ forma }: { forma: TipoSuperficie }) {
+  const trazo = {
+    fill: "none",
+    stroke: "currentColor",
+    strokeWidth: 1.6,
+    strokeLinejoin: "round",
+    strokeLinecap: "round",
+  } as const;
+  return (
+    <svg className="gauss3d-icono" viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+      {forma === "esfera" && (
+        <>
+          <circle cx="12" cy="12" r="8" {...trazo} />
+          <ellipse cx="12" cy="12" rx="8" ry="3" {...trazo} strokeDasharray="2 2" />
+        </>
+      )}
+      {forma === "cubo" && <path d="M4 9 L10 5 L20 5 L20 15 L14 19 L4 19 Z M4 9 L14 9 L14 19 M14 9 L20 5" {...trazo} />}
+      {forma === "cilindro" && (
+        <>
+          <ellipse cx="12" cy="6" rx="6" ry="2.5" {...trazo} />
+          <path d="M6 6 V18 A6 2.5 0 0 0 18 18 V6" {...trazo} />
+        </>
+      )}
+      {forma === "parche" && <path d="M3 17 L9 7 H21 L15 17 Z" {...trazo} />}
+    </svg>
+  );
+}
+
 interface Props {
   controladorRef: RefObject<ControladorGauss3D | null>;
   /** Texto para la región viva de la página. */
   anunciar: (texto: string) => void;
   /** Id del párrafo de ayuda de movimiento (lo referencia el lienzo con aria-describedby). */
   idAyuda: string;
-  /** Contenido justo bajo los botones de escenario (los textos educativos en móvil). */
-  bajoEscenarios?: ReactNode;
+  /** Contenido justo bajo el bloque Fuente (los textos educativos en móvil). */
+  bajoFuente?: ReactNode;
   /** Contenido bajo los interruptores (la leyenda, que en pantallas anchas y bajas se muestra aquí y no bajo el lienzo). */
   bajoInterruptores?: ReactNode;
 }
@@ -102,7 +137,7 @@ function CampoNumerico({
   );
 }
 
-export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios, bajoInterruptores }: Props) {
+export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoFuente, bajoInterruptores }: Props) {
   const fuente = useGauss3dStore((s) => s.fuente);
   const forma = useGauss3dStore((s) => s.forma);
   const tamano = useGauss3dStore((s) => s.tamano);
@@ -121,6 +156,7 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
   const carga = cargas[seleccionada];
   const rango = rangoTamano(forma);
   const xy = lectura?.xy[seleccionada] ?? [0, 0];
+  const esDipolo = fuente === "dipolo";
 
   /** Fin de un gesto de deslizador: refina ya la calidad. */
   const alSoltar = {
@@ -130,31 +166,44 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
     onBlur: () => controladorRef.current?.soltar(),
   };
 
-  // TEMPORAL (fase 1): selector mínimo de fuente; la fase 2 reescribe todo el panel.
   function elegirFuente(f: Fuente) {
     if (f === fuente) return;
     acc().setFuente(f);
     controladorRef.current?.soltar();
-    anunciar(f === "dipolo" ? "Fuente: dipolo." : "Fuente: una carga.");
+    anunciar(
+      f === "dipolo"
+        ? "Fuente: dipolo, una carga positiva y una negativa, en su posición inicial."
+        : "Fuente: una carga, en su posición inicial.",
+    );
   }
 
   function elegirForma(f: TipoSuperficie) {
     if (f === forma) return;
     acc().setForma(f);
     controladorRef.current?.soltar();
-    anunciar(`Superficie: ${FORMAS.find((x) => x.id === f)?.nombre.toLowerCase()}.`);
+    anunciar(`Figura: ${FORMAS.find((x) => x.id === f)?.nombre.toLowerCase()}. Cargas en su posición inicial.`);
+  }
+
+  function elegirCargaDipolo(indice: number) {
+    if (indice < 0 || indice === seleccionada) return;
+    acc().seleccionar(indice);
+    anunciar(`Seleccionada la carga ${cargas[indice].q > 0 ? "positiva" : "negativa"}.`);
   }
 
   function cambiarSigno() {
     acc().alternarSigno();
     controladorRef.current?.soltar();
-    anunciar(`La carga ${seleccionada + 1} es ahora ${carga && carga.q > 0 ? "negativa" : "positiva"}.`);
+    anunciar(
+      esDipolo
+        ? "Polaridad del dipolo intercambiada."
+        : `La carga es ahora ${carga && carga.q > 0 ? "negativa" : "positiva"}.`,
+    );
   }
 
   function recolocar() {
     acc().recolocar();
     controladorRef.current?.soltar();
-    anunciar("Cargas recolocadas en su posición inicial.");
+    anunciar(esDipolo ? "Dipolo recolocado en su posición inicial." : "Carga recolocada en su posición inicial.");
   }
 
   function girar(delta: number) {
@@ -168,24 +217,115 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
   }
 
   const tamanoTexto = formatDistancia(uAMetros(tamano));
+  const idPositiva = cargas.findIndex((c) => c.q > 0);
+  const idNegativa = cargas.findIndex((c) => c.q < 0);
 
   return (
-    <section className="panel-dipolo gauss3d-panel" aria-label="Controles de la superficie y las cargas">
+    <section className="panel-dipolo gauss3d-panel" aria-label="Controles de la figura y las cargas">
       <div className="panel-dipolo-grupo">
-        <h2 className="panel-dipolo-titulo">Fuente</h2>
-        <div className="gauss3d-formas" role="group" aria-label="Fuente">
-          {(
-            [
-              ["carga", "Una carga"],
-              ["dipolo", "Dipolo"],
-            ] as const
-          ).map(([id, nombre]) => (
-            <button key={id} type="button" className="gauss3d-boton" aria-pressed={fuente === id} onClick={() => elegirFuente(id)}>
-              {nombre}
+        <h2 className="panel-dipolo-titulo">Figura</h2>
+        <div className="gauss3d-formas" role="group" aria-label="Figura">
+          {FORMAS.map((f) => (
+            <button
+              key={f.id}
+              type="button"
+              className="gauss3d-boton gauss3d-boton-forma"
+              aria-pressed={f.id === forma}
+              onClick={() => elegirForma(f.id)}
+            >
+              <IconoForma forma={f.id} />
+              {f.nombre}
             </button>
           ))}
         </div>
-        {bajoEscenarios}
+        <label className="control-deslizador control-deslizador-apilado">
+          <span>Tamaño ({MEDIDA[forma]})</span>
+          <input
+            type="range"
+            min={rango.min}
+            max={rango.max}
+            step={rango.paso}
+            value={tamano}
+            aria-label={`Tamaño de la figura: ${MEDIDA[forma]}, entre ${formatDistancia(uAMetros(rango.min))} y ${formatDistancia(uAMetros(rango.max))}`}
+            aria-valuetext={`${MEDIDA[forma]} de ${tamanoTexto}`}
+            onChange={(e) => acc().setTamano(Number(e.target.value))}
+            {...alSoltar}
+          />
+          <output>{tamanoTexto}</output>
+        </label>
+        {forma === "parche" && (
+          <label className="control-deslizador control-deslizador-apilado">
+            <span>Inclinación del plano (θ)</span>
+            <input
+              type="range"
+              min={0}
+              max={THETA_MAX_DEG}
+              step={5}
+              value={thetaDeg}
+              aria-label="Inclinación del plano, en grados"
+              aria-valuetext={`${thetaDeg} grados`}
+              onChange={(e) => acc().setThetaDeg(Number(e.target.value))}
+              {...alSoltar}
+            />
+            <output>{thetaDeg}°</output>
+          </label>
+        )}
+      </div>
+
+      <div className="panel-dipolo-grupo">
+        <h2 className="panel-dipolo-titulo">Fuente</h2>
+        <SelectorSegmentado etiquetaGrupo="Fuente" opciones={FUENTES} valor={fuente} alElegir={elegirFuente} />
+        {esDipolo && (
+          <div className="gauss3d-cargas" role="group" aria-label="Carga que se mueve con las flechas y la altura z">
+            {(
+              [
+                [idPositiva, "+q", "carga positiva", true],
+                [idNegativa, "−q", "carga negativa", false],
+              ] as const
+            ).map(([i, corto, largo, positiva]) => (
+              <button
+                key={corto}
+                type="button"
+                className={`sonda-chip${i === seleccionada ? " seleccionada" : ""}`}
+                aria-pressed={i === seleccionada}
+                onClick={() => elegirCargaDipolo(i)}
+              >
+                <span className={positiva ? "carga-positiva" : "carga-negativa"} aria-hidden="true">
+                  ●
+                </span>
+                &nbsp;{corto}
+                <span className="sr-only"> ({largo})</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {carga && (
+          <>
+            <button type="button" className="boton-colocar" data-activo={carga.q < 0} onClick={cambiarSigno}>
+              {esDipolo ? "Invertir" : "Invertir signo"} · <span aria-hidden="true">{carga.q > 0 ? "+" : "−"}</span>
+              <span className="sr-only">ahora {carga.q > 0 ? "positiva" : "negativa"}</span>
+            </button>
+            <label className="control-deslizador control-deslizador-apilado">
+              <span>Magnitud {esDipolo ? "de las cargas" : "de la carga"} (q)</span>
+              <input
+                type="range"
+                min={Q_MIN}
+                max={Q_MAX}
+                step={Q_PASO}
+                value={Math.abs(carga.q)}
+                aria-label={`Magnitud ${esDipolo ? "de las dos cargas" : "de la carga"}, entre ${decimal(Q_MIN)} y ${decimal(Q_MAX)} microcoulombs`}
+                aria-valuetext={`${decimal(Math.abs(carga.q))} µC`}
+                onChange={(e) => acc().setQ(Number(e.target.value))}
+                {...alSoltar}
+              />
+              <output>{textoQ(carga.q)}</output>
+            </label>
+          </>
+        )}
+        <button type="button" className="boton-colocar" onClick={recolocar}>
+          Recolocar
+        </button>
+        {bajoFuente}
       </div>
 
       <div className="panel-dipolo-grupo" role="group" aria-labelledby={idInterruptores}>
@@ -207,86 +347,6 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
           ))}
         </div>
         {bajoInterruptores}
-      </div>
-
-      <div className="panel-dipolo-grupo">
-        <h2 className="panel-dipolo-titulo">La superficie</h2>
-        <div className="gauss3d-formas" role="group" aria-label="Forma de la superficie">
-          {FORMAS.map((f) => (
-            <button
-              key={f.id}
-              type="button"
-              className="gauss3d-boton"
-              aria-pressed={f.id === forma}
-              onClick={() => elegirForma(f.id)}
-            >
-              {f.nombre}
-            </button>
-          ))}
-        </div>
-        <label className="control-deslizador control-deslizador-apilado">
-          <span>Tamaño de la superficie ({MEDIDA[forma]})</span>
-          <input
-            type="range"
-            min={rango.min}
-            max={rango.max}
-            step={rango.paso}
-            value={tamano}
-            aria-label={`Tamaño de la superficie: ${MEDIDA[forma]}, entre ${formatDistancia(uAMetros(rango.min))} y ${formatDistancia(uAMetros(rango.max))}`}
-            aria-valuetext={`${MEDIDA[forma]} de ${tamanoTexto}`}
-            onChange={(e) => acc().setTamano(Number(e.target.value))}
-            {...alSoltar}
-          />
-          <output>{tamanoTexto}</output>
-        </label>
-      </div>
-
-      <div className="panel-dipolo-grupo">
-        <h2 className="panel-dipolo-titulo">{cargas.length > 1 ? "Las cargas" : "La carga"}</h2>
-        {cargas.length > 1 && (
-          <div className="gauss3d-cargas" role="group" aria-label="Carga seleccionada">
-            {cargas.map((c, i) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`sonda-chip${i === seleccionada ? " seleccionada" : ""}`}
-                aria-pressed={i === seleccionada}
-                onClick={() => acc().seleccionar(i)}
-              >
-                <span className={c.q > 0 ? "carga-positiva" : "carga-negativa"} aria-hidden="true">
-                  ●
-                </span>
-                &nbsp;Carga {i + 1} · {textoQ(c.q)}
-              </button>
-            ))}
-          </div>
-        )}
-        {carga && (
-          <>
-            <button type="button" className="boton-colocar" data-activo={carga.q < 0} onClick={cambiarSigno}>
-              Invertir signo · <span aria-hidden="true">{carga.q > 0 ? "+" : "−"}</span>
-              <span className="sr-only">ahora {carga.q > 0 ? "positiva" : "negativa"}</span>
-            </button>
-            <label className="control-deslizador control-deslizador-apilado">
-              <span>Magnitud de la carga{cargas.length > 1 ? ` ${seleccionada + 1}` : ""} (q)</span>
-              <input
-                type="range"
-                min={Q_MIN}
-                max={Q_MAX}
-                step={Q_PASO}
-                value={Math.abs(carga.q)}
-                aria-label={`Magnitud de la carga ${seleccionada + 1}, entre ${decimal(Q_MIN)} y ${decimal(Q_MAX)} microcoulombs`}
-                aria-valuetext={`${carga.q > 0 ? "positiva" : "negativa"}, ${decimal(Math.abs(carga.q))} µC`}
-                onChange={(e) => acc().setQ(Number(e.target.value))}
-                {...alSoltar}
-              />
-              <output>{textoQ(carga.q)}</output>
-            </label>
-          </>
-        )}
-        <button type="button" className="boton-colocar" onClick={recolocar}>
-          Recolocar
-        </button>
       </div>
 
       <div className="panel-dipolo-grupo">
@@ -318,7 +378,11 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
         <summary>Avanzado</summary>
         <div className="panel-dipolo-grupo">
           {carga && (
-            <div className="gauss3d-fila" role="group" aria-label={`Posición de la carga ${seleccionada + 1} en el suelo`}>
+            <div
+              className="gauss3d-fila"
+              role="group"
+              aria-label={`Posición de la carga${esDipolo ? (carga.q > 0 ? " positiva" : " negativa") : ""} en el suelo`}
+            >
               <CampoNumerico
                 etiqueta="x (cuadros)"
                 valor={xy[0]}
@@ -336,23 +400,6 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
                 alCambiar={(v) => controladorRef.current?.fijarXY(seleccionada, xy[0], v)}
               />
             </div>
-          )}
-          {forma === "parche" && (
-            <label className="control-deslizador control-deslizador-apilado">
-              <span>Inclinación del parche (θ)</span>
-              <input
-                type="range"
-                min={0}
-                max={THETA_MAX_DEG}
-                step={5}
-                value={thetaDeg}
-                aria-label="Inclinación del parche, en grados"
-                aria-valuetext={`${thetaDeg} grados`}
-                onChange={(e) => acc().setThetaDeg(Number(e.target.value))}
-                {...alSoltar}
-              />
-              <output>{thetaDeg}°</output>
-            </label>
           )}
           <label className="control-deslizador control-deslizador-apilado">
             <span>Azimut de la vista</span>
