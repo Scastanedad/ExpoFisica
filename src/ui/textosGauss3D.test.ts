@@ -228,7 +228,7 @@ describe("textoGauss: Plano (superficie abierta)", () => {
     expect(t.mirar).toContain("Cambia a Esfera, Cubo o Cilindro");
     expect(t.mirar).not.toMatch(/escenario|Avanzado/);
     expect(t.porque).toContain("solo vale para superficies cerradas");
-    expect(t.porque).toContain("Un plano no encierra nada");
+    expect(t.porque).toContain("un plano no encierra nada");
   });
 
   it("el signo de Φ cambia la frase y Φ≈0 no afirma ausencia de campo", () => {

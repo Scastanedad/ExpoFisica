@@ -150,9 +150,9 @@ function pasaParche(e: EntradaTexto): string {
   if (Math.abs(e.phi) < 0.005) {
     const dipolo =
       e.fuente === "dipolo"
-        ? " Con un dipolo, el flujo de +q y el de −q pueden ser opuestos y compensarse: no es una regla, depende de dónde estén las cargas."
+        ? " Dipolo: el flujo de +q y el de −q pueden ser opuestos y compensarse (según dónde estén)."
         : "";
-    return `Φ ≈ 0: casi nada de campo atraviesa el plano (lo roza), o lo cruza en un sentido y en el otro por igual.${dipolo} ${aviso}`;
+    return `Φ ≈ 0: el campo apenas cruza el plano, o cruza por igual en ambos sentidos.${dipolo} ${aviso}`;
   }
   const sentido = e.phi > 0 ? "en el sentido de su normal" : "en sentido contrario a su normal";
   return `Φ = ${num(e.phi)} µC/ε₀: en neto, el campo cruza el plano ${sentido}. ${aviso}`;
@@ -174,12 +174,12 @@ const MIRAR_CRUCE = "Sube y baja la carga con la altura z y haz que cruce la sup
 
 /** Plano (superficie abierta): nunca se afirma Φ = q/ε₀. */
 function textoPlano(e: EntradaTexto, titulo: string): TextoGauss {
-  const base = "Mira el plano y las líneas que lo cruzan. Inclínalo con θ, en el bloque Figura. Cambia a Esfera, Cubo o Cilindro: ahí la superficie puede rodear la carga.";
+  const base = "Mira las líneas que cruzan el plano. Inclínalo con θ, en el bloque Figura. Cambia a Esfera, Cubo o Cilindro: ahí puede rodear la carga.";
   return {
     titulo,
-    mirar: e.fuente === "dipolo" ? `${base} Mueve la carga −q a un lado y otro del plano y mira cómo cambia Φ.` : base,
+    mirar: e.fuente === "dipolo" ? `${base} Mueve la carga −q a un lado y otro del plano: mira Φ.` : base,
     pasa: pasaParche(e),
-    porque: `${PORQUE_PARCHE} La ley de Gauss solo vale para superficies cerradas. Un plano no encierra nada y solo mide el campo que lo atraviesa.`,
+    porque: `${PORQUE_PARCHE} Gauss solo vale para superficies cerradas: un plano no encierra nada.`,
   };
 }
 
@@ -243,19 +243,19 @@ export function textoGauss(e: EntradaTexto): TextoGauss {
     t.mirar = "Con la carga en el centro, el campo es igual en toda la esfera. ¿Cuánto vale? Agranda la esfera: Φ no cambia.";
     t.pasa = `Φ = ${num(r.qEnc)} µC/ε₀. Entonces E = Φ/(4πR²) ≈ ${E} a ${formatDistancia(uAMetros(R))} del centro${r.qEnc < 0 ? " (apunta hacia dentro)" : ""}.`;
     t.porque =
-      "Por simetría, E es igual y perpendicular en toda la esfera, así que Φ = E · 4πR². Despejando, E = Φ/(4πR²), que coincide con k·q/R². Si agrandas la esfera, el campo en su superficie baja (como 1/R²) pero el área sube (como R²). Su producto, Φ, no cambia.";
+      "Por simetría, E es igual y perpendicular en toda la esfera: Φ = E · 4πR², luego E = Φ/(4πR²) = k·q/R². Al agrandarla, E baja como 1/R² y el área sube como R²: Φ no cambia.";
     return t;
   }
   t.mirar =
-    "Arrastra la carga fuera de la superficie y vuelve a meterla. Cambia el tamaño o la figura: Φ no cambia mientras la carga siga dentro.";
-  t.pasa = `${t.pasa} Es el mismo valor con cualquier forma que rodee la carga.`;
+    "Arrastra la carga fuera de la superficie y vuelve a meterla. Cambia el tamaño o la figura: Φ no cambia si sigue dentro.";
+  t.pasa = `${t.pasa} Vale igual con cualquier forma que la rodee.`;
   t.porque =
-    "Ley de Gauss: Φ = q_enc/ε₀. Da igual en qué punto de dentro esté la carga: lo que cuenta es que esté dentro. Φ depende de la carga encerrada, no de la forma: cambian las zonas de color; el total, no. La superficie es imaginaria: no frena ni cambia el campo.";
+    "Gauss: Φ = q_enc/ε₀. Da igual en qué punto esté dentro la carga. Φ depende de la carga encerrada, no de la forma (solo cambian las zonas de color). La superficie es imaginaria: no altera E.";
   if (e.forma === "esfera") {
     const E = coma(formatSI(campoEnEsfera(r.qEnc, e.tamano), "N/C"));
     t.mirar += " Pon la carga en el centro para ver cuánto vale E.";
     t.pasa = `${t.pasa} Sin simetría, Φ/(4πR²) = ${E} es solo el valor medio de E perpendicular a la superficie${r.qEnc < 0 ? " (hacia dentro)" : ""}, no E en cada punto.`;
-    t.porque += " Gauss da E fácilmente solo cuando hay simetría: deja una sola carga en el centro para verlo.";
+    t.porque += " Gauss da E fácilmente solo con simetría: una carga única en el centro.";
   }
   return t;
 }
@@ -311,7 +311,7 @@ export function textoConteo(e: EntradaConteo): TextoConteo | null {
   } else if (e.cargas.length === 1 && dentro.length === 1) {
     const esperado = Math.round(Math.abs(qEnc) * LINEAS_POR_UC);
     if (Math.abs(neto) === esperado) {
-      nota = `Aquí se dibujan ${LINEAS_POR_UC} líneas por µC: ${fmtQ(Math.abs(qEnc)).slice(1)} × ${LINEAS_POR_UC} = ${esperado} líneas ${qEnc > 0 ? "salen" : "entran"} en neto. Es una convención del dibujo.`;
+      nota = `Se dibujan ${LINEAS_POR_UC} líneas por µC: ${fmtQ(Math.abs(qEnc)).slice(1)} × ${LINEAS_POR_UC} = ${esperado} líneas ${qEnc > 0 ? "salen" : "entran"} en neto (convención).`;
     }
   }
   return { salen: `salen: ${e.salen}`, entran: `entran: ${e.entran}`, netas: `netas: ${neto}`, nota };
