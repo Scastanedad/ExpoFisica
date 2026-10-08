@@ -1,4 +1,8 @@
-/** Los 9 escenarios de la estación Ley de Gauss (contrato §5). Tamaños en u (1 u = 1 cm), cargas en µC. */
+/**
+ * Los 9 escenarios de la estación Ley de Gauss (contrato §5): casos de referencia para tests (física, render, e2e),
+ * NO UI. El panel ya no los ofrece: el visitante elige figura y fuente (`presets.ts`). No confundir con el tipo
+ * `Escenario` de `tipos.ts`, que es la entrada del motor. Tamaños en u (1 u = 1 cm), cargas en µC.
+ */
 import type { Carga3D, Superficie } from "./tipos";
 
 export interface DefEscenario {

@@ -6,13 +6,16 @@
  * y cierra ambos al terminar. NO forma parte de `npm test`.
  *
  * Qué comprueba, en 390×844, 1024×768 y 1366×650:
- *   - los 9 escenarios (botones del panel): sin errores de consola ni de página, Φ y q_enc iguales a los del contrato §5;
+ *   - las 8 combinaciones figura (Esfera · Cubo · Cilindro · Plano) × fuente (Una carga | Dipolo): sin errores de consola
+ *     ni de página, Φ y q_enc iguales a los de `docs-gauss/panel-simple-fisica.md` (el Plano arranca con L = 8);
+ *   - casos «carga fuera» (x numérico en Avanzado), «dipolo con una carga fuera» (Φ = ±3 en la esfera) y «cruza»
+ *     (z de 8 a 0 con la carga en la esfera: Φ de 0 a 3);
  *   - sin desplazamiento horizontal y sin objetivos táctiles < 44 px;
- *   - capturas de cada escenario/viewport en capturas-gauss/e2e/ (carpeta ignorada por git).
+ *   - capturas de cada combinación/viewport en capturas-gauss/e2e/ (carpeta ignorada por git).
  * Y, con la CPU 4× más lenta (CDP `Emulation.setCPUThrottlingRate`):
  *   - tiempo entre cuadros (rAF; p50/p95/máx) en reposo, arrastre de carga, deslizadores de tamaño y z, giro del azimut
- *     y cambio de escenario;
- *   - tiempo del RECÁLCULO de geometría (`construirGeometria`) por escenario y calidad, medido importando el módulo
+ *     y cambio de figura (y de fuente);
+ *   - tiempo del RECÁLCULO de geometría (`construirGeometria`) por caso de referencia (`escenarios.ts`) y calidad, medido importando el módulo
  *     real desde el servidor de desarrollo (sin código de depuración en producción).
  * Resultados en capturas-gauss/e2e/medidas.json. Código de salida ≠ 0 si falla alguna comprobación.
  */
@@ -31,18 +34,19 @@ const VIEWPORTS = [
   { n: "pc-1366x650", w: 1366, h: 650, dpr: 1 },
 ];
 
-/** Esperado del contrato §5 (Φ en µC/ε₀ y q_enc en µC; qEnc null = «sin carga encerrada» (superficie abierta)). */
-const ESPERADO = {
-  1: { phi: 0.1594, qEnc: null },
-  2: { phi: 3, qEnc: 3 },
-  3: { phi: 3, qEnc: 3 },
-  4: { phi: 3, qEnc: 3 },
-  5: { phi: 3, qEnc: 3 },
-  6: { phi: 0, qEnc: 0 },
-  7: { phi: 0, qEnc: 0 },
-  8: { phi: 0.7889, qEnc: null },
-  9: { phi: 4, qEnc: 4 },
-};
+/**
+ * Esperado de `docs-gauss/panel-simple-fisica.md` (Φ en µC/ε₀ y q_enc en µC; qEnc null = «sin carga encerrada», plano).
+ */
+const COMBOS = [
+  { figura: "Esfera", fuente: "Una carga", phi: 3, qEnc: 3 },
+  { figura: "Esfera", fuente: "Dipolo", phi: 0, qEnc: 0 },
+  { figura: "Cubo", fuente: "Una carga", phi: 3, qEnc: 3 },
+  { figura: "Cubo", fuente: "Dipolo", phi: 0, qEnc: 0 },
+  { figura: "Cilindro", fuente: "Una carga", phi: 3, qEnc: 3 },
+  { figura: "Cilindro", fuente: "Dipolo", phi: 0, qEnc: 0 },
+  { figura: "Plano", fuente: "Una carga", phi: 0.5, qEnc: null },
+  { figura: "Plano", fuente: "Dipolo", phi: 0, qEnc: null },
+];
 
 const fallos = [];
 const falla = (m) => {
@@ -112,6 +116,26 @@ async function esperarLectura(page, esp, ms = 4000) {
   return { ok: false, l };
 }
 
+/** Elige figura y fuente con los controles reales del panel (cambiar cualquiera recoloca las cargas). */
+async function elegir(page, figura, fuente) {
+  await page.locator(".gauss3d-formas").getByRole("button", { name: figura, exact: true }).click();
+  await page.getByRole("radio", { name: fuente, exact: true }).click();
+}
+
+async function abrirAvanzado(page) {
+  if (!(await page.locator("details.gauss3d-avanzado").evaluate((d) => d.open))) await page.locator("details.gauss3d-avanzado > summary").click();
+}
+
+async function cerrarAvanzado(page) {
+  if (await page.locator("details.gauss3d-avanzado").evaluate((d) => d.open)) await page.locator("details.gauss3d-avanzado > summary").click();
+}
+
+/** Fija x de la carga seleccionada con el campo numérico de Avanzado. */
+async function fijarX(page, x) {
+  await abrirAvanzado(page);
+  await page.getByLabel("x (cuadros)").fill(String(x));
+}
+
 async function auditarPagina(page, vp, etiqueta) {
   const r = await page.evaluate(() => {
     const doc = document.documentElement;
@@ -151,8 +175,9 @@ async function auditarCabida(page, vp, etiqueta) {
 /** Móvil: el lienzo pegado (sticky) no tapa el control enfocado ni el último párrafo. */
 async function auditarSticky(page, vp) {
   const sel = [
-    ["primer control (escenario 1)", "button.gauss3d-escenario"],
-    ["Forma «Cubo»", ".gauss3d-formas button:nth-child(3)"],
+    ["primer control (Esfera)", ".gauss3d-formas button:nth-child(1)"],
+    ["Figura «Cubo»", ".gauss3d-formas button:nth-child(2)"],
+    ["Fuente «Dipolo»", '.gauss3d-panel [role="radio"]:nth-child(2)'],
     ["tamaño de la superficie", '.gauss3d-panel input[type="range"]'],
     ["Invertir signo", ".gauss3d-panel .boton-colocar"],
     ["Avanzado", "details.gauss3d-avanzado > summary"],
@@ -207,44 +232,64 @@ async function comprobarViewport(browser, vp, base) {
   await page.goto(`${base}/ley-de-gauss`);
   await page.locator("canvas.lienzo-gauss3d").waitFor();
   const filas = [];
-  for (let e = 1; e <= 9; e++) {
-    await page.getByRole("button", { name: new RegExp(`^${e} `) }).click();
-    const { ok, l } = await esperarLectura(page, ESPERADO[e]);
-    if (!ok) falla(`${vp.n} esc ${e}: lectura «${l?.texto}» no coincide con Φ=${ESPERADO[e].phi}, q_enc=${ESPERADO[e].qEnc}`);
-    await page.screenshot({ path: `${SALIDA}/${vp.n}-esc${e}.png`, fullPage: true });
-    await auditarPagina(page, vp, `esc ${e}`);
-    if (vp.w >= 900) await auditarCabida(page, vp, `esc ${e}`);
-    filas.push({ esc: e, lectura: l?.texto, ok });
-    console.log(`  esc ${e}: ${l?.texto} ${ok ? "OK" : "MAL"}`);
+  for (const c of COMBOS) {
+    const nombre = `${c.figura} + ${c.fuente}`;
+    await elegir(page, c.figura, c.fuente);
+    const { ok, l } = await esperarLectura(page, c);
+    if (!ok) falla(`${vp.n} ${nombre}: lectura «${l?.texto}» no coincide con Φ=${c.phi}, q_enc=${c.qEnc}`);
+    const id = `${c.figura}-${c.fuente}`.toLowerCase().replace(/\s+/g, "");
+    await page.screenshot({ path: `${SALIDA}/${vp.n}-${id}.png`, fullPage: true });
+    await auditarPagina(page, vp, nombre);
+    if (vp.w >= 900) await auditarCabida(page, vp, nombre);
+    filas.push({ combinacion: nombre, lectura: l?.texto, ok });
+    console.log(`  ${nombre}: ${l?.texto} ${ok ? "OK" : "MAL"}`);
   }
-  // Escenario 3 variante «fuera»: Φ = 0
-  await page.getByRole("button", { name: /^3 / }).click();
-  await page.getByRole("button", { name: /ponerla fuera/ }).click();
+  // «Carga fuera»: Esfera + Una carga, x = 8 (fuera de R = 5) → Φ = 0; «Recolocar» la devuelve dentro → Φ = 3
+  await elegir(page, "Esfera", "Una carga");
+  await fijarX(page, 8);
   const fuera = await esperarLectura(page, { phi: 0, qEnc: 0 });
-  if (!fuera.ok) falla(`${vp.n} esc 3 fuera: ${fuera.l?.texto}`);
-  await page.screenshot({ path: `${SALIDA}/${vp.n}-esc3-fuera.png`, fullPage: true });
-  // Escenario 5: cubo → cilindro → esfera, siempre Φ = 3
-  await page.getByRole("button", { name: /^5 / }).click();
-  for (const forma of ["Cilindro", "Esfera", "Cubo"]) {
-    await page.getByRole("button", { name: forma, exact: true }).click();
+  if (!fuera.ok) falla(`${vp.n} esfera con la carga fuera (x=8): ${fuera.l?.texto}`);
+  await page.screenshot({ path: `${SALIDA}/${vp.n}-esfera-carga-fuera.png`, fullPage: true });
+  await page.getByRole("button", { name: "Recolocar", exact: true }).click();
+  const vuelta = await esperarLectura(page, { phi: 3, qEnc: 3 });
+  if (!vuelta.ok) falla(`${vp.n} esfera tras «Recolocar»: ${vuelta.l?.texto}`);
+  // Φ no depende de la forma con la carga dentro (cubo → cilindro → esfera)
+  for (const forma of ["Cubo", "Cilindro", "Esfera"]) {
+    await page.locator(".gauss3d-formas").getByRole("button", { name: forma, exact: true }).click();
     const r = await esperarLectura(page, { phi: 3, qEnc: 3 });
-    if (!r.ok) falla(`${vp.n} esc 5 ${forma}: ${r.l?.texto}`);
+    if (!r.ok) falla(`${vp.n} ${forma} con una carga: ${r.l?.texto}`);
   }
-  // Escenario 6: z de 8 a 0 → Φ salta a 3
-  await page.getByRole("button", { name: /^6 / }).click();
+  // «Dipolo con una carga fuera»: Esfera + Dipolo. −q a x = 8 → Φ = +3; luego +q a x = −8 (con −q de nuevo dentro) → Φ = −3
+  await elegir(page, "Esfera", "Dipolo");
+  await page.locator(".gauss3d-cargas button", { hasText: "−q" }).click();
+  await fijarX(page, 8);
+  const dip1 = await esperarLectura(page, { phi: 3, qEnc: 3 });
+  if (!dip1.ok) falla(`${vp.n} dipolo con −q fuera: ${dip1.l?.texto}`);
+  await page.screenshot({ path: `${SALIDA}/${vp.n}-esfera-dipolo-una-fuera.png`, fullPage: true });
+  await page.getByRole("button", { name: "Recolocar", exact: true }).click();
+  await page.locator(".gauss3d-cargas button", { hasText: "+q" }).click();
+  await fijarX(page, -8);
+  const dip2 = await esperarLectura(page, { phi: -3, qEnc: -3 });
+  if (!dip2.ok) falla(`${vp.n} dipolo con +q fuera: ${dip2.l?.texto}`);
+  // «Cruza»: Esfera + Una carga con la altura z de 8 a 0 (de fuera a dentro) → Φ pasa de 0 a 3
+  await elegir(page, "Esfera", "Una carga");
+  await page.locator(".gauss3d-altura-barra").fill("8");
+  const alto = await esperarLectura(page, { phi: 0, qEnc: 0 });
+  if (!alto.ok) falla(`${vp.n} esfera con z=8: ${alto.l?.texto}`);
   await page.locator(".gauss3d-altura-barra").fill("0");
   const cruce = await esperarLectura(page, { phi: 3, qEnc: 3 });
-  if (!cruce.ok) falla(`${vp.n} esc 6 con z=0: ${cruce.l?.texto}`);
+  if (!cruce.ok) falla(`${vp.n} esfera con z=0 (cruza): ${cruce.l?.texto}`);
   // Panel «Avanzado» abierto: también sin scroll horizontal ni objetivos pequeños
-  await page.getByRole("button", { name: /^2 / }).click();
-  await page.locator("details.gauss3d-avanzado > summary").click();
+  await elegir(page, "Plano", "Una carga"); // con Plano el panel es el más largo (θ visible)
+  await abrirAvanzado(page);
   await dormir(300);
   await auditarPagina(page, vp, "Avanzado abierto");
   await page.screenshot({ path: `${SALIDA}/${vp.n}-avanzado.png`, fullPage: true });
-  await page.locator("details.gauss3d-avanzado > summary").click(); // cerrar de nuevo
+  await cerrarAvanzado(page);
+  await elegir(page, "Esfera", "Una carga");
   if (vp.w < 600) await auditarSticky(page, vp);
   if (errores.length) errores.forEach((e) => falla(`${vp.n}: ${e}`));
-  resultados.viewports[vp.n] = { escenarios: filas, errores };
+  resultados.viewports[vp.n] = { combinaciones: filas, errores };
   await ctx.close();
 }
 
@@ -310,7 +355,7 @@ async function rendimiento(browser, vp, base) {
   const cdp = await ctx.newCDPSession(page);
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 4 });
   const R = {};
-  await page.getByRole("button", { name: /^7 / }).click(); // dipolo: el más caro (2 cargas, flechas)
+  await page.getByRole("radio", { name: "Dipolo", exact: true }).click(); // dipolo: el más caro (2 cargas, flechas)
   await dormir(1500);
 
   R.reposo = await medirFase(page, "(a) reposo", () => dormir(2000));
@@ -331,17 +376,16 @@ async function rendimiento(browser, vp, base) {
     });
   }
 
-  await page.getByRole("button", { name: /^4 / }).click();
+  await elegir(page, "Esfera", "Una carga");
   await dormir(800);
   R.deslizadorTamano = await medirFase(page, "(c1) deslizador de tamaño", async () => {
-    const barra = page.locator('input[type="range"][aria-label^="Tamaño de la superficie"]');
+    const barra = page.locator('input[type="range"][aria-label^="Tamaño de la figura"]');
     for (let i = 0; i <= 60; i++) {
       await barra.fill(String(Math.round((2 + 6 * Math.abs(Math.sin((i / 60) * Math.PI))) * 2) / 2));
       await dormir(16);
     }
     await page.locator("canvas.lienzo-gauss3d").focus();
   });
-  await page.getByRole("button", { name: /^6 / }).click();
   await dormir(800);
   R.deslizadorZ = await medirFase(page, "(c2) deslizador de z", async () => {
     const barra = page.locator(".gauss3d-altura-barra");
@@ -351,7 +395,7 @@ async function rendimiento(browser, vp, base) {
     }
   });
 
-  await page.getByRole("button", { name: /^7 / }).click();
+  await elegir(page, "Esfera", "Dipolo");
   await dormir(800);
   R.azimut = await medirFase(page, "(d) giro del azimut", async () => {
     const c = await page.locator("canvas.lienzo-gauss3d").boundingBox();
@@ -366,10 +410,13 @@ async function rendimiento(browser, vp, base) {
     await page.mouse.up();
   });
 
-  R.cambioEscenario = await medirFase(page, "(e) cambio de escenario (9→1→…→9)", async () => {
-    for (const e of [1, 2, 3, 4, 5, 6, 7, 8, 9, 1, 2, 3, 4, 5, 6, 7, 8, 9]) {
-      await page.getByRole("button", { name: new RegExp(`^${e} `) }).click();
-      await dormir(350);
+  R.cambioFigura = await medirFase(page, "(e) cambio de figura y fuente (Esfera→Cubo→Cilindro→Plano, con y sin dipolo)", async () => {
+    for (const fuente of ["Dipolo", "Una carga", "Dipolo"]) {
+      await page.getByRole("radio", { name: fuente, exact: true }).click();
+      for (const f of ["Cubo", "Cilindro", "Plano", "Esfera"]) {
+        await page.locator(".gauss3d-formas").getByRole("button", { name: f, exact: true }).click();
+        await dormir(350);
+      }
     }
   });
   await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });

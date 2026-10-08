@@ -1,6 +1,6 @@
 /**
  * Estado de UI de la Estación 05 (Ley de Gauss), solo lo que cambia por acción del visitante: forma y tamaño de la
- * superficie, q y z de cada carga (valores de deslizador), carga seleccionada, escenario, interruptores y vista.
+ * superficie, fuente (una carga o dipolo), q y z de cada carga (valores de deslizador), carga seleccionada, interruptores y vista.
  *
  * Las posiciones x, y de las cargas NO están aquí: viven en el controlador (`render/controladorGauss3d.ts`), que las
  * mueve con el arrastre sin pasar por React. Cada carga lleva `x0`/`y0` solo como posición INICIAL (la lee el
@@ -9,8 +9,8 @@
  */
 import { create } from "zustand";
 import { Q_MAX, Q_MIN, normalizarCarga } from "../fisica/carga";
-import { MAX_CARGAS, RANGOS } from "../fisica/gauss3d/constantes";
-import { ESCENARIOS, type DefEscenario } from "../fisica/gauss3d/escenarios";
+import { RANGOS } from "../fisica/gauss3d/constantes";
+import { posicionInicial, type Fuente } from "../fisica/gauss3d/presets";
 import { crearSuperficie } from "../fisica/gauss3d/superficies";
 import type { Superficie, TipoSuperficie } from "../fisica/gauss3d/tipos";
 
@@ -26,7 +26,10 @@ export const Z_MIN = RANGOS.carga.z.min;
 export const Z_MAX = RANGOS.carga.z.max;
 export const Z_PASO = 0.5;
 export const THETA_MAX_DEG = 90;
-export const ESCENARIO_INICIAL = 2;
+export const FORMA_INICIAL: TipoSuperficie = "esfera";
+export const FUENTE_INICIAL: Fuente = "carga";
+
+export type { Fuente };
 
 export interface CargaUI {
   /** Identificador estable (el controlador guarda x, y por id). */
@@ -96,8 +99,6 @@ export function superficieDeUI(forma: TipoSuperficie, tamano: number, thetaDeg: 
   }
 }
 
-const aGrados = (rad: number) => Math.round((rad * 180) / Math.PI);
-
 function acotar(v: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, v));
 }
@@ -110,46 +111,32 @@ export function normalizarAzimutDeg(g: number): number {
 let contadorId = 0;
 const nuevoId = () => ++contadorId;
 
-interface EstadoEscenario {
-  escenarioId: number;
-  fuera: boolean;
+/** Cargas de UI (ids nuevos, x0/y0 como posición inicial) de la posición inicial de (forma, fuente). */
+function cargasIniciales(forma: TipoSuperficie, fuente: Fuente): { tamano: number; cargas: CargaUI[] } {
+  const p = posicionInicial(forma, fuente);
+  return { tamano: p.tamano, cargas: p.cargas.map((c) => ({ id: nuevoId(), q: c.q, z: c.z, x0: c.x, y0: c.y })) };
+}
+
+interface EstadoGauss3D {
   forma: TipoSuperficie;
+  fuente: Fuente;
   tamano: number;
   thetaDeg: number;
   cargas: CargaUI[];
   seleccionada: number;
   mostrar: Mostrar;
-}
-
-function tamanoDe(s: Superficie): number {
-  return s.tipo === "esfera" || s.tipo === "cilindro" ? s.radio : s.lado;
-}
-
-/** Estado de UI de un escenario (cargas con ids nuevos). */
-export function estadoDeEscenario(def: DefEscenario, fuera = false): EstadoEscenario {
-  const cargas = fuera && def.variante ? def.variante.cargas : def.cargas;
-  const s = def.superficie;
-  return {
-    escenarioId: def.id,
-    fuera: fuera && !!def.variante,
-    forma: s.tipo,
-    tamano: tamanoDe(s),
-    thetaDeg: s.tipo === "parche" ? aGrados(s.theta) : 0,
-    cargas: cargas.map((c) => ({ id: nuevoId(), q: c.q, z: c.z, x0: c.x, y0: c.y })),
-    seleccionada: 0,
-    mostrar: { ...def.mostrar },
-  };
-}
-
-interface EstadoGauss3D extends EstadoEscenario {
   azimutDeg: number;
   inclinacionDeg: number;
   zoom: number;
   opacidad: number;
   lectura: LecturaGauss | null;
 
-  aplicarEscenario: (id: number, opciones?: { fuera?: boolean; conservarVista?: boolean }) => void;
+  /** Cambia de figura y recoloca las cargas en la posición inicial de la combinación (también tamaño). */
   setForma: (f: TipoSuperficie) => void;
+  /** Cambia de fuente y recoloca las cargas (conserva figura y tamaño). */
+  setFuente: (f: Fuente) => void;
+  /** Devuelve las cargas a su posición inicial para la figura y fuente actuales (conserva el tamaño). */
+  recolocar: () => void;
   setTamano: (t: number) => void;
   setThetaDeg: (t: number) => void;
   setQ: (magnitud: number) => void;
@@ -157,8 +144,6 @@ interface EstadoGauss3D extends EstadoEscenario {
   setZ: (z: number) => void;
   /** Corrección que hace el controlador de la z de una carga (zona de exclusión): no es una acción del usuario. */
   corregirZ: (id: number, z: number) => void;
-  anadirCarga: () => void;
-  quitarCarga: () => void;
   seleccionar: (indice: number) => void;
   setMostrar: (k: keyof Mostrar, v: boolean) => void;
   setAzimutDeg: (g: number) => void;
@@ -170,33 +155,28 @@ interface EstadoGauss3D extends EstadoEscenario {
   publicarLectura: (l: LecturaGauss | null) => void;
 }
 
-function escenarioBase(id: number): DefEscenario {
-  return ESCENARIOS[id - 1] ?? ESCENARIOS[ESCENARIO_INICIAL - 1];
-}
-
 export const useGauss3dStore = create<EstadoGauss3D>((set) => ({
-  ...estadoDeEscenario(escenarioBase(ESCENARIO_INICIAL)),
+  forma: FORMA_INICIAL,
+  fuente: FUENTE_INICIAL,
+  ...cargasIniciales(FORMA_INICIAL, FUENTE_INICIAL),
+  thetaDeg: 0,
+  seleccionada: 0,
+  mostrar: { lineas: true, flujo: true, campo: false },
   azimutDeg: AZIMUT_INICIAL_DEG,
   inclinacionDeg: INCLINACION_INICIAL_DEG,
   zoom: 1,
   opacidad: 1,
   lectura: null,
 
-  aplicarEscenario: (id, opciones = {}) =>
-    set(() => {
-      const def = escenarioBase(id);
-      const base = estadoDeEscenario(def, opciones.fuera ?? false);
-      if (opciones.conservarVista) return base;
-      return {
-        ...base,
-        azimutDeg: aGrados(def.vista.azimut),
-        inclinacionDeg: aGrados(def.vista.inclinacion),
-        zoom: 1,
-      };
-    }),
-
   setForma: (f) =>
-    set((s) => (s.forma === f ? s : { forma: f, tamano: rangoTamano(f).def, thetaDeg: f === "parche" ? s.thetaDeg : 0 })),
+    set((s) =>
+      s.forma === f
+        ? s
+        : { forma: f, ...cargasIniciales(f, s.fuente), seleccionada: 0, thetaDeg: f === "parche" ? s.thetaDeg : 0 },
+    ),
+  setFuente: (fu) =>
+    set((s) => (s.fuente === fu ? s : { fuente: fu, cargas: cargasIniciales(s.forma, fu).cargas, seleccionada: 0 })),
+  recolocar: () => set((s) => ({ cargas: cargasIniciales(s.forma, s.fuente).cargas, seleccionada: 0 })),
   setTamano: (t) =>
     set((s) => {
       const r = rangoTamano(s.forma);
@@ -206,18 +186,25 @@ export const useGauss3dStore = create<EstadoGauss3D>((set) => ({
 
   setQ: (magnitud) =>
     set((s) => {
-      const c = s.cargas[s.seleccionada];
-      if (!c) return s;
-      const signo = c.q < 0 ? -1 : 1;
-      const q = normalizarCarga(signo * acotar(magnitud, Q_MIN, Q_MAX));
-      if (q === null || q === c.q) return s;
-      return { cargas: s.cargas.map((x, i) => (i === s.seleccionada ? { ...x, q } : x)) };
+      if (!s.cargas[s.seleccionada]) return s;
+      const m = acotar(magnitud, Q_MIN, Q_MAX);
+      // Dipolo: las dos cargas cambian a la vez (cada una conserva su signo, siempre opuestos).
+      const objetivo = (i: number) => s.fuente === "dipolo" || i === s.seleccionada;
+      let cambia = false;
+      const cargas = s.cargas.map((x, i) => {
+        if (!objetivo(i)) return x;
+        const q = normalizarCarga((x.q < 0 ? -1 : 1) * m);
+        if (q === null || q === x.q) return x;
+        cambia = true;
+        return { ...x, q };
+      });
+      return cambia ? { cargas } : s;
     }),
   alternarSigno: () =>
     set((s) => {
-      const c = s.cargas[s.seleccionada];
-      if (!c) return s;
-      return { cargas: s.cargas.map((x, i) => (i === s.seleccionada ? { ...x, q: -x.q } : x)) };
+      if (!s.cargas[s.seleccionada]) return s;
+      const objetivo = (i: number) => s.fuente === "dipolo" || i === s.seleccionada;
+      return { cargas: s.cargas.map((x, i) => (objetivo(i) ? { ...x, q: -x.q } : x)) };
     }),
   setZ: (z) =>
     set((s) => {
@@ -233,20 +220,6 @@ export const useGauss3dStore = create<EstadoGauss3D>((set) => ({
       return { cargas: s.cargas.map((x, k) => (k === i ? { ...x, z } : x)) };
     }),
 
-  anadirCarga: () =>
-    set((s) => {
-      if (s.cargas.length >= MAX_CARGAS) return s;
-      const primera = s.cargas[0];
-      // opuesta a la primera (el par más didáctico: un dipolo), a media altura
-      const nueva: CargaUI = { id: nuevoId(), q: primera ? -primera.q : 3, z: 0 };
-      return { cargas: [...s.cargas, nueva], seleccionada: s.cargas.length };
-    }),
-  quitarCarga: () =>
-    set((s) => {
-      if (s.cargas.length <= 1) return s;
-      const cargas = s.cargas.filter((_, i) => i !== s.seleccionada);
-      return { cargas, seleccionada: 0 };
-    }),
   seleccionar: (indice) =>
     set((s) => (indice < 0 || indice >= s.cargas.length || indice === s.seleccionada ? s : { seleccionada: indice })),
 

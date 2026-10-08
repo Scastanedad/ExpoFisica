@@ -33,7 +33,6 @@ export function LeyDeGauss() {
   const thetaDeg = useGauss3dStore((s) => s.thetaDeg);
   const cargas = useGauss3dStore((s) => s.cargas);
   const lectura = useGauss3dStore((s) => s.lectura);
-  const seleccionada = useGauss3dStore((s) => s.seleccionada);
   const carga = useGauss3dStore((s) => s.cargas[s.seleccionada]);
   const setZ = useGauss3dStore((s) => s.setZ);
 
@@ -98,6 +97,8 @@ export function LeyDeGauss() {
   }, [textoEscena]);
 
   const alturaTexto = carga ? (carga.z === 0 ? "0 cm" : formatDistancia(uAMetros(carga.z))) : "";
+  /** En dipolo, cuál de las dos cargas mueve el deslizador de altura. */
+  const etiquetaCarga = carga && carga.q > 0 ? "carga +q" : "carga −q";
   const soltar = () => controladorRef.current?.soltar();
 
   return (
@@ -142,7 +143,7 @@ export function LeyDeGauss() {
               <span className="gauss3d-altura-etiqueta">
                 Altura z
                 <br />
-                {nCargas > 1 ? `carga ${seleccionada + 1}` : " "}
+                {nCargas > 1 ? etiquetaCarga : " "}
               </span>
               <input
                 type="range"
@@ -152,7 +153,7 @@ export function LeyDeGauss() {
                 step={Z_PASO}
                 value={carga?.z ?? 0}
                 aria-orientation="vertical"
-                aria-label={`Altura z de la carga ${seleccionada + 1}, entre ${formatDistancia(uAMetros(RANGOS.carga.z.min))} y ${formatDistancia(uAMetros(RANGOS.carga.z.max))}`}
+                aria-label={`Altura z de la ${nCargas > 1 ? etiquetaCarga : "carga"}, entre ${formatDistancia(uAMetros(RANGOS.carga.z.min))} y ${formatDistancia(uAMetros(RANGOS.carga.z.max))}`}
                 aria-valuetext={`${alturaTexto} sobre el suelo`}
                 onChange={(e) => setZ(Number(e.target.value))}
                 onPointerUp={soltar}
@@ -171,7 +172,7 @@ export function LeyDeGauss() {
             controladorRef={controladorRef}
             anunciar={anunciar}
             idAyuda={idAyuda}
-            bajoEscenarios={<TextosGauss3D clase="gauss3d-textos-movil" />}
+            bajoFuente={<TextosGauss3D clase="gauss3d-textos-movil" />}
             bajoInterruptores={<TextosGauss3D clase="gauss3d-leyenda-lateral" solo="leyenda" />}
           />
         </div>

@@ -34,7 +34,7 @@ export interface CargaDescrita {
 
 export interface EntradaDescripcion {
   forma: TipoSuperficie;
-  /** Radio (esfera, cilindro) o lado (cubo, parche) en u. */
+  /** Radio (esfera, cilindro) o lado (cubo, plano) en u. */
   tamano: number;
   thetaDeg: number;
   cargas: readonly CargaDescrita[];
@@ -52,7 +52,7 @@ export function describirSuperficie(forma: TipoSuperficie, tamano: number, theta
     case "cilindro":
       return `un cilindro cerrado de radio ${cm(tamano)} y altura ${cm(2 * tamano)} centrado en el origen`;
     case "parche":
-      return `un parche plano cuadrado de lado ${cm(tamano)}, inclinado ${Math.round(thetaDeg)}° respecto a la vertical`;
+      return `un plano cuadrado de lado ${cm(tamano)}, inclinado ${Math.round(thetaDeg)}° respecto a la horizontal`;
   }
 }
 
@@ -79,7 +79,7 @@ export function describirEscena(e: EntradaDescripcion): string {
 export function textoAnuncioFlujo(phi: number, qEnc: number, forma: TipoSuperficie): string {
   const f = coma(formatPhi(residuo(phi)));
   return forma === "parche"
-    ? `${f}, a través del parche; sin carga encerrada.`
+    ? `${f}, a través del plano; sin carga encerrada.`
     : `${f}. Carga encerrada: ${qTexto(residuo(qEnc))} µC.`;
 }
 

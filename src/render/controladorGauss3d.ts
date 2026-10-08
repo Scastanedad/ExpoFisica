@@ -377,7 +377,7 @@ export function crearControladorGauss3D(deps: DepsControlador): ControladorGauss
       const continuo =
         nuevo.tamano !== previo.tamano ||
         nuevo.thetaDeg !== previo.thetaDeg ||
-        (cargasCambian && nuevo.cargas.length === previo.cargas.length && nuevo.escenarioId === previo.escenarioId && nuevo.fuera === previo.fuera && nuevo.cargas.every((c, i) => c.id === previo.cargas[i].id));
+        (cargasCambian && nuevo.cargas.length === previo.cargas.length && nuevo.cargas.every((c, i) => c.id === previo.cargas[i].id));
       if (continuo) interaccion();
       else solicitar();
     },

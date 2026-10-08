@@ -1,13 +1,17 @@
 /**
  * Bajo el lienzo de la estación 5: lectura de Φ y de la carga encerrada (en µC/ε₀ y en SI), conteo real de líneas
  * que salen / entran / netas, leyenda (color del flujo, marcadores de cruce y flechas de E) y los textos educativos
- * del escenario (`textosGauss3D.ts`), que cambian con lo que hace el visitante.
+ * según figura y fuente (`textosGauss3D.ts`), que cambian con lo que hace el visitante.
  * Sin aria-live: la región viva limitada es de la fase 5.
  */
 import { formatFlujoSI, formatPhi } from "../fisica/gauss3d/unidades";
+import { distanciaConSigno } from "../fisica/gauss3d/superficies";
 import type { TipoSuperficie } from "../fisica/gauss3d/tipos";
-import { useGauss3dStore } from "../store/gauss3dStore";
-import { textoConteo, textoEscenario } from "./textosGauss3D";
+import { superficieDeUI, useGauss3dStore } from "../store/gauss3dStore";
+import { textoConteo, textoGauss } from "./textosGauss3D";
+
+/** Una carga está «cerca» si queda a menos de esta distancia (u) de una superficie cerrada: puede estar cruzándola. */
+const DIST_CERCA = 1.5;
 
 /** Coma decimal como el resto de la interfaz. */
 const coma = (t: string) => t.replace(/(\d)\.(\d)/g, "$1,$2");
@@ -19,9 +23,10 @@ const sinResiduo = (v: number) => (Math.abs(v) < 1e-9 ? 0 : v);
 
 function useDatos() {
   const lectura = useGauss3dStore((s) => s.lectura);
-  const escenarioId = useGauss3dStore((s) => s.escenarioId);
   const tamano = useGauss3dStore((s) => s.tamano);
   const thetaDeg = useGauss3dStore((s) => s.thetaDeg);
+  const fuente = useGauss3dStore((s) => s.fuente);
+  const cargasUI = useGauss3dStore((s) => s.cargas);
   const flujo = useGauss3dStore((s) => s.mostrar.flujo);
   const campo = useGauss3dStore((s) => s.mostrar.campo);
   const lineas = useGauss3dStore((s) => s.mostrar.lineas);
@@ -39,7 +44,20 @@ function useDatos() {
       })
     : null;
   const texto = lectura
-    ? textoEscenario({ escenario: escenarioId, forma, tamano, thetaDeg, cargas: lectura.cargas, phi: sinResiduo(lectura.phi) })
+    ? textoGauss({
+        forma,
+        fuente,
+        tamano,
+        thetaDeg,
+        cargas: lectura.cargas.map((c, i) => {
+          const xy = lectura.xy[i];
+          const z = cargasUI[i]?.z;
+          if (!cerrada || !xy || z === undefined) return c;
+          const d = distanciaConSigno(superficieDeUI(forma, tamano, thetaDeg), [xy[0], xy[1], z]);
+          return { ...c, cerca: Math.abs(d) < DIST_CERCA };
+        }),
+        phi: sinResiduo(lectura.phi),
+      })
     : null;
 
   return { lectura, conteo, texto, cerrada, flujo, campo, lineas };
