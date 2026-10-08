@@ -83,9 +83,9 @@ describe("descripción y anuncio", () => {
     expect(t).toContain("Flujo Φ = 3,00 µC/ε₀.");
     expect(t).toContain("q_enc = +3,00 µC");
   });
-  it("parche: sin dentro/fuera y sin carga encerrada", () => {
+  it("plano: sin dentro/fuera y sin carga encerrada", () => {
     const t = describirEscena({ forma: "parche", tamano: 4, thetaDeg: 30, phi: 1.2, qEnc: 0, cargas: [{ q: 1, x: 0, y: 0, z: 3, dentro: false }] });
-    expect(t).toContain("parche plano cuadrado de lado 4 cm, inclinado 30°");
+    expect(t).toContain("plano cuadrado de lado 4 cm, inclinado 30°");
     expect(t).not.toContain("dentro de la superficie");
     expect(t).toContain("no hay carga encerrada");
   });
