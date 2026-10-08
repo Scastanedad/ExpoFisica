@@ -10,8 +10,7 @@
 import { useId, useState, type ReactNode, type RefObject } from "react";
 import { Q_MAX, Q_MIN, Q_PASO } from "../fisica/carga";
 import { formatDistancia } from "../fisica/escala";
-import { MAX_CARGAS, RANGOS } from "../fisica/gauss3d/constantes";
-import { ESCENARIOS } from "../fisica/gauss3d/escenarios";
+import { RANGOS } from "../fisica/gauss3d/constantes";
 import { uAMetros } from "../fisica/gauss3d/unidades";
 import type { ControladorGauss3D } from "../render/controladorGauss3d";
 import {
@@ -25,20 +24,8 @@ import {
   rangoTamano,
   useGauss3dStore,
 } from "../store/gauss3dStore";
+import type { Fuente } from "../fisica/gauss3d/presets";
 import type { TipoSuperficie } from "../fisica/gauss3d/tipos";
-
-/** Nombre corto de cada escenario (botones 1–9); el nombre completo va en `title` y en el aria-label. */
-const NOMBRE_CORTO: Record<number, string> = {
-  1: "Parche",
-  2: "Cerrada",
-  3: "Dentro",
-  4: "Tamaño",
-  5: "Formas",
-  6: "Cruza",
-  7: "Dipolo",
-  8: "Abierta",
-  9: "Útil",
-};
 
 const FORMAS: ReadonlyArray<{ id: TipoSuperficie; nombre: string }> = [
   { id: "parche", nombre: "Parche" },
@@ -116,8 +103,7 @@ function CampoNumerico({
 }
 
 export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios, bajoInterruptores }: Props) {
-  const escenarioId = useGauss3dStore((s) => s.escenarioId);
-  const fuera = useGauss3dStore((s) => s.fuera);
+  const fuente = useGauss3dStore((s) => s.fuente);
   const forma = useGauss3dStore((s) => s.forma);
   const tamano = useGauss3dStore((s) => s.tamano);
   const thetaDeg = useGauss3dStore((s) => s.thetaDeg);
@@ -134,7 +120,6 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
 
   const carga = cargas[seleccionada];
   const rango = rangoTamano(forma);
-  const def = ESCENARIOS[escenarioId - 1];
   const xy = lectura?.xy[seleccionada] ?? [0, 0];
 
   /** Fin de un gesto de deslizador: refina ya la calidad. */
@@ -145,16 +130,12 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
     onBlur: () => controladorRef.current?.soltar(),
   };
 
-  function elegirEscenario(id: number) {
-    acc().aplicarEscenario(id);
+  // TEMPORAL (fase 1): selector mínimo de fuente; la fase 2 reescribe todo el panel.
+  function elegirFuente(f: Fuente) {
+    if (f === fuente) return;
+    acc().setFuente(f);
     controladorRef.current?.soltar();
-    anunciar(`Escenario ${id}: ${ESCENARIOS[id - 1].nombre}.`);
-  }
-
-  function alternarFuera() {
-    acc().aplicarEscenario(3, { fuera: !fuera, conservarVista: true });
-    controladorRef.current?.soltar();
-    anunciar(fuera ? "La carga está dentro de la superficie." : "La carga está fuera de la superficie.");
+    anunciar(f === "dipolo" ? "Fuente: dipolo." : "Fuente: una carga.");
   }
 
   function elegirForma(f: TipoSuperficie) {
@@ -170,16 +151,10 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
     anunciar(`La carga ${seleccionada + 1} es ahora ${carga && carga.q > 0 ? "negativa" : "positiva"}.`);
   }
 
-  function anadir() {
-    acc().anadirCarga();
+  function recolocar() {
+    acc().recolocar();
     controladorRef.current?.soltar();
-    anunciar("Carga añadida: ahora hay dos. La nueva es la seleccionada.");
-  }
-
-  function quitar() {
-    acc().quitarCarga();
-    controladorRef.current?.soltar();
-    anunciar("Carga quitada: queda una.");
+    anunciar("Cargas recolocadas en su posición inicial.");
   }
 
   function girar(delta: number) {
@@ -197,30 +172,18 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
   return (
     <section className="panel-dipolo gauss3d-panel" aria-label="Controles de la superficie y las cargas">
       <div className="panel-dipolo-grupo">
-        <h2 className="panel-dipolo-titulo">Escenarios</h2>
-        <div className="gauss3d-escenarios" role="group" aria-label="Escenarios">
-          {ESCENARIOS.map((e) => (
-            <button
-              key={e.id}
-              type="button"
-              className="gauss3d-boton gauss3d-escenario"
-              aria-pressed={e.id === escenarioId}
-              aria-label={`${e.id} ${NOMBRE_CORTO[e.id]}. ${e.nombre}`}
-              title={e.nombre}
-              onClick={() => elegirEscenario(e.id)}
-            >
-              <span aria-hidden="true">
-                <strong>{e.id}</strong> {NOMBRE_CORTO[e.id]}
-              </span>
+        <h2 className="panel-dipolo-titulo">Fuente</h2>
+        <div className="gauss3d-formas" role="group" aria-label="Fuente">
+          {(
+            [
+              ["carga", "Una carga"],
+              ["dipolo", "Dipolo"],
+            ] as const
+          ).map(([id, nombre]) => (
+            <button key={id} type="button" className="gauss3d-boton" aria-pressed={fuente === id} onClick={() => elegirFuente(id)}>
+              {nombre}
             </button>
           ))}
-        </div>
-        <div className="gauss3d-variante">
-          {escenarioId === 3 && def.variante && (
-            <button type="button" className="boton-colocar" data-activo={fuera} aria-pressed={fuera} onClick={alternarFuera}>
-              {fuera ? "La carga está fuera · ponerla dentro" : "La carga está dentro · ponerla fuera"}
-            </button>
-          )}
         </div>
         {bajoEscenarios}
       </div>
@@ -321,14 +284,9 @@ export function PanelGauss3D({ controladorRef, anunciar, idAyuda, bajoEscenarios
             </label>
           </>
         )}
-        <div className="gauss3d-fila">
-          <button type="button" className="boton-colocar" disabled={cargas.length >= MAX_CARGAS} onClick={anadir}>
-            Añadir carga
-          </button>
-          <button type="button" className="boton-colocar" disabled={cargas.length <= 1} onClick={quitar}>
-            Quitar carga
-          </button>
-        </div>
+        <button type="button" className="boton-colocar" onClick={recolocar}>
+          Recolocar
+        </button>
       </div>
 
       <div className="panel-dipolo-grupo">

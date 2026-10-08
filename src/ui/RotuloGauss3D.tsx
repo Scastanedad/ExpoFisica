@@ -19,7 +19,6 @@ const sinResiduo = (v: number) => (Math.abs(v) < 1e-9 ? 0 : v);
 
 function useDatos() {
   const lectura = useGauss3dStore((s) => s.lectura);
-  const escenarioId = useGauss3dStore((s) => s.escenarioId);
   const tamano = useGauss3dStore((s) => s.tamano);
   const thetaDeg = useGauss3dStore((s) => s.thetaDeg);
   const flujo = useGauss3dStore((s) => s.mostrar.flujo);
@@ -39,7 +38,7 @@ function useDatos() {
       })
     : null;
   const texto = lectura
-    ? textoEscenario({ escenario: escenarioId, forma, tamano, thetaDeg, cargas: lectura.cargas, phi: sinResiduo(lectura.phi) })
+    ? textoEscenario({ escenario: 2 /* TEMPORAL (fase 1): textos por estado en la fase 3 */, forma, tamano, thetaDeg, cargas: lectura.cargas, phi: sinResiduo(lectura.phi) })
     : null;
 
   return { lectura, conteo, texto, cerrada, flujo, campo, lineas };

@@ -73,7 +73,13 @@ function crear(): Banco {
 }
 
 describe("controlador Gauss 3D", () => {
-  beforeEach(() => useGauss3dStore.getState().aplicarEscenario(2));
+  beforeEach(() => {
+    const st = useGauss3dStore.getState();
+    st.setForma("esfera");
+    st.setFuente("carga");
+    st.recolocar();
+    st.setTamano(5);
+  });
 
   it("primer cuadro: dibuja y publica la lectura", () => {
     const b = crear();
@@ -153,11 +159,11 @@ describe("controlador Gauss 3D", () => {
     expect(Math.abs(p.x - 5)).toBeGreaterThanOrEqual(0.4 - 1e-9);
   });
 
-  it("un paso de z que cae en la franja cruza la superficie (escenario 6)", () => {
+  it("un paso de z que cae en la franja cruza la superficie (carga en z = 8 sobre la esfera)", () => {
     const b = crear();
-    useGauss3dStore.getState().aplicarEscenario(6);
-    b.cuadro();
     const st = useGauss3dStore.getState();
+    st.setZ(8);
+    b.cuadro();
     for (let z = 8; z >= 3; z -= 0.5) {
       st.setZ(z);
       b.cuadro();
