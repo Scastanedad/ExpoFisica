@@ -22,11 +22,14 @@ import {
 
 export const ANCHO_GRAFICA_RC = 360;
 export const ALTO_GRAFICA_RC = 250;
+/** Tamaño en sala (≥ 1600 px): misma proporción, rótulos escalados. */
+export const ANCHO_GRAFICA_RC_SALA = 440;
+export const ALTO_GRAFICA_RC_SALA = 306;
 /** Marcas máximas del eje de tiempo (en múltiplos de τ). */
 const MARCAS_MAX = 6;
 /** Mínimo del eje horizontal: 6 τ (la carga llega al 99,75 %). */
 export const TAUS_MINIMOS = 6;
-const FUENTE = "12px ui-monospace, monospace";
+const FUENTE_BASE_PX = 12;
 
 export interface DatosGraficaRC {
   /** Tiempo real [s], voltaje [V] y corriente con signo [A]; solo las primeras `n` muestras. */
@@ -68,15 +71,17 @@ const menos = (t: string): string => t.replace("-", "−");
 
 /** Geometría de las dos gráficas (px lógicos). */
 export function disposicionGraficaRC(ancho: number, alto: number) {
-  const izq = 58;
-  const der = 10;
-  const titulo = 16;
-  const pie = 20;
-  const hueco = 8;
+  // Todo escala con el ancho (360 px = 1): en sala el lienzo es mayor y los rótulos crecen con él.
+  const k = ancho / ANCHO_GRAFICA_RC;
+  const izq = 58 * k;
+  const der = 10 * k;
+  const titulo = 16 * k;
+  const pie = 20 * k;
+  const hueco = 8 * k;
   const alturaPlot = (alto - pie - 2 * titulo - hueco) / 2;
-  const v = { x0: izq, x1: ancho - der, y0: titulo + 4, y1: titulo + 4 + alturaPlot - 4 };
-  const i = { x0: izq, x1: ancho - der, y0: v.y1 + hueco + titulo + 4, y1: v.y1 + hueco + titulo + alturaPlot };
-  return { v, i, tituloV: titulo - 3, tituloI: v.y1 + hueco + titulo - 3, ejeX: i.y1 + 15 };
+  const v = { x0: izq, x1: ancho - der, y0: titulo + 4 * k, y1: titulo + alturaPlot };
+  const i = { x0: izq, x1: ancho - der, y0: v.y1 + hueco + titulo + 4 * k, y1: v.y1 + hueco + titulo + alturaPlot };
+  return { v, i, tituloV: titulo - 3 * k, tituloI: v.y1 + hueco + titulo - 3 * k, ejeX: i.y1 + 15 * k };
 }
 
 export function dibujarGraficaRC(ctx: ContextoGrafica, ancho: number, alto: number, d: DatosGraficaRC): void {
@@ -92,7 +97,7 @@ export function dibujarGraficaRC(ctx: ContextoGrafica, ancho: number, alto: numb
   const mapI = mapeoLineal([-iMax, iMax], [g.i.y1, g.i.y0]);
 
   ctx.save();
-  ctx.font = FUENTE;
+  ctx.font = `${(FUENTE_BASE_PX * ancho) / ANCHO_GRAFICA_RC}px ui-monospace, monospace`;
   ctx.fillStyle = COLOR_TEXTO;
   ctx.textAlign = "left";
   ctx.textBaseline = "alphabetic";

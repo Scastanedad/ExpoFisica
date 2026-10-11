@@ -36,7 +36,8 @@ describe("dibujarCircuito", () => {
     const sinMov = crearCtxFalso();
     dibujarCircuito(sinMov, geom, datos(), vista({ movimientoReducido: true }));
     expect(conMov.llamadas.arc).toBeGreaterThan(20);
-    expect(sinMov.llamadas.arc ?? 0).toBe(0);
+    // Sin movimiento solo quedan los círculos de las cargas de las placas (⊕/⊖) y la sonda: ninguna partícula.
+    expect((conMov.llamadas.arc ?? 0) - (sinMov.llamadas.arc ?? 0)).toBeGreaterThan(20);
     // Las flechas estáticas siguen presentes (triángulos rellenos) en ambos casos.
     expect(sinMov.llamadas.closePath).toBeGreaterThan(3);
     expect(sinMov.llamadas.closePath).toBe(conMov.llamadas.closePath);

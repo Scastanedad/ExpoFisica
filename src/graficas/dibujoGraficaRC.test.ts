@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import {
   ALTO_GRAFICA_RC,
+  ALTO_GRAFICA_RC_SALA,
   ANCHO_GRAFICA_RC,
+  ANCHO_GRAFICA_RC_SALA,
   TAUS_MINIMOS,
   dibujarGraficaRC,
   disposicionGraficaRC,
@@ -90,6 +92,20 @@ describe("ejes de la gráfica de E7", () => {
     expect(g.i.y1).toBeLessThan(g.ejeX);
     expect(g.ejeX).toBeLessThanOrEqual(ALTO_GRAFICA_RC);
     expect(g.v.x1).toBeLessThanOrEqual(ANCHO_GRAFICA_RC);
+  });
+});
+
+describe("tamaño de sala", () => {
+  it("la disposición de 440 px también cabe y sin solaparse", () => {
+    const g = disposicionGraficaRC(ANCHO_GRAFICA_RC_SALA, ALTO_GRAFICA_RC_SALA);
+    expect(g.v.y1).toBeLessThan(g.tituloI);
+    expect(g.i.y0).toBeGreaterThan(g.tituloI);
+    expect(g.ejeX).toBeLessThanOrEqual(ALTO_GRAFICA_RC_SALA);
+  });
+  it("la fuente crece con el lienzo", () => {
+    const { ctx } = ctxGrabador();
+    dibujarGraficaRC(ctx, ANCHO_GRAFICA_RC_SALA, ALTO_GRAFICA_RC_SALA, datos());
+    expect(ctx.font).toMatch(/^14\.6/);
   });
 });
 

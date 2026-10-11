@@ -2553,7 +2553,7 @@ a {
 }
 
 .leyenda-corriente {
-  margin: 8px auto 0;
+  margin: 8px 0 0;
   max-width: 78ch;
   font-size: 14px;
   line-height: 1.4;
@@ -2988,7 +2988,7 @@ a {
 
 .aviso-reinicio {
   margin: 0;
-  min-height: 0;
+  flex-shrink: 0;
   font-size: 13px;
   line-height: 1.35;
   color: var(--text);
@@ -3048,5 +3048,84 @@ a {
 @media (max-width: 520px) {
   .pagina-simulador.pagina-circuitos {
     --alto-lienzo: max(240px, 30svh);
+  }
+}
+
+/* Los hijos del panel lateral nunca se encogen: con el contenido largo, flex los aplastaba y el texto pisaba al vecino. */
+.pagina-circuitos .simulador-lateral > * {
+  flex-shrink: 0;
+}
+
+/* Pantalla estrecha (diseño apilado): el orden de lectura es lienzo, interruptor, sonda, totales, selector de
+   ejemplos, gráfica y, al final, leyenda y tabla; así el selector queda a mano sin perder de vista el lienzo. */
+@media not all and (min-width: 900px) and (min-height: 560px) {
+  .pagina-circuitos .simulador {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .pagina-circuitos .simulador-lienzo,
+  .pagina-circuitos .simulador-lateral {
+    display: contents;
+  }
+
+  .pagina-circuitos .simulador-lienzo > *,
+  .pagina-circuitos .simulador-lateral > * {
+    order: 10;
+  }
+
+  .pagina-circuitos .circuito-figura {
+    order: 0;
+    margin-bottom: -8px;
+  }
+
+  .pagina-circuitos .interruptor-rc {
+    order: 1;
+    margin-top: 0;
+  }
+
+  .pagina-circuitos .lectura-sonda {
+    order: 2;
+    margin: 0;
+  }
+
+  .pagina-circuitos .resumen-circuito {
+    order: 3;
+    margin: 0;
+  }
+
+  .pagina-circuitos .panel-presets {
+    order: 4;
+  }
+
+  .pagina-circuitos .aviso-reinicio {
+    order: 5;
+  }
+
+  .pagina-circuitos .grafica-rc {
+    order: 6;
+  }
+
+  .pagina-circuitos .leyenda-corriente {
+    order: 40;
+    margin: 0;
+  }
+
+  .pagina-circuitos .tabla-circuito-caja,
+  .pagina-circuitos .tabla-circuito-nota {
+    order: 41;
+  }
+}
+
+/* Sala: gráfica y totales de E7 más grandes (el lienzo de la gráfica se redibuja a 440 px, no se estira). */
+@media (min-width: 1600px) {
+  .lienzo-grafica.lienzo-grafica-rc {
+    max-width: 440px;
+    aspect-ratio: 440 / 306;
+  }
+
+  .resumen-capacitores dd {
+    font-size: 20px;
   }
 }

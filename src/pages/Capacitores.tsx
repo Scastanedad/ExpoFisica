@@ -12,7 +12,7 @@ import { EditorArbol } from "../ui/circuitos/EditorArbol";
 import { EditorValor } from "../ui/circuitos/EditorValor";
 import { GraficaRC } from "../ui/circuitos/GraficaRC";
 import { LecturaSonda } from "../ui/circuitos/LecturaSonda";
-import { LeyendaCorriente } from "../ui/circuitos/LeyendaCorriente";
+import { LeyendaCapacitores } from "../ui/circuitos/LeyendaCapacitores";
 import { PanelReduccion } from "../ui/circuitos/PanelReduccion";
 import { PRESETS_UI_E7 } from "../ui/circuitos/presetsUI";
 import { ResumenCapacitores } from "../ui/circuitos/ResumenCapacitores";
@@ -22,7 +22,6 @@ import {
   MENSAJE_REDUCCION_REINICIA,
   MENSAJE_REINICIO,
   NOTA_ESCALA_TIEMPO,
-  NOTA_SENTIDO_DESCARGA,
   TEXTO_GENERAL_E7,
 } from "../ui/circuitos/textosE7";
 import { useReduccion } from "../ui/circuitos/useReduccion";
@@ -137,7 +136,7 @@ export function Capacitores() {
           </div>
           <LecturaSonda />
           <ResumenCapacitores sim={sim} modo={modo} />
-          <LeyendaCorriente notaSentido={modo === "descargar" ? NOTA_SENTIDO_DESCARGA : undefined} />
+          <LeyendaCapacitores sim={sim} modo={modo} />
           {reducido ? (
             <p className="tabla-circuito-nota">
               Estás viendo el circuito reducido. Pulsa «Circuito completo» para ver el voltaje, la corriente, la carga y la
@@ -148,7 +147,7 @@ export function Capacitores() {
           )}
         </div>
         <div className="simulador-lateral">
-          <section className="panel-circuito" aria-label="Elegir la red">
+          <section className="panel-circuito panel-presets" aria-label="Elegir la red">
             <h3 className="panel-circuito-titulo">Red de ejemplo</h3>
             <div className="presets-circuitos">
               <SelectorSegmentado<string>

@@ -115,7 +115,7 @@ export function Resistencias() {
           )}
         </div>
         <div className="simulador-lateral">
-          <section className="panel-circuito" aria-label="Elegir el circuito">
+          <section className="panel-circuito panel-presets" aria-label="Elegir el circuito">
             <h3 className="panel-circuito-titulo">Circuito de ejemplo</h3>
             <div className="presets-circuitos">
               <SelectorSegmentado<string>

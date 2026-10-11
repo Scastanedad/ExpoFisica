@@ -104,14 +104,19 @@ function dibujarResistor(ctx: Contexto2D, g: GeometriaCircuito, id: string, sel:
 
 function dibujarSignoCarga(ctx: Contexto2D, x: number, y: number, r: number, positiva: boolean): void {
   ctx.strokeStyle = positiva ? POSITIVA : NEGATIVA;
+  // Círculo + signo (⊕ / ⊖): la FORMA distingue la polaridad, no solo el color (daltonismo); dos «−» apilados ya no se leen «=».
   ctx.beginPath();
-  ctx.moveTo(x - r, y);
-  ctx.lineTo(x + r, y);
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.stroke();
+  const m = r * 0.58;
+  ctx.beginPath();
+  ctx.moveTo(x - m, y);
+  ctx.lineTo(x + m, y);
   ctx.stroke();
   if (positiva) {
     ctx.beginPath();
-    ctx.moveTo(x, y - r);
-    ctx.lineTo(x, y + r);
+    ctx.moveTo(x, y - m);
+    ctx.lineTo(x, y + m);
     ctx.stroke();
   }
 }
@@ -144,7 +149,7 @@ function dibujarCapacitor(
   const n = Math.min(8, Math.abs(Math.round(nCargas)));
   if (n === 0) return;
   const paso = media / 3.6;
-  const r = Math.min(Math.max(1.8, g.s * 0.08), paso * 0.45);
+  const r = Math.max(3, Math.min(Math.max(4, g.s * 0.11), paso * 0.5));
   const dx = Math.max(r * 2.4, g.s * 0.3);
   ctx.lineWidth = lw * 0.7;
   for (let k = 0; k < n; k++) {
@@ -269,9 +274,9 @@ function dibujarRotulos(ctx: Contexto2D, g: GeometriaCircuito, d: DatosDibujo): 
       ctx.fillStyle = TEXTO;
       // Interlineado y arranque más justos que en el nivel completo: la caja de lectura es más baja que dos líneas
       // de fuente mínima y, con 0,95/1,15, la segunda línea rozaba el cable de abajo.
-      ctx.fillText(textos.v, cx, el.lectura.y + g.fuenteMin * 0.8);
+      ctx.fillText(textos.v, cx, el.lectura.y + g.fuenteMin * 0.95);
       ctx.fillStyle = TEXTO_SUAVE;
-      ctx.fillText(textos.i, cx, el.lectura.y + g.fuenteMin * 0.8 + g.fuenteMin * 1.04);
+      ctx.fillText(textos.i, cx, el.lectura.y + g.fuenteMin * 0.95 + g.fuenteMin * 1.04);
       continue;
     }
     ctx.font = fuente(g.fuente, true);
