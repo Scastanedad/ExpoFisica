@@ -2318,7 +2318,7 @@ a {
 
 /* Móvil apaisado y pantallas bajas: el lienzo no se queda pegado (taparía los controles) y deja sitio. */
 @media (max-width: 899.98px) and (max-height: 520px) {
-  .pagina-gauss .simulador-lienzo {
+  .pagina-simulador:not(.pagina-circuitos) .simulador-lienzo {
     position: static;
   }
 
@@ -2332,15 +2332,15 @@ a {
    las instrucciones largas se ocultan (la ayuda del panel dice lo mismo) y el texto educativo se reparte en tres
    columnas bajo el lienzo, para que todo quepa sin desplazar la página. */
 @media (min-width: 900px) and (max-height: 820px) {
-  .pagina-simulador.pagina-gauss {
+  .pagina-simulador:not(.pagina-circuitos) {
     --reserva-lateral: 56px !important;
   }
 
-  .pagina-gauss .instrucciones-larga {
+  .pagina-simulador:not(.pagina-circuitos) .instrucciones-larga {
     display: none;
   }
 
-  .pagina-gauss .simulador {
+  .pagina-simulador:not(.pagina-circuitos) .simulador {
     grid-template-columns: minmax(0, 1fr) clamp(440px, 41vw, 560px);
   }
 
@@ -2432,19 +2432,19 @@ a {
 }
 
 @media (min-width: 900px) and (max-height: 700px) {
-  .pagina-simulador.pagina-gauss {
+  .pagina-simulador:not(.pagina-circuitos) {
     --reserva-v: 284px !important;
   }
 }
 
 @media (min-width: 900px) and (max-width: 1199.98px) and (min-height: 701px) and (max-height: 820px) {
-  .pagina-simulador.pagina-gauss {
+  .pagina-simulador:not(.pagina-circuitos) {
     --reserva-v: 336px !important;
   }
 }
 
 @media (min-width: 1200px) and (min-height: 701px) and (max-height: 820px) {
-  .pagina-simulador.pagina-gauss {
+  .pagina-simulador:not(.pagina-circuitos) {
     --reserva-v: 270px !important;
   }
 }
