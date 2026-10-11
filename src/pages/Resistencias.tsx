@@ -138,7 +138,13 @@ export function Resistencias() {
             Ver electrones
           </label>
 
-          <PanelReduccion control={reduccion} puente={puente} E={E} rInt={rInt} alVolver={volverAlCompleto} />
+          <PanelReduccion
+            control={reduccion}
+            puente={puente}
+            dominio="R"
+            alTerminar={(eq) => `Corriente de la batería: I = E / ${rInt > 0 ? "(R_eq + r_int)" : "R_eq"} = ${formatearSI(E / (eq + rInt), "A")}.`}
+            alVolver={volverAlCompleto}
+          />
 
           <EditorArbol />
           {hoja ? (

@@ -267,9 +267,11 @@ function dibujarRotulos(ctx: Contexto2D, g: GeometriaCircuito, d: DatosDibujo): 
       if (!textos) continue;
       ctx.font = fuente(g.fuenteMin);
       ctx.fillStyle = TEXTO;
-      ctx.fillText(textos.v, cx, el.lectura.y + g.fuenteMin * 0.95);
+      // Interlineado y arranque más justos que en el nivel completo: la caja de lectura es más baja que dos líneas
+      // de fuente mínima y, con 0,95/1,15, la segunda línea rozaba el cable de abajo.
+      ctx.fillText(textos.v, cx, el.lectura.y + g.fuenteMin * 0.8);
       ctx.fillStyle = TEXTO_SUAVE;
-      ctx.fillText(textos.i, cx, el.lectura.y + g.fuenteMin * 0.95 + g.fuenteMin * 1.15);
+      ctx.fillText(textos.i, cx, el.lectura.y + g.fuenteMin * 0.8 + g.fuenteMin * 1.04);
       continue;
     }
     ctx.font = fuente(g.fuente, true);

@@ -2943,3 +2943,110 @@ a {
     font-size: 20px;
   }
 }
+
+/* ---------- E7 Capacitores ---------- */
+
+/* Interruptor Cargar/Descargar bajo el lienzo: es la acción principal y en móvil debe quedar a la vista. */
+.interruptor-rc {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: stretch;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.interruptor-rc .selector-modo {
+  margin: 0;
+}
+
+.interruptor-rc .boton-banco {
+  white-space: nowrap;
+}
+
+/* E7 reserva más alto bajo el lienzo que E6 (interruptor, rótulo del tiempo y seis totales): los totales siguen
+   a la vista sin desplazar la página. */
+@media (min-width: 900px) and (min-height: 560px) {
+  .pagina-simulador.pagina-capacitores {
+    --alto-lienzo: calc(100svh - 372px);
+  }
+}
+
+/* Móvil: el interruptor ocupa todo el ancho y «Volver a empezar» queda debajo (los nombres no se parten). */
+@media (max-width: 520px) {
+  .interruptor-rc {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Rótulo del tiempo dilatado: siempre visible junto a los totales. */
+.resumen-tiempo {
+  margin: 0 0 4px;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--text);
+}
+
+.aviso-reinicio {
+  margin: 0;
+  min-height: 0;
+  font-size: 13px;
+  line-height: 1.35;
+  color: var(--text);
+}
+
+.aviso-reinicio:not(:empty) {
+  border-left: 3px solid var(--text-dim);
+  padding-left: 8px;
+}
+
+.lienzo-grafica.lienzo-grafica-rc {
+  max-width: 360px;
+  aspect-ratio: 360 / 250;
+}
+
+.grafica-rc {
+  border-top: none;
+  padding-top: 0;
+}
+
+.balance-energia {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--borde);
+  padding-top: 8px;
+}
+
+.balance-energia dl {
+  margin: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.balance-energia dl > div {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+
+.balance-energia dt {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.balance-energia dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 15px;
+  color: var(--text);
+}
+
+/* Móvil vertical: a 390 px el circuito sale limitado por el ANCHO y ocupa ~110-250 px de alto; el alto de 44 %
+   de la pantalla dejaba un vacío grande bajo y sobre él. 240 px (o 30 % de la pantalla) bastan para los seis
+   elementos y acercan a la vista el interruptor y los totales. */
+@media (max-width: 520px) {
+  .pagina-simulador.pagina-circuitos {
+    --alto-lienzo: max(240px, 30svh);
+  }
+}
