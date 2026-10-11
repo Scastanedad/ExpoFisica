@@ -2318,7 +2318,7 @@ a {
 
 /* Móvil apaisado y pantallas bajas: el lienzo no se queda pegado (taparía los controles) y deja sitio. */
 @media (max-width: 899.98px) and (max-height: 520px) {
-  .simulador-lienzo {
+  .pagina-simulador:not(.pagina-circuitos) .simulador-lienzo {
     position: static;
   }
 
@@ -2332,15 +2332,15 @@ a {
    las instrucciones largas se ocultan (la ayuda del panel dice lo mismo) y el texto educativo se reparte en tres
    columnas bajo el lienzo, para que todo quepa sin desplazar la página. */
 @media (min-width: 900px) and (max-height: 820px) {
-  .pagina-simulador {
+  .pagina-simulador:not(.pagina-circuitos) {
     --reserva-lateral: 56px !important;
   }
 
-  .pagina-simulador .instrucciones-larga {
+  .pagina-simulador:not(.pagina-circuitos) .instrucciones-larga {
     display: none;
   }
 
-  .simulador {
+  .pagina-simulador:not(.pagina-circuitos) .simulador {
     grid-template-columns: minmax(0, 1fr) clamp(440px, 41vw, 560px);
   }
 
@@ -2432,19 +2432,19 @@ a {
 }
 
 @media (min-width: 900px) and (max-height: 700px) {
-  .pagina-simulador {
+  .pagina-simulador:not(.pagina-circuitos) {
     --reserva-v: 284px !important;
   }
 }
 
 @media (min-width: 900px) and (max-width: 1199.98px) and (min-height: 701px) and (max-height: 820px) {
-  .pagina-simulador {
+  .pagina-simulador:not(.pagina-circuitos) {
     --reserva-v: 336px !important;
   }
 }
 
 @media (min-width: 1200px) and (min-height: 701px) and (max-height: 820px) {
-  .pagina-simulador {
+  .pagina-simulador:not(.pagina-circuitos) {
     --reserva-v: 270px !important;
   }
 }
@@ -2482,5 +2482,464 @@ a {
 @media (max-width: 899.98px) and (min-height: 521px) {
   html:has(.gauss3d-marco) {
     scroll-padding-top: calc(max(300px, min(104vw, 56svh)) + 104px);
+  }
+}
+
+/* ---------- Circuitos E6/E7 (base compartida) ---------- */
+
+.circuito-figura {
+  margin: 0;
+}
+
+.circuito-zona {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+/* Página de las estaciones de circuitos (E6/E7 y el banco): se usa junto a `.pagina-simulador`.
+   --alto-lienzo es el alto que `CanvasCircuito` mide para dimensionar el lienzo; no hay sticky (en móvil el
+   lienzo ocupa ~44 % de la pantalla y deja ver los controles), y el ancho de columna es propio. */
+.pagina-simulador.pagina-circuitos {
+  --alto-lienzo: max(220px, 44svh);
+  --reserva-lateral: 130px;
+}
+
+.pagina-circuitos .simulador-lienzo {
+  position: static;
+  padding-bottom: 0;
+}
+
+@media (min-width: 900px) and (min-height: 560px) {
+  .pagina-simulador.pagina-circuitos {
+    /* 190 px de cabecera y márgenes + ~100 px para la sonda y los totales bajo el lienzo (sin scroll de página). */
+    --alto-lienzo: calc(100svh - 290px);
+  }
+
+  .pagina-circuitos .simulador {
+    grid-template-columns: minmax(0, 1fr) 380px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .pagina-circuitos .simulador {
+    grid-template-columns: minmax(0, 1fr) 440px;
+  }
+}
+
+.lectura-sonda {
+  margin: 8px 0 0;
+  min-height: 1.4em;
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--text);
+}
+
+.lectura-sonda-ayuda {
+  color: var(--text-dim);
+}
+
+/* El lienzo es el instrumento: la página se desplaza con el dedo (pan-y); `CanvasCircuito` cancela el gesto
+   solo si el toque empieza sobre el circuito (arrastre de la sonda). Su tamaño lo fija el componente. */
+.circuito-lienzo {
+  touch-action: pan-y pinch-zoom;
+  cursor: crosshair;
+  margin: 0;
+}
+
+.circuito-lienzo:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.leyenda-corriente {
+  margin: 8px auto 0;
+  max-width: 78ch;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.leyenda-corriente p {
+  margin: 0 0 4px;
+}
+
+.leyenda-corriente-sentido {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.leyenda-corriente-aviso {
+  font-size: 13px;
+}
+
+/* Rojo/azul solo para la polaridad de la carga que se mueve. */
+.leyenda-punto {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.leyenda-punto.positiva {
+  background: #f87171;
+}
+
+.leyenda-punto.negativa {
+  background: #60a5fa;
+}
+
+/* Editor de valor de un elemento (R, C, batería): mismo aspecto que el editor de magnitud de carga. */
+.editor-valor {
+  padding-top: 8px;
+  border-top: 1px solid var(--borde);
+}
+
+.editor-valor-titulo {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.editor-valor-titulo output {
+  font-size: 18px;
+  color: var(--text);
+}
+
+.editor-valor-fila {
+  flex: 0 0 auto;
+}
+
+/* Editor del árbol: elegir elemento y añadir en serie / en paralelo / quitar. */
+.editor-arbol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor-arbol-titulo {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.editor-arbol-acciones {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.editor-arbol-acciones button,
+.boton-banco {
+  min-width: 44px;
+  min-height: 44px;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.2;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--borde);
+  background: rgba(11, 16, 32, 0.5);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.editor-arbol-acciones button:hover,
+.boton-banco:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Botón sin efecto (tope o mínimo): texto atenuado pero con contraste ≥ 4,5:1 y borde punteado. */
+.editor-arbol-acciones button[aria-disabled="true"] {
+  color: var(--text-dim);
+  border-style: dashed;
+  border-color: var(--text-dim);
+  cursor: default;
+}
+
+.editor-arbol-acciones button[aria-disabled="true"]:hover {
+  border-color: var(--text-dim);
+  color: var(--text-dim);
+}
+
+.editor-arbol-aviso {
+  margin: 0;
+  min-height: 2.6em;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--text-dim);
+}
+
+/* Tabla accesible de lecturas. Si no cabe (columna lateral angosta) se desplaza por dentro. */
+.tabla-circuito-caja {
+  overflow-x: auto;
+}
+
+.tabla-circuito {
+  width: 100%;
+  margin-top: 10px;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.tabla-circuito caption {
+  text-align: left;
+  padding-bottom: 4px;
+  color: var(--text-dim);
+}
+
+.tabla-circuito th,
+.tabla-circuito td {
+  padding: 4px 6px;
+  text-align: right;
+  border-bottom: 1px solid var(--borde);
+  white-space: nowrap;
+}
+
+.tabla-circuito th[scope="col"]:first-child,
+.tabla-circuito th[scope="row"] {
+  text-align: left;
+}
+
+.tabla-circuito tr.activa {
+  background: rgba(34, 211, 238, 0.1);
+}
+
+.tabla-circuito-elegir {
+  min-width: 44px;
+  min-height: 44px;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tabla-circuito-elegir:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 520px) {
+  .tabla-circuito {
+    font-size: 12px;
+  }
+
+  .tabla-circuito th,
+  .tabla-circuito td {
+    padding: 4px 4px;
+  }
+}
+
+/* Banco de pruebas (solo desarrollo). */
+.banco-aviso {
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+}
+
+
+
+/* ---------- E6 Resistencias ---------- */
+
+.panel-circuito {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel-circuito-titulo {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.panel-circuito p,
+.panel-circuito-nota {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.panel-circuito-nota {
+  font-size: 13px;
+}
+
+/* Presets: dos columnas (los nombres son largos para tres). */
+.presets-circuitos .selector-modo {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.presets-circuitos .selector-modo button:last-of-type:nth-of-type(odd) {
+  grid-column: 1 / -1;
+}
+
+.texto-educativo {
+  border-top: 1px solid var(--borde);
+  padding-top: 8px;
+}
+
+.texto-educativo p {
+  color: var(--text);
+}
+
+/* Reducción paso a paso. */
+.panel-reduccion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--borde);
+  padding-top: 8px;
+}
+
+.panel-reduccion-texto,
+.panel-reduccion-final {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.panel-reduccion-final {
+  color: var(--text);
+}
+
+.panel-reduccion-final strong {
+  font-family: var(--mono);
+}
+
+.panel-reduccion-acciones {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.panel-reduccion-acciones button {
+  min-width: 44px;
+  min-height: 44px;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.2;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--borde);
+  background: rgba(11, 16, 32, 0.5);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.panel-reduccion-acciones button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.panel-reduccion-acciones button[aria-disabled="true"] {
+  color: var(--text-dim);
+  border-style: dashed;
+  border-color: var(--text-dim);
+  cursor: default;
+}
+
+.panel-reduccion-progreso {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.panel-reduccion-pasos {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.panel-reduccion-pasos code {
+  font-family: var(--mono);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+/* Totales bajo el lienzo. */
+.resumen-circuito {
+  margin-top: 6px;
+}
+
+.resumen-circuito dl {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+}
+
+.resumen-circuito dl > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.resumen-circuito dt {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.resumen-circuito dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 18px;
+  color: var(--text);
+}
+
+.resumen-circuito-aviso {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--text);
+  border-left: 3px solid var(--text-dim);
+  padding-left: 8px;
+}
+
+.tabla-circuito-nota {
+  margin: 10px 0 0;
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.cargando-estacion {
+  margin: 48px 16px;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+/* Móvil: el lienzo sale de los márgenes de la página para ganar ancho (los rótulos necesitan ≥ 12 px reales). */
+@media (max-width: 480px) {
+  .pagina-circuitos .circuito-zona {
+    width: calc(100% + 32px);
+    margin: 0 -16px;
+  }
+}
+
+/* Sala: instrucciones más grandes. */
+@media (min-width: 1600px) {
+  .pagina-circuitos .instrucciones {
+    font-size: 20px;
   }
 }

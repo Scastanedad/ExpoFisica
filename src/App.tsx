@@ -1,3 +1,4 @@
+import { lazy, Suspense } from "react";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Home } from "./pages/Home";
 import { CargasEnReposo } from "./pages/CargasEnReposo";
@@ -6,10 +7,14 @@ import { CampoContinuo } from "./pages/CampoContinuo";
 import { Materiales } from "./pages/Materiales";
 import { LeyDeGauss } from "./pages/LeyDeGauss";
 
+// Estaciones de circuitos: se cargan al entrar (code-split por ruta). E7 «Capacitores» seguirá este patrón.
+const Resistencias = lazy(() => import("./pages/Resistencias").then((m) => ({ default: m.Resistencias })));
+
 function App() {
   return (
     <BrowserRouter>
-      <Routes>
+      <Suspense fallback={<p className="cargando-estacion" role="status">Cargando estación…</p>}>
+        <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/cargas-en-reposo" element={<CargasEnReposo />} />
         {/* Ruta anterior: se mantiene para no romper enlaces ni QR ya impresos. */}
@@ -20,7 +25,9 @@ function App() {
         <Route path="/dipolos" element={<Navigate to="/campo-continuo" replace />} />
         <Route path="/materiales" element={<Materiales />} />
         <Route path="/ley-de-gauss" element={<LeyDeGauss />} />
+        <Route path="/resistencias" element={<Resistencias />} />
       </Routes>
+      </Suspense>
     </BrowserRouter>
   );
 }

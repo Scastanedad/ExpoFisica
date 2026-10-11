@@ -39,6 +39,7 @@ export function crearCtxFalso(): CtxFalso {
     closePath: () => contar("closePath"),
     moveTo: () => contar("moveTo"),
     lineTo: () => contar("lineTo"),
+    arc: () => contar("arc"),
     stroke: () => {
       contar("stroke");
       estilosTrazo.push(ctx.strokeStyle);

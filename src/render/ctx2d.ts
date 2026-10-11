@@ -21,6 +21,7 @@ export interface Contexto2D {
   closePath(): void;
   moveTo(x: number, y: number): void;
   lineTo(x: number, y: number): void;
+  arc(x: number, y: number, r: number, ang0: number, ang1: number): void;
   stroke(): void;
   fill(): void;
   fillRect(x: number, y: number, w: number, h: number): void;
