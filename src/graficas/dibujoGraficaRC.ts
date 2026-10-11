@@ -23,8 +23,8 @@ import {
 export const ANCHO_GRAFICA_RC = 360;
 export const ALTO_GRAFICA_RC = 250;
 /** Tamaño en sala (≥ 1600 px): misma proporción, rótulos escalados. */
-export const ANCHO_GRAFICA_RC_SALA = 440;
-export const ALTO_GRAFICA_RC_SALA = 306;
+export const ANCHO_GRAFICA_RC_SALA = 428;
+export const ALTO_GRAFICA_RC_SALA = 298;
 /** Marcas máximas del eje de tiempo (en múltiplos de τ). */
 const MARCAS_MAX = 6;
 /** Mínimo del eje horizontal: 6 τ (la carga llega al 99,75 %). */

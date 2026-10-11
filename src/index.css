@@ -3121,8 +3121,8 @@ a {
 /* Sala: gráfica y totales de E7 más grandes (el lienzo de la gráfica se redibuja a 440 px, no se estira). */
 @media (min-width: 1600px) {
   .lienzo-grafica.lienzo-grafica-rc {
-    max-width: 440px;
-    aspect-ratio: 440 / 306;
+    max-width: 430px;
+    aspect-ratio: 428 / 298;
   }
 
   .resumen-capacitores dd {

@@ -96,7 +96,7 @@ describe("ejes de la gráfica de E7", () => {
 });
 
 describe("tamaño de sala", () => {
-  it("la disposición de 440 px también cabe y sin solaparse", () => {
+  it("la disposición de 428 px también cabe y sin solaparse", () => {
     const g = disposicionGraficaRC(ANCHO_GRAFICA_RC_SALA, ALTO_GRAFICA_RC_SALA);
     expect(g.v.y1).toBeLessThan(g.tituloI);
     expect(g.i.y0).toBeGreaterThan(g.tituloI);
@@ -105,7 +105,7 @@ describe("tamaño de sala", () => {
   it("la fuente crece con el lienzo", () => {
     const { ctx } = ctxGrabador();
     dibujarGraficaRC(ctx, ANCHO_GRAFICA_RC_SALA, ALTO_GRAFICA_RC_SALA, datos());
-    expect(ctx.font).toMatch(/^14\.6/);
+    expect(ctx.font).toMatch(/^14\.2/);
   });
 });
 
