@@ -234,8 +234,9 @@ function emitirTramo(
 
 function colocarElemento(g: Generador, b: Extract<LB, { t: "e" }>, x: number, y: number): void {
   const ya = y + EL_EJE;
-  const nw = b.id.length * ANCHO_CAR * FUENTE_U;
-  const lw = 9 * ANCHO_CAR * FUENTE_U;
+  // Hasta 9 caracteres monoespaciados en cada zona («R1 4,7 kΩ», «−12 mA»).
+  const nw = 9 * ANCHO_CAR * FUENTE_U;
+  const lw = nw;
   g.elementos.push({
     id: b.id,
     tipo: b.tipo,
