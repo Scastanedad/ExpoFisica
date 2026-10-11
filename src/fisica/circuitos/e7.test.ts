@@ -103,6 +103,19 @@ describe.each(PRESETS_E7)("E7 descarga y energía: $nombre", (p) => {
     expect(Math.abs(s.eBateria - s.eDisipada - s.uAlmacenada()) / cE2).toBeLessThan(0.01);
   });
 
+  it("criterio 10 con el tiempo correcto: a 5τ U_C = (1−e^{−5})²·½CE² = 98,6 % (física, no error de h); a 6τ ya cumple ±1 %", () => {
+    const cE2 = p.cEq * 144;
+    const s = new Transitorio(netC, h);
+    for (let k = 0; k < 1000; k++) s.paso(); // 5τ
+    // Euler implícito concuerda con la fórmula analítica del RC dentro de 0,2 %.
+    expect(Math.abs(s.uAlmacenada() / (0.5 * cE2) - (1 - Math.exp(-5)) ** 2)).toBeLessThan(0.002);
+    expect(Math.abs(s.uAlmacenada() / (0.5 * cE2) - 1)).toBeGreaterThan(0.01); // 5τ NO basta para ±1 % en U_C
+    for (let k = 1000; k < 1200; k++) s.paso(); // 6τ
+    expect(Math.abs(s.eBateria / cE2 - 1)).toBeLessThan(0.01);
+    expect(Math.abs(s.eDisipada / (0.5 * cE2) - 1)).toBeLessThan(0.01);
+    expect(Math.abs(s.uAlmacenada() / (0.5 * cE2) - 1)).toBeLessThan(0.01);
+  });
+
   it("independiente de R: la energía disipada es ½CE² con R = 100 Ω y 10 kΩ", () => {
     for (const R of [100, 1e4]) {
       const s = new Transitorio(NET(p.arbol, "cargar", R), pasoTemporal(tauRC(p.arbol, R)));
