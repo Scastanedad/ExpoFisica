@@ -12,9 +12,9 @@ export const V_MAX_PX = 160;
 export const SUELO_E6 = 0.04;
 /**
  * Umbral único de «corriente nula»: por debajo, las partículas se detienen y los textos
- * muestran «≈ 0» (spec criterios §3: < 1 µA).
+ * muestran «≈ 0» (spec: 1 nA).
  */
-export const I_CERO = 1e-6;
+export const I_CERO = 1e-9;
 export const I_PARADA = I_CERO;
 
 export const esCorrienteNula = (i: number): boolean => Math.abs(i) < I_CERO;

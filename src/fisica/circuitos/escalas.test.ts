@@ -41,15 +41,15 @@ describe("velocidad de partículas (criterio 13)", () => {
     expect(v1 / v2).toBeCloseTo(2, 12);
     expect(velocidadParticula(iRef, iRef)).toBeCloseTo(V_MAX_PX, 12);
     expect(velocidadParticula(-3e-3, iRef)).toBe(-v1);
-    expect(velocidadParticula(1e-5, iRef)).toBeCloseTo(0.04 * V_MAX_PX, 12); // suelo del 4 %
+    expect(velocidadParticula(1e-6, iRef)).toBeCloseTo(0.04 * V_MAX_PX, 12); // suelo del 4 %
   });
-  it("umbral único: I_PARADA = I_CERO = 1 µA para partículas y para «≈ 0»", () => {
+  it("umbral único: I_PARADA = I_CERO = 1 nA para partículas y para «≈ 0»", () => {
     expect(I_PARADA).toBe(I_CERO);
-    expect(I_CERO).toBe(1e-6);
-    expect(esCorrienteNula(5e-7)).toBe(true);
-    expect(esCorrienteNula(-2e-6)).toBe(false);
-    expect(velocidadParticula(5e-7, 6e-3)).toBe(0);
-    expect(velocidadParticula(2e-6, 6e-3)).not.toBe(0);
+    expect(I_CERO).toBe(1e-9);
+    expect(esCorrienteNula(5e-10)).toBe(true);
+    expect(esCorrienteNula(-2e-9)).toBe(false);
+    expect(velocidadParticula(5e-10, 6e-3)).toBe(0);
+    expect(velocidadParticula(2e-9, 6e-3)).not.toBe(0);
   });
   it("|I| < umbral ⇒ se detienen (Wheatstone equilibrado)", () => {
     const eq = PRESETS_E6.find((p) => p.id === "wheatstoneEq")!;
