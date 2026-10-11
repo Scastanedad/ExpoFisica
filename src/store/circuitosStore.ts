@@ -30,6 +30,14 @@ export const RANGO_R_CARGA = RANGO_R;
 
 export const PERSONALIZADO = "personalizado";
 
+/** Resistencia interna de la batería real de E6 (spec §2): fija cuando se activa. */
+export const R_INTERNA = 2;
+
+/** `arbol` = serie-paralelo editable; `puente` = Wheatstone (solo se editan valores). */
+export type Topologia = "arbol" | "puente";
+
+export const MENSAJE_PUENTE = "En el puente de Wheatstone solo se cambian los valores.";
+
 export const MENSAJE_TOPE = `Máximo ${MAX_ELEMENTOS} elementos: quita uno para añadir otro.`;
 export const MENSAJE_MINIMO = "Debe quedar al menos un elemento.";
 
@@ -52,6 +60,9 @@ interface EstadoCircuitosStore {
   rCarga: number;
   modo: ModoCircuito;
   verElectrones: boolean;
+  /** E6: batería real (con resistencia interna `R_INTERNA`). Apagada por defecto. */
+  bateriaReal: boolean;
+  topologia: Topologia;
   seleccion: string | null;
   sonda: PosicionSonda | null;
   /** Aviso corto tras una edición rechazada (tope de 6, mínimo de 1). */
@@ -59,12 +70,13 @@ interface EstadoCircuitosStore {
   lecturas: LecturasCircuito | null;
   lecturaSonda: LecturaSondaCircuito | null;
 
-  iniciar: (dominio: Dominio, arbol: Bloque, presetId: string, E?: number) => void;
-  elegirPreset: (presetId: string, arbol: Bloque, E?: number) => void;
+  iniciar: (dominio: Dominio, arbol: Bloque, presetId: string, E?: number, topologia?: Topologia) => void;
+  elegirPreset: (presetId: string, arbol: Bloque, E?: number, topologia?: Topologia) => void;
   setE: (E: number) => void;
   setRCarga: (r: number) => void;
   setModo: (m: ModoCircuito) => void;
   setVerElectrones: (v: boolean) => void;
+  setBateriaReal: (v: boolean) => void;
   seleccionar: (id: string | null) => void;
   setValorElemento: (id: string, valor: number) => void;
   agregarEnSerie: () => void;
@@ -90,18 +102,22 @@ export const useCircuitosStore = create<EstadoCircuitosStore>((set, get) => ({
   rCarga: 1000,
   modo: "dc",
   verElectrones: false,
+  bateriaReal: false,
+  topologia: "arbol",
   seleccion: "R1",
   sonda: null,
   mensaje: null,
   lecturas: null,
   lecturaSonda: null,
 
-  iniciar: (dominio, arbol, presetId, E = 12) =>
+  iniciar: (dominio, arbol, presetId, E = 12, topologia = "arbol") =>
     set({
       dominio,
       arbol,
       presetId,
       E,
+      topologia,
+      bateriaReal: false,
       modo: dominio === "R" ? "dc" : "abierto",
       seleccion: idsDe(arbol)[0] ?? null,
       sonda: null,
@@ -110,10 +126,11 @@ export const useCircuitosStore = create<EstadoCircuitosStore>((set, get) => ({
       lecturaSonda: null,
     }),
 
-  elegirPreset: (presetId, arbol, E) =>
+  elegirPreset: (presetId, arbol, E, topologia = "arbol") =>
     set((s) => ({
       presetId,
       arbol,
+      topologia,
       E: E ?? s.E,
       seleccion: idsDe(arbol)[0] ?? null,
       sonda: null,
@@ -124,6 +141,7 @@ export const useCircuitosStore = create<EstadoCircuitosStore>((set, get) => ({
   setRCarga: (r) => set({ rCarga: acotar(r, RANGO_R_CARGA.min, RANGO_R_CARGA.max) }),
   setModo: (modo) => set({ modo }),
   setVerElectrones: (verElectrones) => set({ verElectrones }),
+  setBateriaReal: (bateriaReal) => set({ bateriaReal }),
   seleccionar: (id) => set({ seleccion: id }),
 
   setValorElemento: (id, valor) => {
@@ -133,7 +151,8 @@ export const useCircuitosStore = create<EstadoCircuitosStore>((set, get) => ({
   },
 
   agregarEnSerie: () => {
-    const { arbol, seleccion, dominio } = get();
+    const { arbol, seleccion, dominio, topologia } = get();
+    if (topologia === "puente") return set({ mensaje: MENSAJE_PUENTE });
     if (seleccion === null) return;
     const nuevo = agregarSerie(arbol, seleccion, dominio);
     if (!nuevo) return set({ mensaje: MENSAJE_TOPE });
@@ -142,7 +161,8 @@ export const useCircuitosStore = create<EstadoCircuitosStore>((set, get) => ({
   },
 
   agregarEnParalelo: () => {
-    const { arbol, seleccion, dominio } = get();
+    const { arbol, seleccion, dominio, topologia } = get();
+    if (topologia === "puente") return set({ mensaje: MENSAJE_PUENTE });
     if (seleccion === null) return;
     const nuevo = agregarParalelo(arbol, seleccion, dominio);
     if (!nuevo) return set({ mensaje: MENSAJE_TOPE });
@@ -151,7 +171,8 @@ export const useCircuitosStore = create<EstadoCircuitosStore>((set, get) => ({
   },
 
   quitarSeleccionado: () => {
-    const { arbol, seleccion, dominio } = get();
+    const { arbol, seleccion, dominio, topologia } = get();
+    if (topologia === "puente") return set({ mensaje: MENSAJE_PUENTE });
     if (seleccion === null) return;
     const nuevo = quitar(arbol, seleccion, dominio);
     if (!nuevo) return set({ mensaje: MENSAJE_MINIMO });

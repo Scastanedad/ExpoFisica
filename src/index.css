@@ -2751,3 +2751,172 @@ a {
 }
 
 
+
+/* ---------- E6 Resistencias ---------- */
+
+.panel-circuito {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.panel-circuito-titulo {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.panel-circuito p,
+.panel-circuito-nota {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.panel-circuito-nota {
+  font-size: 13px;
+}
+
+/* Presets: dos columnas (los nombres son largos para tres). */
+.presets-circuitos .selector-modo {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.presets-circuitos .selector-modo button:last-of-type:nth-of-type(odd) {
+  grid-column: 1 / -1;
+}
+
+.texto-educativo {
+  border-top: 1px solid var(--borde);
+  padding-top: 8px;
+}
+
+.texto-educativo p {
+  color: var(--text);
+}
+
+/* Reducción paso a paso. */
+.panel-reduccion {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-top: 1px solid var(--borde);
+  padding-top: 8px;
+}
+
+.panel-reduccion-texto,
+.panel-reduccion-final {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.panel-reduccion-final {
+  color: var(--text);
+}
+
+.panel-reduccion-final strong {
+  font-family: var(--mono);
+}
+
+.panel-reduccion-acciones {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.panel-reduccion-acciones button {
+  min-width: 44px;
+  min-height: 44px;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.2;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--borde);
+  background: rgba(11, 16, 32, 0.5);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.panel-reduccion-acciones button:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.panel-reduccion-acciones button[aria-disabled="true"] {
+  color: var(--text-dim);
+  border-style: dashed;
+  border-color: var(--text-dim);
+  cursor: default;
+}
+
+.panel-reduccion-progreso {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.panel-reduccion-pasos {
+  margin: 0;
+  padding-left: 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.panel-reduccion-pasos code {
+  font-family: var(--mono);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+/* Totales bajo el lienzo. */
+.resumen-circuito {
+  margin-top: 6px;
+}
+
+.resumen-circuito dl {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 24px;
+}
+
+.resumen-circuito dl > div {
+  display: flex;
+  flex-direction: column;
+}
+
+.resumen-circuito dt {
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.resumen-circuito dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 18px;
+  color: var(--text);
+}
+
+.resumen-circuito-aviso {
+  margin: 4px 0 0;
+  font-size: 14px;
+  color: var(--text);
+  border-left: 3px solid var(--text-dim);
+  padding-left: 8px;
+}
+
+.tabla-circuito-nota {
+  margin: 10px 0 0;
+  font-size: 14px;
+  color: var(--text-dim);
+}

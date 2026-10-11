@@ -52,6 +52,14 @@ const ESTACIONES: Estacion[] = [
       "Mueve cargas en 3D alrededor de una superficie imaginaria y mide cuánto campo la atraviesa: el flujo depende de la carga que encierra.",
     ruta: "/ley-de-gauss",
   },
+  {
+    numero: "06",
+    etiqueta: "Armas el circuito",
+    titulo: "Resistencias",
+    descripcion:
+      "Arma circuitos con hasta seis resistores en serie, en paralelo o en puente, y mide con una sonda el voltaje y la corriente en cada punto.",
+    ruta: "/resistencias",
+  },
 ];
 
 /**

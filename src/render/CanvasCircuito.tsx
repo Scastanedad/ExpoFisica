@@ -25,7 +25,7 @@ import { useCircuitosStore } from "../store/circuitosStore";
 import { crearAnunciador } from "../ui/anunciosGauss3D";
 import { tamanoLienzo, type TamanoLienzo } from "./circuitos/formatos";
 import { dibujarCircuito, type DatosDibujo } from "./circuitos/dibujarCircuito";
-import { distribuirCircuito, tramoCercano, type GeometriaCircuito } from "./circuitos/distribucion";
+import { distribuirCircuito, distribuirPuente, tramoCercano, type GeometriaCircuito } from "./circuitos/distribucion";
 import type { EstadoElectrico } from "./circuitos/estado";
 import {
   avanzarParticulas,
@@ -59,6 +59,11 @@ export interface PropsCanvasCircuito {
   /** E7: dibuja el resistor de carga fijo «Rc» antes del árbol. */
   conRCarga?: boolean;
   /**
+   * `arbol` (por defecto): serie-paralelo distribuido automáticamente. `puente`: puente de Wheatstone con
+   * disposición fija (el `arbol` solo aporta los valores de R1..R5).
+   */
+  disposicion?: "arbol" | "puente";
+  /**
    * Estado eléctrico vigente; se llama una vez por fotograma con el tiempo real transcurrido [s].
    * Debe ser barato (no resolver sistemas nuevos aquí). `null` = circuito no válido.
    */
@@ -83,7 +88,7 @@ function altoDisponibleCss(zona: HTMLElement): number {
   return alto > 0 ? alto : window.innerHeight * 0.6;
 }
 
-export function CanvasCircuito({ arbol, dominio, conRCarga = false, obtenerEstado, etiqueta, pie }: PropsCanvasCircuito) {
+export function CanvasCircuito({ arbol, dominio, conRCarga = false, disposicion = "arbol", obtenerEstado, etiqueta, pie }: PropsCanvasCircuito) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const zonaRef = useRef<HTMLDivElement>(null);
   const [tam, setTam] = useState<TamanoLienzo>({ ancho: 960, alto: 540 });
@@ -93,10 +98,10 @@ export function CanvasCircuito({ arbol, dominio, conRCarga = false, obtenerEstad
   const idAyuda = useId();
 
   // Últimos valores de las props, leídos por el bucle sin reiniciarlo.
-  const propsRef = useRef({ arbol, dominio, conRCarga, obtenerEstado, ancho, alto });
+  const propsRef = useRef({ arbol, dominio, conRCarga, disposicion, obtenerEstado, ancho, alto });
   useEffect(() => {
-    propsRef.current = { arbol, dominio, conRCarga, obtenerEstado, ancho, alto };
-  }, [arbol, dominio, conRCarga, obtenerEstado, ancho, alto]);
+    propsRef.current = { arbol, dominio, conRCarga, disposicion, obtenerEstado, ancho, alto };
+  }, [arbol, dominio, conRCarga, disposicion, obtenerEstado, ancho, alto]);
 
   // Todo lo que cambia por fotograma vive aquí, fuera de React.
   const geomRef = useRef<GeometriaCircuito | null>(null);
@@ -229,10 +234,14 @@ export function CanvasCircuito({ arbol, dominio, conRCarga = false, obtenerEstad
         // Solo la estructura cambia la geometría; editar un valor crea otro árbol pero no la mueve.
         firmaArbolRef.current = JSON.stringify(p.arbol, (k, v) => (k === "valor" ? undefined : v));
       }
-      const clave = `${p.dominio}|${p.conRCarga}|${p.ancho}x${p.alto}|${fuenteMin}|${firmaArbolRef.current}`;
+      const clave = `${p.disposicion}|${p.dominio}|${p.conRCarga}|${p.ancho}x${p.alto}|${fuenteMin}|${firmaArbolRef.current}`;
       if (clave !== claveGeomRef.current || !geomRef.current) {
         claveGeomRef.current = clave;
-        const g = distribuirCircuito(p.arbol, p.dominio, { ancho: p.ancho, alto: p.alto }, { rCarga: p.conRCarga, fuenteMin });
+        const rect = { ancho: p.ancho, alto: p.alto };
+        const g =
+          p.disposicion === "puente"
+            ? distribuirPuente(rect, { fuenteMin })
+            : distribuirCircuito(p.arbol, p.dominio, rect, { rCarga: p.conRCarga, fuenteMin });
         geomRef.current = g;
         particulasRef.current = crearParticulas(g);
         bufRef.current = { corr: new Float64Array(g.tramos.length), vel: new Float32Array(g.tramos.length) };

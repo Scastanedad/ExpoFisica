@@ -368,7 +368,6 @@ export function distribuirCircuito(
   rect: { ancho: number; alto: number },
   opciones: OpcionesDistribucion = {},
 ): GeometriaCircuito {
-  const { ancho, alto } = rect;
   const fuenteMin = opciones.fuenteMin ?? FUENTE_MIN_DEFECTO;
   const rCarga = opciones.rCarga === true;
   let raiz = aLayout(arbol, tipoHojas);
@@ -411,6 +410,22 @@ export function distribuirCircuito(
     rotulo: { x: X_BATERIA + 0.35, y: yMenos + 0.55 },
   };
 
+  return cerrarGeometria(g, bateriaU, wU, hU, rect, fuenteMin);
+}
+
+/**
+ * Cierre común de todas las disposiciones: escala las unidades de rejilla al rectángulo (siempre cabe),
+ * decide el nivel de rótulos y centra. `wU` × `hU` es el tamaño del lazo completo en unidades.
+ */
+function cerrarGeometria(
+  g: Generador,
+  bateriaU: BateriaColocada,
+  wU: number,
+  hU: number,
+  rect: { ancho: number; alto: number },
+  fuenteMin: number,
+): GeometriaCircuito {
+  const { ancho, alto } = rect;
   // Escala: cabe el lazo entero; en modo compacto se reserva la franja superior.
   const sAncho = ancho / wU;
   let s = Math.min(sAncho, alto / hU, S_MAX);
@@ -457,6 +472,82 @@ export function distribuirCircuito(
     bateria,
     caja: { x: ox, y: oy, w: wU * s, h: hU * s },
   };
+}
+
+/** Ids de los cinco resistores del puente de Wheatstone, en el orden del netlist (`netlistWheatstone`). */
+export const IDS_PUENTE = ["R1", "R2", "R3", "R4", "R5"] as const;
+
+/**
+ * Puente de Wheatstone (no es serie-paralelo, así que no sale del árbol): tres filas de resistores
+ * horizontales, todos con a a la izquierda y b a la derecha, igual que en `netlistWheatstone`:
+ *
+ *   fila 1:  [1]──R1──(A)──R2──────────┐
+ *             │        │              (0)
+ *   fila 2:   │        └──R5──(B)      │
+ *             │                │       │
+ *   fila 3:  [1]──R3──────────(B)─R4───┘
+ *
+ * El puente R5 baja desde A (entre R1 y R2) hasta B (entre R3 y R4). Cada trozo de cable lleva su nodo y
+ * los elementos cuya suma con signo da la corriente en el sentido dibujado (convención a→b): el cable
+ * vertical de A baja `i(R5)` y el de B también; la barra izquierda baja `i(R3)`; la derecha, `i(R2)`.
+ */
+export function distribuirPuente(
+  rect: { ancho: number; alto: number },
+  opciones: Pick<OpcionesDistribucion, "fuenteMin"> = {},
+): GeometriaCircuito {
+  const fuenteMin = opciones.fuenteMin ?? FUENTE_MIN_DEFECTO;
+  const g: Generador = { elementos: [], tramos: [], n: 0 };
+  const hoja = (id: string): Extract<LB, { t: "e" }> => ({ t: "e", id, tipo: "R" });
+
+  const xi = X_ARBOL;
+  const xA = xi + EL_W; // nodo A (entre R1 y R2) y fin de R3
+  const xB = xi + 2 * EL_W; // nodo B (entre R3 y R4) y fin del cable de R2
+  const xo = xi + 3 * EL_W; // salida de R4
+  const xr = xo + COLA_DER;
+  const wU = xr + MARGEN_X;
+  const yTop = Y_RIEL_SUP + SEP_RIEL;
+  const y1 = yTop + EL_EJE;
+  const y2 = y1 + EL_H;
+  const y3 = y2 + EL_H;
+  const yRielInf = yTop + 3 * EL_H + SEP_RIEL;
+  const hU = yRielInf + COLA_INF;
+  const yRiel = Y_RIEL_SUP;
+  const cy = (yRiel + yRielInf) / 2;
+  const yMas = cy - 0.6;
+  const yMenos = cy + 0.6;
+
+  colocarElemento(g, hoja("R1"), xi, yTop);
+  colocarElemento(g, hoja("R2"), xA, yTop);
+  colocarElemento(g, hoja("R5"), xA, yTop + EL_H);
+  colocarElemento(g, hoja("R3"), xi, yTop + 2 * EL_H);
+  colocarElemento(g, hoja("R4"), xB, yTop + 2 * EL_H);
+
+  const i = (id: string, signo: 1 | -1 = 1): TerminoCorriente[] => [{ id, signo }];
+  const iBat: TerminoCorriente[] = [{ id: ID_FUENTE, signo: -1 }];
+  const n1: RefNodo = { el: "R1", lado: "a" };
+  const nA: RefNodo = { el: "R1", lado: "b" };
+  const nB: RefNodo = { el: "R3", lado: "b" };
+  const n0: RefNodo = { el: "R4", lado: "b" };
+
+  emitirTramo(g, "riel-sup", [X_BATERIA, yMas, X_BATERIA, yRiel, xi, yRiel, xi, y1], n1, iBat);
+  emitirTramo(g, "barra-izq", [xi, y1, xi, y3], n1, i("R3"));
+  emitirTramo(g, "cable-A-puente", [xA, y1, xA, y2], nA, i("R5"));
+  emitirTramo(g, "cable-R3-B", [xA, y3, xB, y3], nB, i("R3"));
+  emitirTramo(g, "cable-B-puente", [xB, y2, xB, y3], nB, i("R5"));
+  emitirTramo(g, "cable-R2-sal", [xB, y1, xr, y1], n0, i("R2"));
+  emitirTramo(g, "cable-R4-sal", [xo, y3, xr, y3], n0, i("R4"));
+  emitirTramo(g, "barra-der", [xr, y1, xr, y3], n0, i("R2"));
+  emitirTramo(g, "riel-der", [xr, y3, xr, yRielInf], n0, iBat);
+  emitirTramo(g, "riel-inf", [xr, yRielInf, X_BATERIA, yRielInf, X_BATERIA, yMenos], n0, iBat);
+
+  const bateriaU: BateriaColocada = {
+    cx: X_BATERIA,
+    yMas,
+    yMenos,
+    caja: { x: X_BATERIA - 1.1, y: yMas, w: 2.6, h: yMenos - yMas + 0.3 + 0.55 },
+    rotulo: { x: X_BATERIA + 0.35, y: yMenos + 0.55 },
+  };
+  return cerrarGeometria(g, bateriaU, wU, hU, rect, fuenteMin);
 }
 
 // ---------------------------------------------------------------- utilidades de consulta

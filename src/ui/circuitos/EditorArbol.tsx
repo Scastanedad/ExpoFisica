@@ -1,5 +1,5 @@
 import { MAX_ELEMENTOS, contarHojas, hojas } from "../../fisica/circuitos";
-import { useCircuitosStore } from "../../store/circuitosStore";
+import { MENSAJE_PUENTE, useCircuitosStore } from "../../store/circuitosStore";
 import { textoValorElemento } from "../../render/circuitos/textos";
 import { SelectorSegmentado } from "../SelectorSegmentado";
 
@@ -12,6 +12,7 @@ export function EditorArbol() {
   const arbol = useCircuitosStore((s) => s.arbol);
   const dominio = useCircuitosStore((s) => s.dominio);
   const seleccion = useCircuitosStore((s) => s.seleccion);
+  const topologia = useCircuitosStore((s) => s.topologia);
   const mensaje = useCircuitosStore((s) => s.mensaje);
   const seleccionar = useCircuitosStore((s) => s.seleccionar);
   const agregarEnSerie = useCircuitosStore((s) => s.agregarEnSerie);
@@ -20,7 +21,8 @@ export function EditorArbol() {
 
   const lista = hojas(arbol);
   const n = contarHojas(arbol);
-  const lleno = n >= MAX_ELEMENTOS;
+  const fijo = topologia === "puente";
+  const lleno = n >= MAX_ELEMENTOS || fijo;
   const nombre = dominio === "R" ? "resistor" : "capacitor";
   const opciones = lista.map((h) => ({
     valor: h.id,
@@ -48,13 +50,15 @@ export function EditorArbol() {
         <button type="button" aria-disabled={lleno} onClick={agregarEnParalelo}>
           Añadir en paralelo
         </button>
-        <button type="button" aria-disabled={n <= 1} onClick={quitarSeleccionado}>
+        <button type="button" aria-disabled={n <= 1 || fijo} onClick={quitarSeleccionado}>
           Quitar
         </button>
       </div>
       <p className="editor-arbol-aviso" role="status">
         {mensaje ??
-          (seleccion ? `Se añade junto a ${seleccion} y copia su valor.` : "Elige un elemento para añadir junto a él.")}
+          (fijo
+            ? MENSAJE_PUENTE
+            : seleccion ? `Se añade junto a ${seleccion} y copia su valor.` : "Elige un elemento para añadir junto a él.")}
       </p>
     </section>
   );

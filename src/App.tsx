@@ -5,6 +5,7 @@ import { CargasEnMovimiento } from "./pages/CargasEnMovimiento";
 import { CampoContinuo } from "./pages/CampoContinuo";
 import { Materiales } from "./pages/Materiales";
 import { LeyDeGauss } from "./pages/LeyDeGauss";
+import { Resistencias } from "./pages/Resistencias";
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
         <Route path="/dipolos" element={<Navigate to="/campo-continuo" replace />} />
         <Route path="/materiales" element={<Materiales />} />
         <Route path="/ley-de-gauss" element={<LeyDeGauss />} />
+        <Route path="/resistencias" element={<Resistencias />} />
       </Routes>
     </BrowserRouter>
   );
