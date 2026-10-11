@@ -15,8 +15,8 @@ export function LeyendaCorriente() {
           : "Puntos y flechas: corriente convencional, de + a −."}
       </p>
       <p className="leyenda-corriente-aviso">
-        Los puntos son una representación. La velocidad real de arrastre de los electrones en un cable es de ~0,1
-        mm/s; la señal eléctrica viaja casi a la velocidad de la luz. Aquí la rapidez de los puntos solo indica cuánta
+        Los puntos son una representación. La velocidad real de arrastre de los electrones en un cable es de 0,1
+        mm/s o menos; la señal eléctrica viaja casi a la velocidad de la luz. Aquí la rapidez de los puntos solo indica cuánta
         corriente hay.
       </p>
     </div>
