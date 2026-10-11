@@ -60,6 +60,14 @@ const ESTACIONES: Estacion[] = [
       "Arma circuitos con hasta seis resistores en serie, en paralelo o en puente, y mide con una sonda el voltaje y la corriente en cada punto.",
     ruta: "/resistencias",
   },
+  {
+    numero: "07",
+    etiqueta: "Cárgalo y descárgalo",
+    titulo: "Capacitores",
+    descripcion:
+      "Arma redes de hasta seis capacitores, cárgalas con una batería y mira cómo se llenan de carga con el tiempo: voltaje, corriente y energía de cada uno.",
+    ruta: "/capacitores",
+  },
 ];
 
 /**

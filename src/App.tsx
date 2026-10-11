@@ -7,8 +7,9 @@ import { CampoContinuo } from "./pages/CampoContinuo";
 import { Materiales } from "./pages/Materiales";
 import { LeyDeGauss } from "./pages/LeyDeGauss";
 
-// Estaciones de circuitos: se cargan al entrar (code-split por ruta). E7 «Capacitores» seguirá este patrón.
+// Estaciones de circuitos: se cargan al entrar (code-split por ruta). E7 «Capacitores» sigue el mismo patrón.
 const Resistencias = lazy(() => import("./pages/Resistencias").then((m) => ({ default: m.Resistencias })));
+const Capacitores = lazy(() => import("./pages/Capacitores").then((m) => ({ default: m.Capacitores })));
 
 function App() {
   return (
@@ -26,6 +27,7 @@ function App() {
         <Route path="/materiales" element={<Materiales />} />
         <Route path="/ley-de-gauss" element={<LeyDeGauss />} />
         <Route path="/resistencias" element={<Resistencias />} />
+        <Route path="/capacitores" element={<Capacitores />} />
       </Routes>
       </Suspense>
     </BrowserRouter>

@@ -4,7 +4,7 @@ import { useCircuitosStore } from "../../store/circuitosStore";
  * Leyenda del sentido de la corriente y aviso de honestidad (spec §7): los puntos son una
  * representación, no la velocidad de arrastre de los electrones.
  */
-export function LeyendaCorriente() {
+export function LeyendaCorriente({ notaSentido }: { notaSentido?: string }) {
   const verElectrones = useCircuitosStore((s) => s.verElectrones);
   return (
     <div className="leyenda-corriente">
@@ -14,6 +14,7 @@ export function LeyendaCorriente() {
           ? "Puntos y flechas: electrones, al revés que la corriente convencional."
           : "Puntos y flechas: corriente convencional, de + a −."}
       </p>
+      {notaSentido ? <p className="leyenda-corriente-sentido">{notaSentido}</p> : null}
       <p className="leyenda-corriente-aviso">
         Los puntos son una representación. La velocidad real de arrastre de los electrones en un cable es de 0,1
         mm/s o menos; la señal eléctrica viaja casi a la velocidad de la luz. Aquí la rapidez de los puntos solo indica cuánta

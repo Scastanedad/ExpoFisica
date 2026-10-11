@@ -115,7 +115,7 @@ export function Resistencias() {
           )}
         </div>
         <div className="simulador-lateral">
-          <section className="panel-circuito" aria-label="Elegir el circuito">
+          <section className="panel-circuito panel-presets" aria-label="Elegir el circuito">
             <h3 className="panel-circuito-titulo">Circuito de ejemplo</h3>
             <div className="presets-circuitos">
               <SelectorSegmentado<string>
@@ -138,7 +138,13 @@ export function Resistencias() {
             Ver electrones
           </label>
 
-          <PanelReduccion control={reduccion} puente={puente} E={E} rInt={rInt} alVolver={volverAlCompleto} />
+          <PanelReduccion
+            control={reduccion}
+            puente={puente}
+            dominio="R"
+            alTerminar={(eq) => `Corriente de la batería: I = E / ${rInt > 0 ? "(R_eq + r_int)" : "R_eq"} = ${formatearSI(E / (eq + rInt), "A")}.`}
+            alVolver={volverAlCompleto}
+          />
 
           <EditorArbol />
           {hoja ? (

@@ -103,15 +103,27 @@ function dibujarResistor(ctx: Contexto2D, g: GeometriaCircuito, id: string, sel:
 }
 
 function dibujarSignoCarga(ctx: Contexto2D, x: number, y: number, r: number, positiva: boolean): void {
-  ctx.strokeStyle = positiva ? POSITIVA : NEGATIVA;
+  // Halo oscuro: las marcas van encima de los puntos de carga y no deben confundirse con ellos.
+  ctx.fillStyle = FONDO;
+  ctx.globalAlpha = 0.92;
   ctx.beginPath();
-  ctx.moveTo(x - r, y);
-  ctx.lineTo(x + r, y);
+  ctx.arc(x, y, r * 1.3, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = positiva ? POSITIVA : NEGATIVA;
+  // Círculo + signo (⊕ / ⊖): la FORMA distingue la polaridad, no solo el color (daltonismo); dos «−» apilados ya no se leen «=».
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.stroke();
+  const m = r * 0.58;
+  ctx.beginPath();
+  ctx.moveTo(x - m, y);
+  ctx.lineTo(x + m, y);
   ctx.stroke();
   if (positiva) {
     ctx.beginPath();
-    ctx.moveTo(x, y - r);
-    ctx.lineTo(x, y + r);
+    ctx.moveTo(x, y - m);
+    ctx.lineTo(x, y + m);
     ctx.stroke();
   }
 }
@@ -121,7 +133,6 @@ function dibujarCapacitor(
   g: GeometriaCircuito,
   id: string,
   sel: boolean,
-  nCargas: number,
   lw: number,
 ): void {
   const el = g.elementos.find((e) => e.id === id);
@@ -139,12 +150,22 @@ function dibujarCapacitor(
   ctx.lineWidth = lw * 1.6;
   trazar(ctx, [xa, el.yEje - media, xa, el.yEje + media]);
   trazar(ctx, [xb, el.yEje - media, xb, el.yEje + media]);
+}
+
+/** Marcas ⊕/⊖ de las placas (se dibujan encima de las partículas). */
+function dibujarCargasPlaca(ctx: Contexto2D, g: GeometriaCircuito, id: string, nCargas: number, lw: number): void {
+  const el = g.elementos.find((e) => e.id === id);
+  if (!el) return;
+  const c = el.cuerpo;
+  const xa = c.x + c.w * 0.38;
+  const xb = c.x + c.w * 0.62;
+  const media = c.h * 0.5;
   // Cargas acumuladas: placa a (+Q si n > 0), placa b (−Q): una marca por unidad de carga dibujada, en filas
   // alternando arriba y abajo del cable (así ninguna queda tapada por el propio cable).
   const n = Math.min(8, Math.abs(Math.round(nCargas)));
   if (n === 0) return;
   const paso = media / 3.6;
-  const r = Math.min(Math.max(1.8, g.s * 0.08), paso * 0.45);
+  const r = Math.max(3, Math.min(Math.max(4, g.s * 0.11), paso * 0.5));
   const dx = Math.max(r * 2.4, g.s * 0.3);
   ctx.lineWidth = lw * 0.7;
   for (let k = 0; k < n; k++) {
@@ -167,10 +188,6 @@ function dibujarBateria(ctx: Contexto2D, g: GeometriaCircuito, d: DatosDibujo, l
   ctx.lineWidth = lw * 1.6;
   trazar(ctx, [cx - g.s * 0.62, y1, cx + g.s * 0.62, y1]);
   trazar(ctx, [cx - g.s * 0.34, y2, cx + g.s * 0.34, y2]);
-  ctx.lineWidth = lw * 0.9;
-  const r = Math.max(3, g.s * 0.14);
-  dibujarSignoCarga(ctx, cx + g.s * 0.95, y1 - g.s * 0.12, r, true);
-  dibujarSignoCarga(ctx, cx + g.s * 0.95, y2 + g.s * 0.12, r, false);
 
   const f = Math.max(g.fuente, g.fuenteMin);
   ctx.font = fuente(f, true);
@@ -179,6 +196,18 @@ function dibujarBateria(ctx: Contexto2D, g: GeometriaCircuito, d: DatosDibujo, l
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillText(d.textoBateria, g.bateria.rotulo.x, g.bateria.rotulo.y);
+}
+
+/** Signos ⊕/⊖ de los bornes de la batería (encima de las partículas). */
+function dibujarSignosBateria(ctx: Contexto2D, g: GeometriaCircuito, lw: number): void {
+  const { cx, yMas, yMenos } = g.bateria;
+  const h = yMenos - yMas;
+  const y1 = yMas + h * 0.38;
+  const y2 = yMas + h * 0.62;
+  ctx.lineWidth = lw * 0.9;
+  const r = Math.max(3, g.s * 0.14);
+  dibujarSignoCarga(ctx, cx + g.s * 0.95, y1 - g.s * 0.12, r, true);
+  dibujarSignoCarga(ctx, cx + g.s * 0.95, y2 + g.s * 0.12, r, false);
 }
 
 function dibujarParticulas(
@@ -267,9 +296,11 @@ function dibujarRotulos(ctx: Contexto2D, g: GeometriaCircuito, d: DatosDibujo): 
       if (!textos) continue;
       ctx.font = fuente(g.fuenteMin);
       ctx.fillStyle = TEXTO;
+      // Interlineado y arranque más justos que en el nivel completo: la caja de lectura es más baja que dos líneas
+      // de fuente mínima y, con 0,95/1,15, la segunda línea rozaba el cable de abajo.
       ctx.fillText(textos.v, cx, el.lectura.y + g.fuenteMin * 0.95);
       ctx.fillStyle = TEXTO_SUAVE;
-      ctx.fillText(textos.i, cx, el.lectura.y + g.fuenteMin * 0.95 + g.fuenteMin * 1.15);
+      ctx.fillText(textos.i, cx, el.lectura.y + g.fuenteMin * 0.95 + g.fuenteMin * 1.04);
       continue;
     }
     ctx.font = fuente(g.fuente, true);
@@ -318,13 +349,15 @@ export function dibujarCircuito(ctx: Contexto2D, g: GeometriaCircuito, d: DatosD
   dibujarCables(ctx, g, d, lw);
   for (const el of g.elementos) {
     if (el.tipo === "R") dibujarResistor(ctx, g, el.id, el.id === d.seleccion, lw);
-    else dibujarCapacitor(ctx, g, el.id, el.id === d.seleccion, d.placas?.[el.id] ?? 0, lw);
+    else dibujarCapacitor(ctx, g, el.id, el.id === d.seleccion, lw);
   }
   dibujarBateria(ctx, g, d, lw);
 
   if (d.particulas && !vista.movimientoReducido) {
     dibujarParticulas(ctx, g, d, d.particulas, vista.verElectrones, RADIO_PARTICULA_CSS / vista.escalaCss);
   }
+  for (const el of g.elementos) if (el.tipo === "C") dibujarCargasPlaca(ctx, g, el.id, d.placas?.[el.id] ?? 0, lw);
+  dibujarSignosBateria(ctx, g, lw);
   dibujarFlechas(ctx, g, d, vista.verElectrones, vista.escalaCss);
   dibujarRotulos(ctx, g, d);
   if (d.sonda) dibujarSonda(ctx, d.sonda, vista.escalaCss);
