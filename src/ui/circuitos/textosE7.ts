@@ -51,7 +51,7 @@ export function rotuloCorriente(modo: ModoInterruptor, i: number): string {
 
 /** Aviso junto a la leyenda de sentido mientras se descarga: las flechas van al revés que al cargar. */
 export const NOTA_SENTIDO_DESCARGA =
-  "Al descargar, los capacitores son la fuente: la corriente sale de su placa + y vuelve por el resistor, al revés que al cargar.";
+  "Al descargar, los capacitores son la fuente: la corriente sale de su placa + y vuelve por el resistor, al revés que al cargar. Por eso Rc marca voltaje y corriente con signo menos: solo indica que van al revés que al cargar; el valor es el que hay.";
 
 export function textoFase(fase: FaseRC): string {
   switch (fase) {
@@ -108,10 +108,14 @@ export const TEXTO_TAU =
   "τ = R·C total. En un τ la carga llega al 63 %; al terminar de cargar (unos 5τ) casi no pasa corriente.";
 
 export const TEXTO_ENERGIA_CARGA =
-  "Al terminar de cargar, la batería habrá entregado C·E²: la mitad queda almacenada (½·C·E²) y la otra mitad se disipa en el resistor, sea cual sea su resistencia.";
+  "Al terminar de cargar desde cero, la batería habrá entregado C·E²: la mitad queda almacenada (½·C·E²) y la otra mitad se disipa en el resistor, sea cual sea su resistencia.";
 
 export const TEXTO_DESCARGA =
   "La corriente va al revés porque ahora el capacitor es la fuente. Toda la energía almacenada se disipa en el resistor.";
+
+/** Interruptor en «Cargar» pero V de los capacitores por encima de E (se bajó el voltaje de la batería). */
+export const TEXTO_BATERIA_BAJADA =
+  "El voltaje de la batería quedó por debajo del de los capacitores: ellos empujan carga de vuelta hacia la batería (ideal, absorbe energía) hasta igualar su voltaje. Por eso la corriente es negativa y la energía «entregada» baja.";
 
 export const TEXTO_DESCARGA_SIN_CARGA = "Primero carga los capacitores: no hay nada que descargar.";
 
@@ -127,6 +131,6 @@ export function textoEducativoE7(arbol: Bloque, modo: ModoInterruptor, fase: Fas
           : "Un solo capacitor";
   const parrafos = [...BASE, POR_FORMA[forma], TEXTO_TAU];
   if (modo === "descargar") parrafos.push(fase === "descargado" ? TEXTO_DESCARGA_SIN_CARGA : TEXTO_DESCARGA);
-  else parrafos.push(TEXTO_ENERGIA_CARGA);
+  else parrafos.push(fase === "descargando" ? TEXTO_BATERIA_BAJADA : TEXTO_ENERGIA_CARGA);
   return { titulo, parrafos };
 }

@@ -5,6 +5,7 @@ import {
   NOTA_ESCALA_TIEMPO,
   NOTA_SENTIDO_DESCARGA,
   TEXTO_DESCARGA,
+  TEXTO_BATERIA_BAJADA,
   TEXTO_DESCARGA_SIN_CARGA,
   TEXTO_ENERGIA_CARGA,
   anuncioFase,
@@ -102,6 +103,13 @@ describe("textos educativos de E7", () => {
     expect(TEXTO_DESCARGA).toContain("ahora el capacitor es la fuente");
     expect(todo(textoEducativoE7(ser, "descargar", "descargado"))).toContain(TEXTO_DESCARGA_SIN_CARGA);
     expect(NOTA_SENTIDO_DESCARGA).toContain("al revés");
+    expect(NOTA_SENTIDO_DESCARGA).toContain("signo menos");
+  });
+
+  it("con «Cargar» y los capacitores por encima de E (se bajó la batería) no promete C·E² entregada", () => {
+    const t = todo(textoEducativoE7(ser, "cargar", "descargando"));
+    expect(t).toContain(TEXTO_BATERIA_BAJADA);
+    expect(t).not.toContain(TEXTO_ENERGIA_CARGA);
   });
 
   it("anuncios de fase para lectores de pantalla", () => {
