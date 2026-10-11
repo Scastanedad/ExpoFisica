@@ -1,41 +1,35 @@
 import { describe, expect, it } from "vitest";
-import { e, paralelo, serie, type Bloque } from "../../fisica/circuitos";
-import { HISTERESIS_FORMATO, elegirFormato, tamanoEnPantalla } from "./formatos";
+import { LIENZO_MAX_CSS, LIENZO_MAX_CSS_SALA, PROPORCION_ALTO_MAX, tamanoLienzo } from "./formatos";
 
-const R = (n: number) => e(`R${n}`, 1000);
-const hojas = (n: number) => Array.from({ length: n }, (_, k) => R(k + 1));
-const s3 = serie(...hojas(3));
-const p6 = paralelo(...hojas(6));
+describe("tamanoLienzo", () => {
+  const casos: [string, number, number, number][] = [
+    ["sala 1920x1080", 1100, 930, 1920],
+    ["1366x768", 700, 480, 1366],
+    ["tablet 1024x768", 560, 430, 1024],
+    ["tablet vertical 768x1024", 736, 450, 768],
+    ["móvil 390x844", 358, 371, 390],
+  ];
+  for (const [n, w, h, v] of casos) {
+    it(`${n}: nunca supera el ancho de la zona ni el alto disponible`, () => {
+      const t = tamanoLienzo(w, h, v);
+      expect(t.ancho).toBeLessThanOrEqual(w);
+      expect(t.alto).toBeLessThanOrEqual(h);
+      expect(t.alto).toBeLessThanOrEqual(t.ancho * PROPORCION_ALTO_MAX + 4);
+      expect(t.ancho % 4).toBe(0);
+    });
+  }
 
-describe("elegirFormato", () => {
-  it("en sala (zona ancha, mucho alto) lo que se extiende en horizontal va apaisado", () => {
-    for (const arbol of [R(1), s3, serie(...hojas(6))] as Bloque[]) {
-      expect(elegirFormato(arbol, "R", false, 1100, 984)).toBe("ancho");
-    }
+  it("es estable: el tamaño no depende del circuito (mismo resultado siempre)", () => {
+    expect(tamanoLienzo(1100, 930, 1920)).toEqual(tamanoLienzo(1100, 930, 1920));
   });
 
-  it("un circuito en serie en una columna angosta se queda apaisado", () => {
-    expect(elegirFormato(s3, "R", false, 360, 600)).toBe("ancho");
+  it("respeta el máximo normal y el de sala (≥ 1600 px)", () => {
+    expect(tamanoLienzo(3000, 3000, 1500).ancho).toBeLessThanOrEqual(LIENZO_MAX_CSS);
+    expect(tamanoLienzo(3000, 3000, 1920).ancho).toBeLessThanOrEqual(LIENZO_MAX_CSS_SALA);
+    expect(tamanoLienzo(3000, 3000, 1920).ancho).toBeGreaterThan(LIENZO_MAX_CSS);
   });
 
-  it("seis ramas apiladas en una tableta estrecha pasan a vertical", () => {
-    expect(elegirFormato(p6, "R", false, 528, 432)).toBe("alto");
-  });
-
-  it("la histéresis evita saltos: el otro formato debe ganar un 20 %", () => {
-    const a = tamanoEnPantalla(p6, "R", false, "ancho", 528, 432);
-    const v = tamanoEnPantalla(p6, "R", false, "alto", 528, 432);
-    expect(v / a).toBeGreaterThan(HISTERESIS_FORMATO);
-    // Ya en vertical y casi empatado, se queda en vertical.
-    expect(elegirFormato(s3, "R", false, 700, 700, "alto")).toBe(
-      tamanoEnPantalla(s3, "R", false, "ancho", 700, 700) > tamanoEnPantalla(s3, "R", false, "alto", 700, 700) * HISTERESIS_FORMATO
-        ? "ancho"
-        : "alto",
-    );
-  });
-
-  it("es determinista y el tamaño nunca supera el máximo del lienzo", () => {
-    expect(elegirFormato(p6, "R", true, 528, 432)).toBe(elegirFormato(p6, "R", true, 528, 432));
-    expect(tamanoEnPantalla(R(1), "R", false, "ancho", 5000, 5000)).toBeLessThanOrEqual((80 * 1100) / 960 + 1e-9);
+  it("los cambios de 1-3 px no cambian el tamaño (paso de 4 px)", () => {
+    expect(tamanoLienzo(701, 480, 1366)).toEqual(tamanoLienzo(703, 480, 1366));
   });
 });

@@ -104,7 +104,7 @@ export function LeyDeGauss() {
   return (
     // --reserva-v/--reserva-lateral: cabecera + instrucciones + rótulo bajo el lienzo + margen.
     <main
-      className="pagina-simulador"
+      className="pagina-simulador pagina-gauss"
       style={{ ["--reserva-v" as string]: "176px", ["--reserva-lateral" as string]: "150px" }}
     >
       <header className="cabecera-simulador">

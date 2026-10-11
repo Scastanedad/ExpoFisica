@@ -23,7 +23,7 @@ import {
 import { useEscalaCss } from "../hooks/useEscalaCss";
 import { useCircuitosStore } from "../store/circuitosStore";
 import { crearAnunciador } from "../ui/anunciosGauss3D";
-import { FORMATOS_CIRCUITO, elegirFormato, type FormatoCircuito } from "./circuitos/formatos";
+import { tamanoLienzo, type TamanoLienzo } from "./circuitos/formatos";
 import { dibujarCircuito, type DatosDibujo } from "./circuitos/dibujarCircuito";
 import { distribuirCircuito, tramoCercano, type GeometriaCircuito } from "./circuitos/distribucion";
 import type { EstadoElectrico } from "./circuitos/estado";
@@ -38,9 +38,7 @@ import { leerSonda, tramoVecino, type LecturaSondaCircuito, type PosicionSonda }
 import {
   anuncioElemento,
   anuncioSonda,
-  textoCorriente,
   textoValorElemento,
-  textoVoltaje,
   textosElementos,
 } from "./circuitos/textos";
 
@@ -72,17 +70,24 @@ export interface PropsCanvasCircuito {
 
 const claveSonda = (s: PosicionSonda | null) => (s ? `${s.tramo}|${s.t.toFixed(3)}` : "");
 
-/** Alto que la regla CSS `.lienzo` deja al lienzo: 100svh − `--reserva-v` de la página. */
+/**
+ * Alto que la página deja al lienzo: el valor de `--alto-lienzo` (definido en `.pagina-circuitos`, p. ej.
+ * `calc(100svh - 150px)` o `44svh`) resuelto a píxeles con un elemento de medida temporal.
+ */
 function altoDisponibleCss(zona: HTMLElement): number {
-  const reserva = parseFloat(getComputedStyle(zona).getPropertyValue("--reserva-v"));
-  return window.innerHeight - (Number.isFinite(reserva) ? reserva : 0);
+  const sonda = document.createElement("div");
+  sonda.style.cssText = "position:absolute;visibility:hidden;pointer-events:none;width:0;height:var(--alto-lienzo, 60svh)";
+  zona.appendChild(sonda);
+  const alto = sonda.getBoundingClientRect().height;
+  sonda.remove();
+  return alto > 0 ? alto : window.innerHeight * 0.6;
 }
 
 export function CanvasCircuito({ arbol, dominio, conRCarga = false, obtenerEstado, etiqueta, pie }: PropsCanvasCircuito) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const zonaRef = useRef<HTMLDivElement>(null);
-  const [formato, setFormato] = useState<FormatoCircuito>("ancho");
-  const { w: ancho, h: alto } = FORMATOS_CIRCUITO[formato];
+  const [tam, setTam] = useState<TamanoLienzo>({ ancho: 960, alto: 540 });
+  const { ancho, alto } = tam;
   const escala = useEscalaCss(canvasRef, ancho, alto);
   const [anuncio, setAnuncio] = useState("");
   const idAyuda = useId();
@@ -109,34 +114,47 @@ export function CanvasCircuito({ arbol, dominio, conRCarga = false, obtenerEstad
   const setSonda = useCircuitosStore((s) => s.setSonda);
   const publicarLecturas = useCircuitosStore((s) => s.publicarLecturas);
 
-  // Formato del lienzo (apaisado o vertical) según el árbol y el espacio (estado de UI: cambia solo al
-  // cruzar el umbral de `elegirFormato`, nunca por fotograma).
-  const recalcularFormato = useCallback(() => {
+  // Tamaño del lienzo = espacio disponible (estado de UI: cambia solo al cambiar la ventana, nunca por
+  // fotograma ni por el circuito: así no salta al cambiar de preset).
+  const recalcularTamano = useCallback(() => {
     const zona = zonaRef.current;
     if (!zona) return;
-    const ancho = zona.getBoundingClientRect().width;
-    if (ancho <= 0) return;
-    const p = propsRef.current;
-    const alto = altoDisponibleCss(zona);
-    setFormato((actual) => elegirFormato(p.arbol, p.dominio, p.conRCarga, ancho, alto, actual));
+    const anchoZona = zona.getBoundingClientRect().width;
+    if (anchoZona <= 0) return;
+    const nuevo = tamanoLienzo(anchoZona, altoDisponibleCss(zona), window.innerWidth);
+    setTam((t) => (t.ancho === nuevo.ancho && t.alto === nuevo.alto ? t : nuevo));
   }, []);
 
   useEffect(() => {
     const zona = zonaRef.current;
     if (!zona) return;
-    const obs = new ResizeObserver(recalcularFormato);
+    const obs = new ResizeObserver(recalcularTamano);
     obs.observe(zona);
-    window.addEventListener("resize", recalcularFormato);
+    window.addEventListener("resize", recalcularTamano);
     return () => {
       obs.disconnect();
-      window.removeEventListener("resize", recalcularFormato);
+      window.removeEventListener("resize", recalcularTamano);
     };
-  }, [recalcularFormato]);
+  }, [recalcularTamano]);
 
-  // Al editar el árbol puede convenir el otro formato (más ramas apiladas, más serie).
+  // Gesto táctil: la página se desplaza (touch-action pan-y) salvo cuando el dedo empieza sobre el circuito,
+  // que es donde se arrastra la sonda (mismo patrón que `useInteraccionEscena`).
   useEffect(() => {
-    recalcularFormato();
-  }, [arbol, dominio, conRCarga, recalcularFormato]);
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const alTocar = (e: TouchEvent) => {
+      const g = geomRef.current;
+      const t = e.touches[0];
+      if (!g || !t || !e.cancelable) return;
+      const r = canvas.getBoundingClientRect();
+      if (r.width <= 0) return;
+      const x = ((t.clientX - r.left) / r.width) * g.ancho;
+      const y = ((t.clientY - r.top) / r.height) * g.alto;
+      if (tramoCercano(g, x, y, RADIO_CAPTURA_CSS / (escala.escalaCssRef.current || 1))) e.preventDefault();
+    };
+    canvas.addEventListener("touchstart", alTocar, { passive: false });
+    return () => canvas.removeEventListener("touchstart", alTocar);
+  }, [escala.escalaCssRef]);
 
   // La sonda también cambia desde fuera (editar el árbol la borra): el store manda salvo mientras se arrastra.
   useEffect(() => {
@@ -198,14 +216,14 @@ export function CanvasCircuito({ arbol, dominio, conRCarga = false, obtenerEstad
     let placas: Record<string, number> = {};
     let textoBateria = "";
     let textoSel: Record<string, string> = {};
-    let sondaTxt: { v: string; i: string } | null = null;
     let ultimo = performance.now();
     let idFrame = 0;
 
     function asegurarGeometria(): GeometriaCircuito {
       const p = propsRef.current;
       const escalaCss = escala.escalaCssRef.current || 1;
-      const fuenteMin = Math.round(Math.min(24, Math.max(8, 12 / escalaCss)) * 2) / 2;
+      // ≥ 12 px CSS reales: nunca se encoge el texto por debajo; si no cabe se reduce el contenido.
+      const fuenteMin = Math.round(Math.min(24, Math.max(12, 12 / escalaCss)) * 2) / 2;
       if (p.arbol !== arbolVistoRef.current) {
         arbolVistoRef.current = p.arbol;
         // Solo la estructura cambia la geometría; editar un valor crea otro árbol pero no la mueve.
@@ -266,7 +284,6 @@ export function CanvasCircuito({ arbol, dominio, conRCarga = false, obtenerEstad
           textoBateria = fuente ? formatearSI(fuente.valor, "V") : "";
           textoSel = {};
           for (const [id, t] of Object.entries(textos)) textoSel[id] = `${id} ${valores[id] ?? ""} · ${t.v} · ${t.i}`;
-          sondaTxt = sondaLect ? { v: textoVoltaje(sondaLect.v), i: textoCorriente(sondaLect.i) } : null;
           publicarLecturas({ elementos: lect, iBat: estado.r.iBat, pBat: potenciaBateria(estado.net, estado.r) }, sondaLect);
         }
       }
@@ -280,7 +297,7 @@ export function CanvasCircuito({ arbol, dominio, conRCarga = false, obtenerEstad
         seleccion,
         placas,
         textoBateria,
-        sonda: sondaLect ? { x: sondaLect.x, y: sondaLect.y, v: sondaTxt?.v ?? textoVoltaje(sondaLect.v), i: sondaTxt?.i ?? textoCorriente(sondaLect.i) } : null,
+        sonda: sondaLect ? { x: sondaLect.x, y: sondaLect.y } : null,
         textoSeleccion: seleccion ? (textoSel[seleccion] ?? null) : null,
       };
       dibujarCircuito(ctx as CanvasRenderingContext2D, g, datos, {
@@ -379,10 +396,8 @@ export function CanvasCircuito({ arbol, dominio, conRCarga = false, obtenerEstad
     if (dueno) seleccionar(dueno);
   };
 
-  const estilo = {
-    aspectRatio: `${ancho} / ${alto}`,
-    ["--lienzo-ratio" as string]: ancho / alto,
-  };
+  // Lógico = CSS: ancho fijo en px (acotado por la zona) y proporción de los atributos.
+  const estilo = { width: `${ancho}px`, maxWidth: "100%", aspectRatio: `${ancho} / ${alto}` };
 
   return (
     <figure className="circuito-figura">

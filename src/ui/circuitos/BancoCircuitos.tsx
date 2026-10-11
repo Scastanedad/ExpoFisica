@@ -19,7 +19,6 @@ import {
 import { useTituloDocumento } from "../../hooks/useTituloDocumento";
 import { CanvasCircuito } from "../../render/CanvasCircuito";
 import { estadoDC, estadoTransitorio, type EstadoElectrico } from "../../render/circuitos/estado";
-import { textoSonda } from "../../render/circuitos/textos";
 import {
   PERSONALIZADO,
   RANGO_C,
@@ -31,6 +30,7 @@ import {
 import { SelectorSegmentado } from "../SelectorSegmentado";
 import { EditorArbol } from "./EditorArbol";
 import { EditorValor } from "./EditorValor";
+import { LecturaSonda } from "./LecturaSonda";
 import { LeyendaCorriente } from "./LeyendaCorriente";
 import { TablaCircuito } from "./TablaCircuito";
 
@@ -47,7 +47,6 @@ export function BancoCircuitos() {
   const modo = useCircuitosStore((s) => s.modo);
   const verElectrones = useCircuitosStore((s) => s.verElectrones);
   const seleccion = useCircuitosStore((s) => s.seleccion);
-  const lecturaSonda = useCircuitosStore((s) => s.lecturaSonda);
   const iniciar = useCircuitosStore((s) => s.iniciar);
   const elegirPreset = useCircuitosStore((s) => s.elegirPreset);
   const setE = useCircuitosStore((s) => s.setE);
@@ -111,7 +110,7 @@ export function BancoCircuitos() {
   const unidad = dominio === "R" ? "Ω" : "F";
 
   return (
-    <main className="pagina-simulador banco-circuitos">
+    <main className="pagina-simulador pagina-circuitos banco-circuitos">
       <header className="cabecera-simulador">
         <h1>Banco de circuitos</h1>
       </header>
@@ -128,12 +127,11 @@ export function BancoCircuitos() {
             obtenerEstado={obtenerEstado}
             etiqueta={`Circuito de ${dominio === "R" ? "resistores" : "capacitores"} con una batería de ${E} voltios. Usa la tabla para leer los valores de cada elemento.`}
           />
-          <p className="banco-sonda" aria-hidden="true">
-            {lecturaSonda ? textoSonda(lecturaSonda) : "Sonda: toca o arrastra sobre el circuito."}
-          </p>
+          <LecturaSonda />
+          <LeyendaCorriente />
+          <TablaCircuito />
         </div>
         <div className="simulador-lateral">
-          <LeyendaCorriente />
           <SelectorSegmentado<Dominio>
             etiquetaGrupo="Tipo de circuito"
             opciones={[
@@ -223,7 +221,6 @@ export function BancoCircuitos() {
           <button type="button" className="boton-banco" onClick={() => setSonda(null)}>
             Quitar la sonda
           </button>
-          <TablaCircuito />
         </div>
       </div>
     </main>

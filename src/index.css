@@ -2318,7 +2318,7 @@ a {
 
 /* Móvil apaisado y pantallas bajas: el lienzo no se queda pegado (taparía los controles) y deja sitio. */
 @media (max-width: 899.98px) and (max-height: 520px) {
-  .simulador-lienzo {
+  .pagina-gauss .simulador-lienzo {
     position: static;
   }
 
@@ -2332,15 +2332,15 @@ a {
    las instrucciones largas se ocultan (la ayuda del panel dice lo mismo) y el texto educativo se reparte en tres
    columnas bajo el lienzo, para que todo quepa sin desplazar la página. */
 @media (min-width: 900px) and (max-height: 820px) {
-  .pagina-simulador {
+  .pagina-simulador.pagina-gauss {
     --reserva-lateral: 56px !important;
   }
 
-  .pagina-simulador .instrucciones-larga {
+  .pagina-gauss .instrucciones-larga {
     display: none;
   }
 
-  .simulador {
+  .pagina-gauss .simulador {
     grid-template-columns: minmax(0, 1fr) clamp(440px, 41vw, 560px);
   }
 
@@ -2432,19 +2432,19 @@ a {
 }
 
 @media (min-width: 900px) and (max-height: 700px) {
-  .pagina-simulador {
+  .pagina-simulador.pagina-gauss {
     --reserva-v: 284px !important;
   }
 }
 
 @media (min-width: 900px) and (max-width: 1199.98px) and (min-height: 701px) and (max-height: 820px) {
-  .pagina-simulador {
+  .pagina-simulador.pagina-gauss {
     --reserva-v: 336px !important;
   }
 }
 
 @media (min-width: 1200px) and (min-height: 701px) and (max-height: 820px) {
-  .pagina-simulador {
+  .pagina-simulador.pagina-gauss {
     --reserva-v: 270px !important;
   }
 }
@@ -2493,13 +2493,57 @@ a {
 
 .circuito-zona {
   width: 100%;
+  display: flex;
+  justify-content: center;
 }
 
-/* El lienzo es el instrumento: el puntero lo usa para la sonda, no para desplazar la página. */
+/* Página de las estaciones de circuitos (E6/E7 y el banco): se usa junto a `.pagina-simulador`.
+   --alto-lienzo es el alto que `CanvasCircuito` mide para dimensionar el lienzo; no hay sticky (en móvil el
+   lienzo ocupa ~44 % de la pantalla y deja ver los controles), y el ancho de columna es propio. */
+.pagina-simulador.pagina-circuitos {
+  --alto-lienzo: max(220px, 44svh);
+  --reserva-lateral: 130px;
+}
+
+.pagina-circuitos .simulador-lienzo {
+  position: static;
+  padding-bottom: 0;
+}
+
+@media (min-width: 900px) and (min-height: 560px) {
+  .pagina-simulador.pagina-circuitos {
+    --alto-lienzo: calc(100svh - 190px);
+  }
+
+  .pagina-circuitos .simulador {
+    grid-template-columns: minmax(0, 1fr) 380px;
+  }
+}
+
+@media (min-width: 1600px) {
+  .pagina-circuitos .simulador {
+    grid-template-columns: minmax(0, 1fr) 440px;
+  }
+}
+
+.lectura-sonda {
+  margin: 8px 0 0;
+  min-height: 1.4em;
+  font-family: var(--mono);
+  font-size: 16px;
+  color: var(--text);
+}
+
+.lectura-sonda-ayuda {
+  color: var(--text-dim);
+}
+
+/* El lienzo es el instrumento: la página se desplaza con el dedo (pan-y); `CanvasCircuito` cancela el gesto
+   solo si el toque empieza sobre el circuito (arrastre de la sonda). Su tamaño lo fija el componente. */
 .circuito-lienzo {
-  touch-action: none;
+  touch-action: pan-y pinch-zoom;
   cursor: crosshair;
-  --lienzo-max: 1100px;
+  margin: 0;
 }
 
 .circuito-lienzo:focus-visible {
@@ -2615,14 +2659,17 @@ a {
   color: var(--accent);
 }
 
+/* Botón sin efecto (tope o mínimo): texto atenuado pero con contraste ≥ 4,5:1 y borde punteado. */
 .editor-arbol-acciones button[aria-disabled="true"] {
-  opacity: 0.55;
+  color: var(--text-dim);
+  border-style: dashed;
+  border-color: var(--text-dim);
   cursor: default;
 }
 
 .editor-arbol-acciones button[aria-disabled="true"]:hover {
-  border-color: var(--borde);
-  color: var(--text);
+  border-color: var(--text-dim);
+  color: var(--text-dim);
 }
 
 .editor-arbol-aviso {
@@ -2703,9 +2750,4 @@ a {
   padding-left: 10px;
 }
 
-.banco-sonda {
-  margin: 6px 0 0;
-  font-family: var(--mono);
-  font-size: 14px;
-  color: var(--text-dim);
-}
+

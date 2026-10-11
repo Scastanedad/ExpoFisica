@@ -23,13 +23,13 @@ const CUERPO = "#e2e8f0";
 const TEXTO = "#f1f5f9";
 const TEXTO_SUAVE = "#cbd5e1";
 const CIAN = "#22d3ee";
-const POSITIVA = "#f87171";
-const NEGATIVA = "#60a5fa";
+const POSITIVA = "#fca5a5";
+const NEGATIVA = "#93c5fd";
 const FUENTE = 'ui-monospace, "Cascadia Code", "SFMono-Regular", Consolas, monospace';
 
 /** Grosor de los cables y símbolos en px CSS (se divide entre la escala del lienzo). */
 const GROSOR_CSS = 2.8;
-const RADIO_PARTICULA_CSS = 3.4;
+const RADIO_PARTICULA_CSS = 4.2;
 const LARGO_MIN_FLECHA_CSS = 26;
 
 export interface DatosDibujo {
@@ -45,8 +45,8 @@ export interface DatosDibujo {
   /** Cargas visibles en la placa a de cada capacitor, con signo (E7). */
   placas?: Record<string, number>;
   textoBateria: string;
-  /** Sonda: posición y rótulo (V / I). */
-  sonda: { x: number; y: number; v: string; i: string } | null;
+  /** Posición de la sonda (su lectura V / I se muestra fuera del lienzo, bajo él, para no tapar rótulos). */
+  sonda: { x: number; y: number } | null;
   /** Rótulo completo del seleccionado en modo compacto. */
   textoSeleccion: string | null;
 }
@@ -190,6 +190,8 @@ function dibujarParticulas(
   radio: number,
 ): void {
   ctx.fillStyle = verElectrones ? NEGATIVA : POSITIVA;
+  ctx.strokeStyle = FONDO;
+  ctx.lineWidth = Math.max(0.8, radio * 0.35);
   const pos = { x: 0, y: 0 };
   for (let k = 0; k < g.tramos.length; k++) {
     const c = p.cuenta[k];
@@ -203,6 +205,7 @@ function dibujarParticulas(
       ctx.arc(pos.x, pos.y, radio, 0, Math.PI * 2);
     }
     ctx.fill();
+    ctx.stroke(); // contorno oscuro: los puntos se distinguen del cable gris
   }
   ctx.globalAlpha = 1;
 }
@@ -258,11 +261,15 @@ function dibujarRotulos(ctx: Contexto2D, g: GeometriaCircuito, d: DatosDibujo): 
       ctx.fillRect(el.celda.x, el.celda.y, el.celda.w, el.celda.h);
       ctx.globalAlpha = 1;
     }
-    if (g.compacto) {
-      // Sin sitio para todo: nombre pequeño y, del seleccionado, la lectura completa en la franja superior.
-      ctx.font = fuente(Math.min(g.fuenteMin, g.s * 0.5), true);
-      ctx.fillStyle = sel ? CIAN : TEXTO_SUAVE;
-      ctx.fillText(el.id, cx, el.nombre.y + el.nombre.h - g.s * 0.06);
+    if (g.nivel === "minimo") continue; // solo el seleccionado, en la franja superior
+    if (g.nivel === "reducido") {
+      // Sin sitio para nombre y valor: V e I a la fuente mínima (el nombre del seleccionado va en la franja).
+      if (!textos) continue;
+      ctx.font = fuente(g.fuenteMin);
+      ctx.fillStyle = TEXTO;
+      ctx.fillText(textos.v, cx, el.lectura.y + g.fuenteMin * 0.95);
+      ctx.fillStyle = TEXTO_SUAVE;
+      ctx.fillText(textos.i, cx, el.lectura.y + g.fuenteMin * 0.95 + g.fuenteMin * 1.15);
       continue;
     }
     ctx.font = fuente(g.fuente, true);
@@ -285,7 +292,7 @@ function dibujarRotulos(ctx: Contexto2D, g: GeometriaCircuito, d: DatosDibujo): 
   }
 }
 
-function dibujarSonda(ctx: Contexto2D, g: GeometriaCircuito, s: NonNullable<DatosDibujo["sonda"]>, escalaCss: number): void {
+function dibujarSonda(ctx: Contexto2D, s: NonNullable<DatosDibujo["sonda"]>, escalaCss: number): void {
   const r = 8 / escalaCss;
   ctx.strokeStyle = CIAN;
   ctx.fillStyle = FONDO;
@@ -298,35 +305,6 @@ function dibujarSonda(ctx: Contexto2D, g: GeometriaCircuito, s: NonNullable<Dato
   ctx.arc(s.x, s.y, r * 0.32, 0, Math.PI * 2);
   ctx.fillStyle = CIAN;
   ctx.fill();
-
-  // Globo con V e I: arriba a la derecha si cabe, si no se voltea; siempre dentro del lienzo.
-  const f = Math.max(g.fuenteMin, Math.min(g.fuente, g.fuenteMin * 1.5));
-  ctx.font = fuente(f, true);
-  const w = Math.max(ctx.measureText(s.v).width, ctx.measureText(s.i).width) + f * 1.2;
-  const h = f * 2.9;
-  const sep = r * 1.8;
-  let x = s.x + sep;
-  let y = s.y - sep - h;
-  if (x + w > g.ancho - 2) x = s.x - sep - w;
-  if (y < 2) y = s.y + sep;
-  x = Math.max(2, Math.min(g.ancho - w - 2, x));
-  y = Math.max(2, Math.min(g.alto - h - 2, y));
-  ctx.fillStyle = "#0f172a";
-  ctx.fillRect(x, y, w, h);
-  ctx.strokeStyle = CIAN;
-  ctx.lineWidth = 1.5 / escalaCss;
-  ctx.beginPath();
-  ctx.moveTo(x, y);
-  ctx.lineTo(x + w, y);
-  ctx.lineTo(x + w, y + h);
-  ctx.lineTo(x, y + h);
-  ctx.closePath();
-  ctx.stroke();
-  ctx.textAlign = "left";
-  ctx.textBaseline = "middle";
-  ctx.fillStyle = TEXTO;
-  ctx.fillText(s.v, x + f * 0.6, y + h * 0.3);
-  ctx.fillText(s.i, x + f * 0.6, y + h * 0.72);
 }
 
 export function dibujarCircuito(ctx: Contexto2D, g: GeometriaCircuito, d: DatosDibujo, vista: VistaDibujo): void {
@@ -349,6 +327,6 @@ export function dibujarCircuito(ctx: Contexto2D, g: GeometriaCircuito, d: DatosD
   }
   dibujarFlechas(ctx, g, d, vista.verElectrones, vista.escalaCss);
   dibujarRotulos(ctx, g, d);
-  if (d.sonda) dibujarSonda(ctx, g, d.sonda, vista.escalaCss);
+  if (d.sonda) dibujarSonda(ctx, d.sonda, vista.escalaCss);
   ctx.restore();
 }

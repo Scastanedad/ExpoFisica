@@ -88,6 +88,11 @@ export interface BateriaColocada {
   rotulo: { x: number; y: number };
 }
 
+export type NivelRotulos = "completo" | "reducido" | "minimo";
+
+/** Una línea V/I de 9 caracteres a `fuenteMin` cabe en la celda si s ≥ este múltiplo de `fuenteMin`. */
+const S_REDUCIDO_K = 1.42;
+
 export interface GeometriaCircuito {
   ancho: number;
   alto: number;
@@ -95,7 +100,14 @@ export interface GeometriaCircuito {
   s: number;
   /** Tamaño de fuente de los rótulos [px lógicos] en modo normal. */
   fuente: number;
-  /** Sin sitio para rótulos completos en todos: solo el seleccionado, en `banda`. */
+  /**
+   * Nivel de rótulos según el espacio, sin bajar nunca de `fuenteMin`:
+   *  - completo: nombre + valor, V e I en cada elemento;
+   *  - reducido: solo V e I (a `fuenteMin`); el nombre y el valor del seleccionado van en `banda`;
+   *  - minimo: no caben ni V e I: solo el seleccionado, en `banda`.
+   */
+  nivel: NivelRotulos;
+  /** nivel ≠ completo. */
   compacto: boolean;
   /** Franja superior reservada al rótulo del seleccionado (solo en modo compacto). */
   banda: Caja | null;
@@ -402,9 +414,13 @@ export function distribuirCircuito(
   // Escala: cabe el lazo entero; en modo compacto se reserva la franja superior.
   const sAncho = ancho / wU;
   let s = Math.min(sAncho, alto / hU, S_MAX);
-  const compacto = FUENTE_U * s < fuenteMin;
-  const banda = compacto ? BANDA_K * fuenteMin : 0;
-  if (compacto) s = Math.min(sAncho, Math.max(alto - banda, 1) / hU, S_MAX);
+  let nivel: NivelRotulos = FUENTE_U * s >= fuenteMin ? "completo" : "reducido";
+  const banda = nivel !== "completo" ? BANDA_K * fuenteMin : 0;
+  if (nivel !== "completo") {
+    s = Math.min(sAncho, Math.max(alto - banda, 1) / hU, S_MAX);
+    // Con la franja reservada puede que ya quepan los rótulos completos; si no, V e I; si no, solo el seleccionado.
+    nivel = FUENTE_U * s >= fuenteMin ? "completo" : s >= S_REDUCIDO_K * fuenteMin ? "reducido" : "minimo";
+  }
   const ox = (ancho - wU * s) / 2;
   const oy = banda + (alto - banda - hU * s) / 2;
 
@@ -432,8 +448,9 @@ export function distribuirCircuito(
     alto,
     s,
     fuente: FUENTE_U * s,
-    compacto,
-    banda: compacto ? { x: 0, y: 0, w: ancho, h: banda } : null,
+    nivel,
+    compacto: nivel !== "completo",
+    banda: nivel !== "completo" ? { x: 0, y: 0, w: ancho, h: banda } : null,
     fuenteMin,
     elementos,
     tramos,

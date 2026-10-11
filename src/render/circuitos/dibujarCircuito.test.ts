@@ -70,22 +70,30 @@ describe("dibujarCircuito", () => {
     expect(c.llamadas.closePath ?? 0).toBe(0);
   });
 
-  it("la sonda añade un marcador y su globo de lectura", () => {
+  it("la sonda añade solo un marcador (su lectura va fuera del lienzo y no tapa rótulos)", () => {
     const sin = crearCtxFalso();
     dibujarCircuito(sin, geom, datos(), vista());
     const con = crearCtxFalso();
-    dibujarCircuito(con, geom, datos({ sonda: { x: 100, y: 100, v: "6 V", i: "3 mA" } }), vista());
+    dibujarCircuito(con, geom, datos({ sonda: { x: 100, y: 100 } }), vista());
     expect(con.llamadas.arc - sin.llamadas.arc).toBe(2);
-    expect(con.llamadas.fillText - sin.llamadas.fillText).toBe(2);
+    expect(con.llamadas.fillText).toBe(sin.llamadas.fillText);
   });
 
-  it("modo compacto: nombres cortos y rótulo del seleccionado en la franja", () => {
+  it("nivel reducido: solo V e I de cada elemento y el rótulo del seleccionado en la franja", () => {
+    const g = distribuirCircuito(arbol, "R", { ancho: 360, alto: 300 }, { fuenteMin: 16 });
+    expect(g.nivel).toBe("reducido");
+    const c = crearCtxFalso();
+    dibujarCircuito(c, g, datos({ corrientes: corrientesTramos(g, est.r), particulas: crearParticulas(g), seleccion: "R2", textoSeleccion: "R2 2 kΩ · 6 V · 3 mA" }), vista());
+    // 3 elementos × (V + I) + franja + rótulo de la batería: sin nombres.
+    expect(c.llamadas.fillText).toBe(3 * 2 + 1 + 1);
+  });
+
+  it("nivel mínimo: ni V ni I en los elementos, solo la franja y la batería", () => {
     const g = distribuirCircuito(arbol, "R", { ancho: 360, alto: 640 }, { fuenteMin: 40 });
-    expect(g.compacto).toBe(true);
+    expect(g.nivel).toBe("minimo");
     const c = crearCtxFalso();
     dibujarCircuito(c, g, datos({ corrientes: corrientesTramos(g, est.r), particulas: crearParticulas(g), seleccion: "R2", textoSeleccion: "R2 · 6 V · 3 mA" }), vista());
-    // 3 nombres + franja + rótulo de la batería.
-    expect(c.llamadas.fillText).toBe(3 + 1 + 1);
+    expect(c.llamadas.fillText).toBe(1 + 1);
   });
 
   it("capacitor: dibuja las cargas de las placas según el signo y la cantidad", () => {

@@ -11,8 +11,8 @@ export function LeyendaCorriente() {
       <p className="leyenda-corriente-sentido">
         <span className={`leyenda-punto ${verElectrones ? "negativa" : "positiva"}`} aria-hidden="true" />
         {verElectrones
-          ? "Puntos y flechas: electrones (carga negativa). Van al revés que la corriente convencional."
-          : "Puntos y flechas: sentido de la corriente convencional (de + a − fuera de la batería)."}
+          ? "Puntos y flechas: electrones, al revés que la corriente convencional."
+          : "Puntos y flechas: corriente convencional, de + a −."}
       </p>
       <p className="leyenda-corriente-aviso">
         Los puntos son una representación. La velocidad real de arrastre de los electrones en un cable es de ~0,1

@@ -192,3 +192,18 @@ describe("consultas de geometría", () => {
     expect(tramoCercano(g, -50, -50, 10)).toBeNull();
   });
 });
+
+describe("nivel de rótulos", () => {
+  const rect = (w: number, h: number) => ({ ancho: w, alto: h });
+  it("sala: completo; espacio justo: reducido (V e I a fuenteMin); muy justo: mínimo", () => {
+    const a = serie(...hojas(3));
+    expect(distribuirCircuito(a, "R", rect(1100, 900)).nivel).toBe("completo");
+    expect(distribuirCircuito(a, "R", rect(356, 368)).nivel).toBe("reducido");
+    expect(distribuirCircuito(serie(...hojas(6)), "R", rect(356, 368)).nivel).toBe("minimo");
+  });
+  it("nunca baja de la fuente mínima: en reducido la celda aloja 9 caracteres a fuenteMin", () => {
+    const g = distribuirCircuito(serie(...hojas(3)), "R", rect(356, 368), { fuenteMin: 12 });
+    expect(g.nivel).toBe("reducido");
+    for (const el of g.elementos) expect(el.celda.w).toBeGreaterThanOrEqual(9 * 0.6 * 12);
+  });
+});

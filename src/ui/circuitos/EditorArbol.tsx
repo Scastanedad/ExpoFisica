@@ -53,7 +53,8 @@ export function EditorArbol() {
         </button>
       </div>
       <p className="editor-arbol-aviso" role="status">
-        {mensaje ?? `Se añade junto a ${seleccion ?? "—"} y copia su valor.`}
+        {mensaje ??
+          (seleccion ? `Se añade junto a ${seleccion} y copia su valor.` : "Elige un elemento para añadir junto a él.")}
       </p>
     </section>
   );

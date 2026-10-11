@@ -1,50 +1,32 @@
 /**
- * Dos formatos del lienzo de circuitos [px lógicos]: apaisado (sala, tablet, escritorio) y vertical
- * (ramas apiladas en pantallas estrechas). `elegirFormato` decide cuál da elementos más grandes EN
- * PANTALLA para el árbol actual y el espacio disponible (puro, con histéresis para que añadir un
- * elemento no haga saltar el lienzo de un formato a otro sin ganar claramente).
+ * Tamaño del lienzo de circuitos. El sistema de coordenadas lógico es IGUAL al tamaño en píxeles CSS
+ * (escala ≈ 1), así los tamaños de fuente en px reales son los del diseño y el lienzo llena justo el
+ * espacio disponible: se adapta a la caja (ancho de la zona × alto libre) sin saltar entre presets.
  */
-import type { Bloque } from "../../fisica/circuitos";
-import { distribuirCircuito } from "./distribucion";
-
-export const FORMATOS_CIRCUITO = {
-  ancho: { w: 960, h: 540 },
-  alto: { w: 480, h: 640 },
-} as const;
-
-export type FormatoCircuito = keyof typeof FORMATOS_CIRCUITO;
-
-/** Ancho máximo CSS del lienzo (`--lienzo-max` de `.circuito-lienzo`). */
 export const LIENZO_MAX_CSS = 1100;
-/** El otro formato debe dar elementos al menos un 20 % mayores para cambiar. */
-export const HISTERESIS_FORMATO = 1.2;
+export const LIENZO_MAX_CSS_SALA = 1250;
+/** A partir de este ancho de ventana el lienzo puede llegar a LIENZO_MAX_CSS_SALA. */
+export const ANCHO_SALA_CSS = 1600;
+/** Alto máximo como proporción del ancho (no estirar más que casi un cuadrado). */
+export const PROPORCION_ALTO_MAX = 1.33;
+/** El tamaño se redondea a múltiplos de este paso para no reconstruir por 1 px. */
+export const PASO_TAMANO = 4;
 
-/** Tamaño CSS (px por unidad de rejilla) que tendrían los elementos con cada formato. */
-export function tamanoEnPantalla(
-  arbol: Bloque,
-  tipoHojas: "R" | "C",
-  conRCarga: boolean,
-  formato: FormatoCircuito,
-  anchoZonaCss: number,
-  altoDisponibleCss: number,
-): number {
-  const { w, h } = FORMATOS_CIRCUITO[formato];
-  // Mismo cálculo que `.lienzo`: min(100%, alto disponible × proporción, --lienzo-max).
-  const anchoCss = Math.min(anchoZonaCss, Math.max(altoDisponibleCss, 200) * (w / h), LIENZO_MAX_CSS);
-  const g = distribuirCircuito(arbol, tipoHojas, { ancho: w, alto: h }, { rCarga: conRCarga });
-  return (g.s * anchoCss) / w;
+export interface TamanoLienzo {
+  ancho: number;
+  alto: number;
 }
 
-export function elegirFormato(
-  arbol: Bloque,
-  tipoHojas: "R" | "C",
-  conRCarga: boolean,
-  anchoZonaCss: number,
-  altoDisponibleCss: number,
-  actual: FormatoCircuito = "ancho",
-): FormatoCircuito {
-  const a = tamanoEnPantalla(arbol, tipoHojas, conRCarga, "ancho", anchoZonaCss, altoDisponibleCss);
-  const v = tamanoEnPantalla(arbol, tipoHojas, conRCarga, "alto", anchoZonaCss, altoDisponibleCss);
-  if (actual === "ancho") return v > a * HISTERESIS_FORMATO ? "alto" : "ancho";
-  return a > v * HISTERESIS_FORMATO ? "ancho" : "alto";
+/**
+ * @param anchoZonaCss ancho de la zona del lienzo.
+ * @param altoDisponibleCss alto que la página deja al lienzo (`--alto-lienzo`).
+ * @param anchoVentanaCss ancho de la ventana (decide el máximo de sala).
+ * El resultado nunca supera ni el ancho de la zona ni el alto disponible.
+ */
+export function tamanoLienzo(anchoZonaCss: number, altoDisponibleCss: number, anchoVentanaCss: number): TamanoLienzo {
+  const maxAncho = anchoVentanaCss >= ANCHO_SALA_CSS ? LIENZO_MAX_CSS_SALA : LIENZO_MAX_CSS;
+  const q = (v: number) => Math.max(PASO_TAMANO * 20, Math.floor(v / PASO_TAMANO) * PASO_TAMANO);
+  const ancho = q(Math.min(anchoZonaCss, maxAncho));
+  const alto = Math.min(q(Math.min(altoDisponibleCss, ancho * PROPORCION_ALTO_MAX)), Math.floor(Math.max(altoDisponibleCss, 160)));
+  return { ancho: Math.min(ancho, Math.max(80, Math.floor(anchoZonaCss))), alto: Math.max(80, alto) };
 }
