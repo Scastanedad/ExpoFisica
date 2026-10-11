@@ -5,16 +5,17 @@
  */
 import { arbolANetlist, equivalente } from "./arbol";
 import { construirZ, ensamblar, factorizar, interpretar, resolverLU, type Ensamblado, type LU } from "./mna";
-import type { Bloque, Netlist, OpcionesArmado, Resultado } from "./tipos";
+import type { Bloque, ModoCircuito, Netlist, OpcionesArmado, Resultado } from "./tipos";
 
 /** Pasos por constante de tiempo: h = τ/200. */
 export const PASOS_POR_TAU = 200;
 /** Máximo de pasos por llamada a `avanzar` (evita bucles largos tras una pausa de pestaña). */
 export const MAX_PASOS_POR_LLAMADA = 5000;
 
-/** τ = (R_carga + r_int)·C_eq. */
-export function tauRC(arbol: Bloque, rCarga: number, rInt = 0): number {
-  return (rCarga + rInt) * equivalente(arbol, "C");
+/** τ = (R_carga + r_int)·C_eq al cargar; τ = R_carga·C_eq al descargar (la batería, y su r_int, salen del lazo). */
+export function tauRC(arbol: Bloque, rCarga: number, rInt = 0, modo: ModoCircuito = "cargar"): number {
+  const r = modo === "descargar" ? rCarga : rCarga + rInt;
+  return r * equivalente(arbol, "C");
 }
 
 export const pasoTemporal = (tau: number): number => tau / PASOS_POR_TAU;
@@ -50,8 +51,30 @@ export class Transitorio {
 
   private congelado(): Resultado {
     const i: Record<string, number> = {};
-    const v = new Array<number>(this.netlist.nNodos).fill(0);
     for (const el of this.netlist.elementos) i[el.id] = 0;
+    // Potenciales desde tierra: cada C aporta v_ab del estado; R con I = 0 no cae voltaje.
+    // La fuente no se recorre (con el interruptor Abierto está desconectada).
+    const n = this.netlist.nNodos;
+    const v = new Array<number>(n).fill(0);
+    const visto = new Array<boolean>(n).fill(false);
+    visto[0] = true;
+    let cambio = true;
+    while (cambio) {
+      cambio = false;
+      for (const el of this.netlist.elementos) {
+        if (el.tipo === "V") continue;
+        const d = el.tipo === "C" ? (this.estado[el.id] ?? 0) : 0;
+        if (visto[el.b] && !visto[el.a]) {
+          v[el.a] = v[el.b] + d;
+          visto[el.a] = true;
+          cambio = true;
+        } else if (visto[el.a] && !visto[el.b]) {
+          v[el.b] = v[el.a] - d;
+          visto[el.b] = true;
+          cambio = true;
+        }
+      }
+    }
     return { v, i, iBat: 0, estadoC: { ...this.estado } };
   }
 
@@ -126,7 +149,7 @@ export function transitorioDeArbol(
   previo: Transitorio | null = null,
 ): Transitorio {
   const net = arbolANetlist(arbol, op);
-  const h = pasoTemporal(tauRC(arbol, op.rCarga, op.rInt ?? 0));
+  const h = pasoTemporal(tauRC(arbol, op.rCarga, op.rInt ?? 0, op.modo));
   const t = transitorioDesde(previo, net, h);
   t.abierto = op.modo === "abierto";
   return t;

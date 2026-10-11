@@ -10,8 +10,14 @@ export const TAU_MAX = 10;
 export const V_MAX_PX = 160;
 /** Suelo visible de E6 (fracción de I_ref). */
 export const SUELO_E6 = 0.04;
-/** Por debajo de esta |I| las partículas se detienen. */
-export const I_PARADA = 1e-9;
+/**
+ * Umbral único de «corriente nula»: por debajo, las partículas se detienen y los textos
+ * muestran «≈ 0» (spec criterios §3: < 1 µA).
+ */
+export const I_CERO = 1e-6;
+export const I_PARADA = I_CERO;
+
+export const esCorrienteNula = (i: number): boolean => Math.abs(i) < I_CERO;
 
 /** τ en pantalla [s] ∈ [0,5; 4]: 0,5 + 0,5·log10(clamp(τ_real, 1 µs, 10 s)/1 µs). */
 export function tauVisual(tauReal: number): number {
@@ -36,7 +42,7 @@ export function iReferenciaE6(net: Netlist, r: Resultado): number {
  * El signo es el de I; |I| < 1e-9 ⇒ 0.
  */
 export function velocidadParticula(i: number, iRef: number, suelo = SUELO_E6, vMax = V_MAX_PX): number {
-  if (!(iRef > 0) || Math.abs(i) < I_PARADA) return 0;
+  if (!(iRef > 0) || esCorrienteNula(i)) return 0;
   return Math.sign(i) * vMax * Math.max(Math.abs(i) / iRef, suelo);
 }
 

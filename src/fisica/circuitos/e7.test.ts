@@ -227,6 +227,41 @@ describe("transitorio: otras propiedades", () => {
   });
 });
 
+describe("descarga con batería real y abierto con potenciales", () => {
+  const arbol = serie(e("C1", 200e-6), e("C2", 400e-6), e("C3", 400e-6));
+  it("descargar saca r_int del lazo: τ = Rc·C_eq, I(0⁺) = −E/Rc y disipa ½CE² (r_int ≠ 0)", () => {
+    const net = NET(arbol, "descargar", 1000, 5);
+    expect(net.elementos.some((x) => x.id === "r_int")).toBe(false);
+    const tau = tauRC(arbol, 1000, 5, "descargar");
+    expect(tau).toBeCloseTo(0.1, 12);
+    expect(tauRC(arbol, 1000, 5)).toBeCloseTo(1005 * 100e-6, 12);
+    const s = new Transitorio(net, pasoTemporal(tau), estadoCargado(arbol, 12));
+    const r0 = s.paso();
+    expect(Math.abs(r0.iBat + 0.012) / 0.012).toBeLessThan(0.005);
+    for (let k = 1; k < 2400; k++) s.paso();
+    expect(Math.abs(s.eDisipada / (0.5 * 100e-6 * 144) - 1)).toBeLessThan(0.01);
+    const d = transitorioDeArbol(arbol, { modo: "descargar", E: 12, rCarga: 1000, rInt: 5 });
+    expect(d.h).toBeCloseTo(pasoTemporal(0.1), 15);
+  });
+  it("abierto: v reconstruido desde el estado de los C (sonda), I = 0", () => {
+    const net = NET(arbol, "cargar", 1000, 2);
+    const s = new Transitorio(net, pasoTemporal(tauRC(arbol, 1000, 2)));
+    for (let k = 0; k < 150; k++) s.paso();
+    const est = { ...s.estado };
+    const ab = transitorioDesde(s, net, s.h);
+    ab.abierto = true;
+    const r = ab.paso();
+    expect(r.iBat).toBe(0);
+    // Serie s(C1,C2,C3) entre nodo 2 (raíz) y 0: C1 a=2, luego nodos internos.
+    for (const el of net.elementos.filter((x) => x.tipo === "C"))
+      expect(r.v[el.a] - r.v[el.b]).toBeCloseTo(est[el.id], 12);
+    const vC = est.C1 + est.C2 + est.C3;
+    expect(r.v[2]).toBeCloseTo(vC, 12);
+    expect(r.v[1]).toBeCloseTo(vC, 12); // Rc sin corriente
+    expect(vC).toBeGreaterThan(0);
+  });
+});
+
 describe("reinicio al editar (criterio 12)", () => {
   const arbol = paralelo(e("C1", 100e-6), e("C2", 200e-6));
   const tau = tauRC(arbol, 1000);

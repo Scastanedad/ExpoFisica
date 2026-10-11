@@ -148,7 +148,8 @@ export function estadoCargado(arbol: Bloque, E: number): Record<string, number> 
  */
 export function arbolANetlist(arbol: Bloque, op: OpcionesArmado): Netlist {
   const tipoHoja = op.modo === "dc" ? "R" : "C";
-  const rInt = op.rInt ?? 0;
+  // En «descargar» la batería se desconecta: r_int sale del lazo (τ = Rc·C_eq).
+  const rInt = op.modo === "descargar" ? 0 : (op.rInt ?? 0);
   let nodos = 2; // 0 tierra, 1 borne + externo
   const nuevoNodo = () => nodos++;
 
