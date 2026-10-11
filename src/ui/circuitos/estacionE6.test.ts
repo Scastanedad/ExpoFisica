@@ -160,6 +160,16 @@ describe("textos educativos de E6", () => {
     expect(textoEducativoE6(des, "puente").parrafos.join(" ")).toContain("de B hacia A");
   });
 
+  it("puente desequilibrado: cita la corriente de R5 con su signo y sentido; equilibrado no", () => {
+    const des = arbolDePuente(PRESETS_E6[6].puente!);
+    const i5 = estadoPuente(des, 12).r.i.R5;
+    const t = textoEducativoE6(des, "puente", i5).parrafos.join(" ");
+    expect(t).toContain("−154 µA en R5: la corriente fluye de B hacia A");
+    expect(textoEducativoE6(des, "puente").parrafos.join(" ")).not.toContain("en R5:");
+    const eq = arbolDePuente(PRESETS_E6[5].puente!);
+    expect(textoEducativoE6(eq, "puente", 0).parrafos.join(" ")).not.toContain("en R5:");
+  });
+
   it("el sentido del texto coincide con el signo de I(R5) del motor", () => {
     const base = PRESETS_E6[5].puente!;
     for (const R4 of [1000, 2000, 3000, 4500, 9000]) {

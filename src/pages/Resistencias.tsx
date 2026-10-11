@@ -68,7 +68,7 @@ export function Resistencias() {
   const obtenerEstado = useCallback((): EstadoElectrico | null => estado, [estado]);
 
   const hoja = useMemo(() => hojas(arbol).find((h) => h.id === seleccion) ?? null, [arbol, seleccion]);
-  const texto = textoEducativoE6(arbol, topologia);
+  const texto = textoEducativoE6(arbol, topologia, lecturas?.elementos.R5?.i);
   const resumen = useMemo(() => {
     const r = resumenE6(lecturas, E);
     return r && reducido ? { ...r, quemados: [] } : r;
@@ -89,7 +89,7 @@ export function Resistencias() {
         <h1>Resistencias</h1>
       </header>
       <p className="instrucciones instrucciones-larga">
-        Elige un circuito o arma el tuyo con hasta seis resistores. Los puntos muestran hacia dónde va la corriente.
+        Elige un circuito o arma el tuyo con hasta seis resistores. Los puntos muestran hacia dónde va la carga (corriente convencional o electrones).
         Toca un resistor o arrastra sobre el cable para medir el voltaje y la corriente con la sonda.
       </p>
       <p className="instrucciones instrucciones-corta">Elige un circuito y toca el cable para medir con la sonda.</p>
@@ -138,6 +138,8 @@ export function Resistencias() {
             Ver electrones
           </label>
 
+          <PanelReduccion control={reduccion} puente={puente} E={E} rInt={rInt} alVolver={volverAlCompleto} />
+
           <EditorArbol />
           {hoja ? (
             <EditorValor
@@ -168,8 +170,6 @@ export function Resistencias() {
             </label>
             {bateriaReal ? <p className="panel-circuito-nota">{TEXTO_BATERIA_REAL}</p> : null}
           </div>
-
-          <PanelReduccion control={reduccion} puente={puente} E={E} rInt={rInt} alVolver={volverAlCompleto} />
 
           <section className="panel-circuito texto-educativo" aria-label="Qué estás viendo">
             <h3 className="panel-circuito-titulo">{texto.titulo}</h3>

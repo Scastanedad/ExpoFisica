@@ -3,7 +3,8 @@
  * depende de la FORMA del circuito (serie, paralelo, mixto, puente), no del preset elegido, así que sigue
  * siendo cierto cuando el visitante edita el circuito.
  */
-import type { Bloque } from "../../fisica/circuitos";
+import { esCorrienteNula, type Bloque } from "../../fisica/circuitos";
+import { textoCorriente } from "../../render/circuitos/textos";
 import { valoresDePuente } from "../../render/circuitos/estado";
 import type { Topologia } from "../../store/circuitosStore";
 
@@ -43,7 +44,11 @@ export function sentidoPuente(arbol: Bloque): "AaB" | "BaA" | null {
 const BASE_PUENTE =
   "R5 une los puntos A y B y no es ni serie ni paralelo. Si R1/R2 = R3/R4, los puntos A y B tienen el mismo voltaje y por el puente no pasa corriente (aunque tenga resistencia).";
 
-export function textoEducativoE6(arbol: Bloque, topologia: Topologia): TextoEducativo {
+/**
+ * @param iPuente corriente i_ab de R5 en vivo [A] (de A a B si es positiva); si se da, el texto del puente
+ * desequilibrado la cita con su signo y su sentido.
+ */
+export function textoEducativoE6(arbol: Bloque, topologia: Topologia, iPuente?: number): TextoEducativo {
   switch (formaDelCircuito(arbol, topologia)) {
     case "uno":
       return {
@@ -90,6 +95,9 @@ export function textoEducativoE6(arbol: Bloque, topologia: Topologia): TextoEduc
         parrafos: [
           BASE_PUENTE,
           `Aquí no se cumple: aparece corriente por el puente, ${ruta}, hacia el punto de menor voltaje.`,
+          ...(iPuente !== undefined && !esCorrienteNula(iPuente)
+            ? [`${textoCorriente(iPuente)} en R5: la corriente fluye ${ruta}.`]
+            : []),
         ],
       };
     }

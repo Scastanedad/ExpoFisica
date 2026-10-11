@@ -21,7 +21,7 @@ export function ResumenCircuito({ resumen, bateriaReal }: Props) {
           <dd>{resumen ? formatearSI(resumen.iBat, "A") : "—"}</dd>
         </div>
         <div>
-          <dt>Potencia que entrega</dt>
+          <dt>{bateriaReal ? "Potencia de la batería (incluye la pérdida interna)" : "Potencia de la batería"}</dt>
           <dd>{resumen ? formatearSI(resumen.pBat, "W") : "—"}</dd>
         </div>
         {bateriaReal ? (
