@@ -84,7 +84,7 @@ export interface BateriaColocada {
   yMas: number;
   yMenos: number;
   caja: Caja;
-  /** Posición (centro) de su rótulo «12 V». */
+  /** Inicio (izquierda, centrado en vertical) de su rótulo «12 V», a la derecha del cable. */
   rotulo: { x: number; y: number };
 }
 
@@ -395,8 +395,8 @@ export function distribuirCircuito(
     cx: X_BATERIA,
     yMas,
     yMenos,
-    caja: { x: X_BATERIA - 1.1, y: yMas, w: 2.2, h: yMenos - yMas + 0.3 + 0.55 },
-    rotulo: { x: X_BATERIA, y: yMenos + 0.55 },
+    caja: { x: X_BATERIA - 1.1, y: yMas, w: 2.6, h: yMenos - yMas + 0.3 + 0.55 },
+    rotulo: { x: X_BATERIA + 0.35, y: yMenos + 0.55 },
   };
 
   // Escala: cabe el lazo entero; en modo compacto se reserva la franja superior.

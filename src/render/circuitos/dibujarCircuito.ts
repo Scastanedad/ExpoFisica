@@ -129,7 +129,8 @@ function dibujarCapacitor(
   const c = el.cuerpo;
   const xa = c.x + c.w * 0.38;
   const xb = c.x + c.w * 0.62;
-  const media = c.h * 0.62;
+  // Las placas no suben más que el cuerpo: así no pisan el nombre del elemento.
+  const media = c.h * 0.5;
   ctx.strokeStyle = sel ? CIAN : CUERPO;
   ctx.lineWidth = lw;
   // Cables hasta las placas (el dieléctrico no conduce) y las dos placas.
@@ -138,15 +139,17 @@ function dibujarCapacitor(
   ctx.lineWidth = lw * 1.6;
   trazar(ctx, [xa, el.yEje - media, xa, el.yEje + media]);
   trazar(ctx, [xb, el.yEje - media, xb, el.yEje + media]);
-  // Cargas acumuladas: placa a (+Q si n > 0), placa b (−Q): una marca por unidad de carga dibujada.
+  // Cargas acumuladas: placa a (+Q si n > 0), placa b (−Q): una marca por unidad de carga dibujada, en filas
+  // alternando arriba y abajo del cable (así ninguna queda tapada por el propio cable).
   const n = Math.min(8, Math.abs(Math.round(nCargas)));
   if (n === 0) return;
+  const paso = media / 3.6;
+  const r = Math.min(Math.max(1.8, g.s * 0.08), paso * 0.45);
+  const dx = Math.max(r * 2.4, g.s * 0.3);
   ctx.lineWidth = lw * 0.7;
-  const r = Math.max(2.2, g.s * 0.12);
-  const dy = (2 * media) / (n + 1);
-  const dx = Math.max(r * 1.8, g.s * 0.3);
-  for (let k = 1; k <= n; k++) {
-    const y = el.yEje - media + dy * k;
+  for (let k = 0; k < n; k++) {
+    const fila = Math.floor(k / 2) + 0.5;
+    const y = el.yEje + (k % 2 === 0 ? -1 : 1) * fila * paso;
     dibujarSignoCarga(ctx, xa - dx, y, r, nCargas > 0);
     dibujarSignoCarga(ctx, xb + dx, y, r, nCargas < 0);
   }
@@ -172,7 +175,8 @@ function dibujarBateria(ctx: Contexto2D, g: GeometriaCircuito, d: DatosDibujo, l
   const f = Math.max(g.fuente, g.fuenteMin);
   ctx.font = fuente(f, true);
   ctx.fillStyle = TEXTO;
-  ctx.textAlign = "center";
+  // A la derecha del cable de la batería, no encima de él.
+  ctx.textAlign = "left";
   ctx.textBaseline = "middle";
   ctx.fillText(d.textoBateria, g.bateria.rotulo.x, g.bateria.rotulo.y);
 }

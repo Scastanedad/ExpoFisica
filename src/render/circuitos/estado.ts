@@ -8,6 +8,7 @@ import {
   iReferenciaE6,
   resolverDC,
   type Bloque,
+  type Transitorio,
   type Netlist,
   type Resultado,
 } from "../../fisica/circuitos";
@@ -30,4 +31,20 @@ export function estadoDC(arbol: Bloque, E: number, rInt = 0): EstadoElectrico {
   const net = arbolANetlist(arbol, { modo: "dc", E, rInt });
   const r = resolverDC(net);
   return { net, r, iRef: iReferenciaE6(net, r), suelo: SUELO_E6 };
+}
+
+/**
+ * E7: estado eléctrico de un transitorio en curso. La escala de partículas usa I_ref = E/R_carga fijo
+ * (máxima corriente posible) y SIN suelo (spec §7); las placas se dibujan con Q_ref = C_max·E.
+ */
+export function estadoTransitorio(t: Transitorio, E: number, rCarga: number): EstadoElectrico {
+  const net = t.netlist;
+  const q: Record<string, number> = {};
+  let cMax = 0;
+  for (const el of net.elementos) {
+    if (el.tipo !== "C") continue;
+    q[el.id] = el.valor * (t.estado[el.id] ?? 0);
+    cMax = Math.max(cMax, el.valor);
+  }
+  return { net, r: t.ultimo, iRef: E / rCarga, suelo: 0, q, qRef: cMax * E };
 }

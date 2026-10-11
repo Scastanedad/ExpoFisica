@@ -2484,3 +2484,228 @@ a {
     scroll-padding-top: calc(max(300px, min(104vw, 56svh)) + 104px);
   }
 }
+
+/* ---------- Circuitos E6/E7 (base compartida) ---------- */
+
+.circuito-figura {
+  margin: 0;
+}
+
+.circuito-zona {
+  width: 100%;
+}
+
+/* El lienzo es el instrumento: el puntero lo usa para la sonda, no para desplazar la página. */
+.circuito-lienzo {
+  touch-action: none;
+  cursor: crosshair;
+  --lienzo-max: 1100px;
+}
+
+.circuito-lienzo:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 3px;
+}
+
+.leyenda-corriente {
+  margin: 8px auto 0;
+  max-width: 78ch;
+  font-size: 14px;
+  line-height: 1.4;
+  color: var(--text-dim);
+}
+
+.leyenda-corriente p {
+  margin: 0 0 4px;
+}
+
+.leyenda-corriente-sentido {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+}
+
+.leyenda-corriente-aviso {
+  font-size: 13px;
+}
+
+/* Rojo/azul solo para la polaridad de la carga que se mueve. */
+.leyenda-punto {
+  flex: 0 0 auto;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+}
+
+.leyenda-punto.positiva {
+  background: #f87171;
+}
+
+.leyenda-punto.negativa {
+  background: #60a5fa;
+}
+
+/* Editor de valor de un elemento (R, C, batería): mismo aspecto que el editor de magnitud de carga. */
+.editor-valor {
+  padding-top: 8px;
+  border-top: 1px solid var(--borde);
+}
+
+.editor-valor-titulo {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0 12px;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+.editor-valor-titulo output {
+  font-size: 18px;
+  color: var(--text);
+}
+
+.editor-valor-fila {
+  flex: 0 0 auto;
+}
+
+/* Editor del árbol: elegir elemento y añadir en serie / en paralelo / quitar. */
+.editor-arbol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.editor-arbol-titulo {
+  margin: 0;
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.editor-arbol-acciones {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.editor-arbol-acciones button,
+.boton-banco {
+  min-width: 44px;
+  min-height: 44px;
+  font-family: var(--mono);
+  font-size: 14px;
+  line-height: 1.2;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--borde);
+  background: rgba(11, 16, 32, 0.5);
+  color: var(--text);
+  cursor: pointer;
+}
+
+.editor-arbol-acciones button:hover,
+.boton-banco:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.editor-arbol-acciones button[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.editor-arbol-acciones button[aria-disabled="true"]:hover {
+  border-color: var(--borde);
+  color: var(--text);
+}
+
+.editor-arbol-aviso {
+  margin: 0;
+  min-height: 2.6em;
+  font-size: 13px;
+  line-height: 1.3;
+  color: var(--text-dim);
+}
+
+/* Tabla accesible de lecturas. Si no cabe (columna lateral angosta) se desplaza por dentro. */
+.tabla-circuito-caja {
+  overflow-x: auto;
+}
+
+.tabla-circuito {
+  width: 100%;
+  margin-top: 10px;
+  border-collapse: collapse;
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.tabla-circuito caption {
+  text-align: left;
+  padding-bottom: 4px;
+  color: var(--text-dim);
+}
+
+.tabla-circuito th,
+.tabla-circuito td {
+  padding: 4px 6px;
+  text-align: right;
+  border-bottom: 1px solid var(--borde);
+  white-space: nowrap;
+}
+
+.tabla-circuito th[scope="col"]:first-child,
+.tabla-circuito th[scope="row"] {
+  text-align: left;
+}
+
+.tabla-circuito tr.activa {
+  background: rgba(34, 211, 238, 0.1);
+}
+
+.tabla-circuito-elegir {
+  min-width: 44px;
+  min-height: 44px;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+}
+
+.tabla-circuito-elegir:hover {
+  text-decoration: underline;
+}
+
+@media (max-width: 520px) {
+  .tabla-circuito {
+    font-size: 12px;
+  }
+
+  .tabla-circuito th,
+  .tabla-circuito td {
+    padding: 4px 4px;
+  }
+}
+
+/* Banco de pruebas (solo desarrollo). */
+.banco-aviso {
+  border-left: 3px solid var(--accent);
+  padding-left: 10px;
+}
+
+.banco-sonda {
+  margin: 6px 0 0;
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--text-dim);
+}
