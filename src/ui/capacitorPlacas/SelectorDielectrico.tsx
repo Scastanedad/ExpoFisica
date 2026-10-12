@@ -38,6 +38,10 @@ export function SelectorDielectrico({ valor, alElegir }: Props) {
           </label>
         ))}
       </div>
+      <p className="panel-circuito-nota">
+        Valores de tabla (Serway), aproximados y a temperatura ambiente: en la práctica varían con el espesor, la
+        temperatura y la frecuencia.
+      </p>
     </fieldset>
   );
 }

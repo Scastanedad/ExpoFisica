@@ -126,10 +126,18 @@ export function calcularGeometria(p: Pick<Parametros, "A" | "d" | "f">): Geometr
 const dentro = (r: Rect, x: number, y: number, m: number) =>
   x >= r.x - m && x <= r.x + r.w + m && y >= r.y - m && y <= r.y + r.h + m;
 
-/** Qué hay bajo un punto lógico. `margen` ya viene en px lógicos (objetivo táctil). */
-export function zonaEn(g: Geometria, x: number, y: number, margen: number): Zona | null {
+/**
+ * Qué hay bajo un punto lógico. `margen` ya viene en px lógicos (objetivo táctil). La lámina solo se puede
+ * agarrar si existe (`hayLamina`); fuera de las placas su zona se ensancha con el margen (con d pequeña el
+ * hueco mide pocos píxeles) y entre ellas se queda en el hueco para no quitarle las placas.
+ */
+export function zonaEn(g: Geometria, x: number, y: number, margen: number, hayLamina = true): Zona | null {
   if (dentro(g.interruptor, x, y, 0)) return "interruptor";
-  if (dentro({ ...g.lamina, y: g.yHuecoSup + 1, h: Math.max(0, g.g - 2) }, x, y, 0)) return "lamina";
+  if (hayLamina) {
+    const fueraDePlacas = x > g.xDer || x < g.x0;
+    const rect = { ...g.lamina, y: g.yHuecoSup + 1, h: Math.max(0, g.g - 2) };
+    if (dentro(rect, x, y, fueraDePlacas ? margen : 0)) return "lamina";
+  }
   if (dentro(g.placaSup, x, y, margen)) return "placa-sup";
   if (dentro(g.placaInf, x, y, margen)) return "placa-inf";
   return null;

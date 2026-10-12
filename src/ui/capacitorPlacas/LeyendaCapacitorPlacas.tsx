@@ -2,7 +2,7 @@
 export function LeyendaCapacitorPlacas() {
   return (
     <section className="panel-circuito leyenda-capacitor-placas" aria-label="Qué estás viendo">
-      <h2 className="panel-circuito-titulo">Qué estás viendo</h2>
+      <h3 className="panel-circuito-titulo">Qué estás viendo</h3>
       <ul>
         <li>
           <strong>Capacitor:</strong> dos placas conductoras separadas por un aislante. Guarda carga y energía en el campo

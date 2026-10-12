@@ -9,6 +9,7 @@ import {
   UMBRAL_AVISO,
   V_TOPE,
   dMinima,
+  excede,
   kappaEfectiva,
   qMaxima,
   sinDielectrico,
@@ -72,7 +73,7 @@ export function textoEstado(p: Parametros, e: Estado): string {
   if (p.modo === "conectado") {
     return `La batería mantiene V = ${fmtV(e.V)}: al meter ${mat.nombre} entra más carga (la capacitancia sube ×${r}) y el campo no cambia: E = V/d = ${fmtE(e.E)}.`;
   }
-  return `Aislado: la carga no cambia (Q = ${fmtQ(e.Q)}). ${mat.nombre} se polariza y debilita el campo dentro: E y V bajan ×1/κ (÷${r}) y la capacitancia sube ×${r}.`;
+  return `Aislado: la carga no cambia (Q = ${fmtQ(e.Q)}). ${mat.nombre} se polariza y debilita el campo dentro: E y V bajan ×1/κ (÷${r}) respecto al aire y la capacitancia sube ×${r}.`;
 }
 
 export type NivelRigidez = "ok" | "aviso" | "limite";
@@ -131,6 +132,11 @@ export function textoBloqueo(b: Motivo, p: Parametros, e: Estado): string {
 export function textoTrabajo(p: Parametros): string {
   const separar = p.d * 2 <= D_MAX;
   const dNueva = separar ? p.d * 2 : p.d / 2;
+  if (excede({ ...p, d: dNueva })) {
+    return separar
+      ? "Más lejos ya no se puede: se superaría el límite de tensión de la sala."
+      : "Más cerca ya no se puede: el campo superaría la rigidez y saltaría una chispa.";
+  }
   const t = trabajoSeparar(p, dNueva);
   const verbo = separar ? "separas" : "acercas";
   const destino = fmtMetros(dNueva);

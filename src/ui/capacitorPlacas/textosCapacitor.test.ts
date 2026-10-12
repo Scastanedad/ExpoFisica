@@ -95,6 +95,14 @@ describe("textos de la estación 08", () => {
     expect(aisl).toContain("Q fija");
   });
 
+  it("textoTrabajo no describe un movimiento imposible", () => {
+    // Aislado a 3 kV con d = 4 mm: separar al doble daría 6 kV, por encima del tope de la sala.
+    const aislado = cambiarModo(base({ d: 4e-3, V: 3000 }), "aislado");
+    expect(textoTrabajo(aislado)).toContain("Más lejos ya no se puede");
+    // Un caso normal sí describe el movimiento.
+    expect(textoTrabajo(cambiarModo(base(), "aislado"))).toContain("la energía sube");
+  });
+
   it("textoFuerza solo con lámina que pueda entrar", () => {
     expect(textoFuerza(calcularEstado(base()))).toBeNull();
     expect(textoFuerza(calcularEstado(base({ materialId: "pyrex", f: 0.5 })))).toContain("F = ");

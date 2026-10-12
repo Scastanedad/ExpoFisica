@@ -25,8 +25,8 @@ import {
   type Zona,
 } from "./capacitorPlacas/geometria";
 
-/** Radio de captura extra alrededor de las placas [px CSS]: objetivo táctil ≥ 44 px. */
-const MARGEN_CSS = 16;
+/** Radio de captura extra alrededor de las placas [px CSS]: con la placa (≈ 7 px) da un objetivo táctil ≥ 44 px. */
+const MARGEN_CSS = 20;
 const PASO_F = 0.05;
 const FACTOR_D = 1.12;
 /** Tiempo de asentamiento de los dipolos [s]. */
@@ -125,7 +125,9 @@ export function CanvasCapacitorPlacas({ p, onCambiar, onModo }: PropsCanvasCapac
       const pt = aLogico(t.clientX, t.clientY);
       if (!pt) return;
       const g = calcularGeometria(propsRef.current.p);
-      if (zonaEn(g, pt.x, pt.y, MARGEN_CSS / (escala.escalaCssRef.current || 1))) e.preventDefault();
+      if (zonaEn(g, pt.x, pt.y, MARGEN_CSS / (escala.escalaCssRef.current || 1), propsRef.current.p.materialId !== "aire")) {
+        e.preventDefault();
+      }
     };
     canvas.addEventListener("touchstart", alTocar, { passive: false });
     return () => canvas.removeEventListener("touchstart", alTocar);
@@ -136,7 +138,7 @@ export function CanvasCapacitorPlacas({ p, onCambiar, onModo }: PropsCanvasCapac
     const pt = aLogico(e.clientX, e.clientY);
     if (!pt) return;
     const g = calcularGeometria(propsRef.current.p);
-    const zona = zonaEn(g, pt.x, pt.y, margenLogico());
+    const zona = zonaEn(g, pt.x, pt.y, margenLogico(), propsRef.current.p.materialId !== "aire");
     if (!zona) return;
     if (zona === "interruptor") {
       const modo = propsRef.current.p.modo;
@@ -154,7 +156,7 @@ export function CanvasCapacitorPlacas({ p, onCambiar, onModo }: PropsCanvasCapac
     const a = arrastreRef.current;
     const { p: pp, onCambiar: cambiar } = propsRef.current;
     if (!a) {
-      const zona = zonaEn(calcularGeometria(pp), pt.x, pt.y, margenLogico());
+      const zona = zonaEn(calcularGeometria(pp), pt.x, pt.y, margenLogico(), pp.materialId !== "aire");
       if (zona !== hoverRef.current) {
         hoverRef.current = zona;
         setCursor(zona ? COMANDO_CURSOR[zona] : "default");

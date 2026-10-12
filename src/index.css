@@ -3347,3 +3347,47 @@ a {
     display: none;
   }
 }
+
+/* E8 · revisión (fase 5r): legibilidad en sala y movimiento reducido. */
+.pagina-capacitor-placas .opcion-dielectrico-nombre {
+  font-size: 15px;
+}
+
+.pagina-capacitor-placas .opcion-dielectrico-datos {
+  font-size: 13px;
+}
+
+.pagina-capacitor-placas .tabla-capacitor-placas {
+  font-size: 14px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pagina-capacitor-placas .medidor-rigidez-barra > span {
+    transition: none;
+  }
+}
+
+/* E8 · sala (≥ 1600 px): textos más grandes para leerse a distancia. */
+@media (min-width: 1600px) {
+  .pagina-capacitor-placas .capacitor-textos p,
+  .pagina-capacitor-placas .leyenda-capacitor-placas li {
+    font-size: 18px;
+  }
+
+  .pagina-capacitor-placas .panel-circuito-nota,
+  .pagina-capacitor-placas .medidor-rigidez-titulo {
+    font-size: 16px;
+  }
+
+  .pagina-capacitor-placas .tabla-capacitor-placas {
+    font-size: 17px;
+  }
+
+  .pagina-capacitor-placas .opcion-dielectrico-nombre {
+    font-size: 17px;
+  }
+
+  .pagina-capacitor-placas .opcion-dielectrico-datos {
+    font-size: 14px;
+  }
+}

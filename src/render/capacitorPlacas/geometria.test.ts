@@ -81,6 +81,28 @@ describe("lámina y placas", () => {
     }
   });
 
+  it("sin lámina (aire) no hay nada que agarrar en la zona de la lámina", () => {
+    const g = calcularGeometria({ A: 100e-4, d: 1e-3, f: 0 });
+    const x = g.xDer + 20;
+    const y = g.yHuecoSup + g.g / 2;
+    expect(zonaEn(g, x, y, 0, true)).toBe("lamina");
+    expect(zonaEn(g, x, y, 0, false)).toBeNull();
+  });
+
+  it("la lámina aparcada se agarra con margen vertical aunque el hueco sea mínimo", () => {
+    const g = calcularGeometria({ A: 100e-4, d: 1e-4, f: 0 });
+    const x = g.xDer + 20;
+    const arriba = g.yHuecoSup - 12;
+    expect(zonaEn(g, x, arriba, 0, true)).toBeNull();
+    expect(zonaEn(g, x, arriba, 20, true)).toBe("lamina");
+  });
+
+  it("entre las placas la lámina solo ocupa el hueco (no tapa las placas)", () => {
+    const g = calcularGeometria({ A: 100e-4, d: 1e-4, f: 1 });
+    const x = g.x0 + g.L / 2;
+    expect(zonaEn(g, x, g.placaSup.y + 2, 20, true)).toBe("placa-sup");
+  });
+
   it("zonaEn: interruptor, lámina, placas y nada", () => {
     const g = calcularGeometria({ A: 100e-4, d: 1e-3, f: 0.5 });
     expect(zonaEn(g, g.interruptor.x + 5, g.interruptor.y + 5, 0)).toBe("interruptor");
