@@ -10,6 +10,7 @@ import { LeyDeGauss } from "./pages/LeyDeGauss";
 // Estaciones de circuitos: se cargan al entrar (code-split por ruta). E7 «Capacitores» sigue el mismo patrón.
 const Resistencias = lazy(() => import("./pages/Resistencias").then((m) => ({ default: m.Resistencias })));
 const Capacitores = lazy(() => import("./pages/Capacitores").then((m) => ({ default: m.Capacitores })));
+const CapacitorPlacas = lazy(() => import("./pages/CapacitorPlacas").then((m) => ({ default: m.CapacitorPlacas })));
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
         <Route path="/ley-de-gauss" element={<LeyDeGauss />} />
         <Route path="/resistencias" element={<Resistencias />} />
         <Route path="/capacitores" element={<Capacitores />} />
+        <Route path="/capacitor-de-placas" element={<CapacitorPlacas />} />
       </Routes>
       </Suspense>
     </BrowserRouter>

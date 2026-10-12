@@ -3129,3 +3129,17 @@ a {
     font-size: 20px;
   }
 }
+
+/* Estación 08 · Capacitor de placas (CSS acotado a esta estación). */
+.pagina-capacitor-placas .capacitor-figura {
+  margin: 0;
+}
+
+.pagina-capacitor-placas .capacitor-lienzo {
+  --lienzo-max: 900px;
+}
+
+.pagina-capacitor-placas .capacitor-lienzo:focus-visible {
+  outline: 3px solid #22d3ee;
+  outline-offset: 2px;
+}
