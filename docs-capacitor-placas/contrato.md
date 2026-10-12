@@ -174,3 +174,15 @@ interface Estado { C: number; Q: number; V: number; E: number; U: number; uAire:
 6. `V_TOPE = 5 kV` (sala), también en aislado.
 7. Selector arranca en aire con `f = 0`; elegir un material no lo mete solo: se arrastra o se usa el deslizador (escenarios sí lo meten).
 8. Valores del catálogo: de memoria de la tabla de Serway, **sin verificar contra el libro**.
+
+## 12. Desvíos de la fase 1 respecto a lo escrito arriba
+
+- `Estado` añade `sigmaLibreAire` (carga libre en la zona de aire) y `sigmaLibre` es la de la zona del dieléctrico.
+- «×κ» y «÷κ» en realidad son `κ/κ_aire` (difiere 0,06 %): los tests usan ese cociente y `comparar` anota «(= κ)» con tolerancia 0,5 %.
+- `F = ½V²ε₀·L·(κ − κ_aire)/d`; se devuelve 0 con `f = 1` (ya no puede entrar más) y con aire.
+- `ajustar`, conectado: editar `V` se recorta a `V_máx` (no sube `d`); editar `d` se recorta a `d_mín`; material, `f` o `A` suben `d`.
+  La rama «`d` = 10 mm y baja `V`» existe pero con este catálogo y `V_TOPE` no es alcanzable.
+- `ajustar`, aislado: bisección sobre A, d, f, Q; un cambio de material que dejaría `E > E_lim` conserva el anterior.
+- `cambiarModo(p, modo)` y `sincronizar(p)` mantienen Q y V coherentes en `Parametros`.
+- Tests en 5 archivos (modelo, dielectricos+rigidez, limites, referencia, trabajo): 41 casos.
+- Valores del catálogo siguen **sin verificar contra el libro** (ver §5).
