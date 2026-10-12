@@ -32,8 +32,6 @@ interface EstadoCapacitorStore {
   /** Aplica un cambio respetando rigidez y rangos (`fisica/capacitorPlacas/limites.ts`). */
   cambiar: (cambio: Partial<Parametros>) => void;
   setModo: (modo: Modo) => void;
-  /** Sustituye los parámetros tal cual (escenarios): ya vienen validados. */
-  establecer: (p: Parametros, referencia?: Referencia) => void;
   fijarReferencia: () => void;
   soltarReferencia: () => void;
   reiniciar: () => void;
@@ -56,8 +54,6 @@ export const useCapacitorPlacasStore = create<EstadoCapacitorStore>((set) => ({
       const p = cambiarModo(s.p, modo);
       return { p, referencia: actualizarReferencia(s.referencia, p), bloqueo: null };
     }),
-  establecer: (p, referencia) =>
-    set((s) => ({ p, referencia: referencia ?? actualizarReferencia(s.referencia, p), bloqueo: null })),
   fijarReferencia: () => set((s) => ({ referencia: fijarReferencia(s.p) })),
   soltarReferencia: () => set((s) => ({ referencia: referenciaDe(s.p) })),
   reiniciar: () => {

@@ -10,7 +10,7 @@
  * Qué comprueba:
  *   - Home: la tarjeta 08 existe y navega a /capacitor-de-placas; el título del documento es el de la estación;
  *   - en 390×844, 1024×768 y 1920×1080: carga sin errores ni avisos de consola, sin desplazamiento horizontal,
- *     objetivos táctiles ≥ 44 px y deslizadores con aria-valuetext; los 5 escenarios rápidos corren sin errores;
+ *     objetivos táctiles ≥ 44 px y deslizadores con aria-valuetext;
  *   - en 1024×768: cada dieléctrico × modo (conectado | aislado) con el hueco lleno da C, Q, V, E y U del
  *     contrato (calculados aquí de forma independiente con ε₀ y κ) y los cambios «×κ» / «÷κ» de la tabla;
  *   - límite por rigidez: con cada material, V al máximo y las placas acercadas con el teclado, la separación se
@@ -46,13 +46,6 @@ const MATERIALES = [
   { nombre: "Porcelana", kappa: 6, eMax: 12e6 },
   { nombre: "Neopreno", kappa: 6.7, eMax: 12e6 },
   { nombre: "Titanato de estroncio", kappa: 233, eMax: 8e6 },
-];
-const ESCENARIOS = [
-  "Meter vidrio con la batería conectada",
-  "Cargar, desconectar y meter vidrio",
-  "Separar placas aislado",
-  "Cerca de la ruptura del aire",
-  "Titanato: κ = 233",
 ];
 const A = 100e-4; // valores de arranque de la estación
 const D = 1e-3;
@@ -188,12 +181,7 @@ async function pruebaViewport(browser, base, vp) {
   ok((await page.locator("table.tabla-capacitor-placas tbody tr").count()) >= 7, `${vp.n}: tabla con las 7 magnitudes`);
   await page.screenshot({ path: resolve(SALIDA, `inicio-${vp.n}.png`), fullPage: true });
 
-  for (const nombre of ESCENARIOS) {
-    await page.getByRole("button", { name: nombre, exact: true }).click();
-    await page.waitForTimeout(250);
-    ok(await sinScrollHorizontal(page), `${vp.n}: «${nombre}» sin scroll horizontal`);
-  }
-  await page.screenshot({ path: resolve(SALIDA, `escenarios-${vp.n}.png`), fullPage: true });
+  await page.screenshot({ path: resolve(SALIDA, `final-${vp.n}.png`), fullPage: true });
   ok(errores.length === 0, `${vp.n} sin errores de consola: ${errores.join(" | ")}`);
   await ctx.close();
 }

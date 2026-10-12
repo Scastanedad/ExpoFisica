@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import {
   A_MAX,
@@ -18,7 +18,6 @@ import { useCapacitorPlacasStore } from "../store/capacitorPlacasStore";
 import { EditorValor } from "../ui/circuitos/EditorValor";
 import { LeyendaCapacitorPlacas } from "../ui/capacitorPlacas/LeyendaCapacitorPlacas";
 import { MedidorRigidez } from "../ui/capacitorPlacas/MedidorRigidez";
-import { ESCENARIOS } from "../ui/capacitorPlacas/escenarios";
 import { SelectorDielectrico } from "../ui/capacitorPlacas/SelectorDielectrico";
 import { TablaCapacitorPlacas } from "../ui/capacitorPlacas/TablaCapacitorPlacas";
 import {
@@ -45,11 +44,9 @@ export function CapacitorPlacas() {
   const bloqueo = useCapacitorPlacasStore((s) => s.bloqueo);
   const cambiar = useCapacitorPlacasStore((s) => s.cambiar);
   const setModo = useCapacitorPlacasStore((s) => s.setModo);
-  const establecer = useCapacitorPlacasStore((s) => s.establecer);
   const fijarReferencia = useCapacitorPlacasStore((s) => s.fijarReferencia);
   const soltarReferencia = useCapacitorPlacasStore((s) => s.soltarReferencia);
   const reiniciar = useCapacitorPlacasStore((s) => s.reiniciar);
-  const [idea, setIdea] = useState("");
 
   const e = useMemo(() => calcularEstado(p), [p]);
   const mat = dielectricoPorId(p.materialId);
@@ -88,29 +85,6 @@ export function CapacitorPlacas() {
         </div>
         <div className="simulador-lateral">
           {textos("capacitor-textos-lateral")}
-
-          <section className="panel-circuito" aria-label="Escenarios rápidos">
-            <h3 className="panel-circuito-titulo">Escenarios rápidos</h3>
-            <div className="capacitor-escenarios">
-              {ESCENARIOS.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  className="boton-banco"
-                  onClick={() => {
-                    const { p: np, referencia: nr } = s.construir();
-                    establecer(np, nr);
-                    setIdea(s.idea);
-                  }}
-                >
-                  {s.etiqueta}
-                </button>
-              ))}
-            </div>
-            <p className="panel-circuito-nota" aria-live="polite">
-              {idea}
-            </p>
-          </section>
 
           <section className="panel-circuito" aria-label="Conexión">
             <h3 className="panel-circuito-titulo">Batería</h3>

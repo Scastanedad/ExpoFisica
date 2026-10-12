@@ -3204,13 +3204,6 @@ a {
   color: #cbd5e1;
 }
 
-.pagina-capacitor-placas .capacitor-escenarios {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.pagina-capacitor-placas .capacitor-escenarios .boton-banco,
 .pagina-capacitor-placas .capacitor-referencia .boton-banco {
   min-height: 44px;
   text-align: left;

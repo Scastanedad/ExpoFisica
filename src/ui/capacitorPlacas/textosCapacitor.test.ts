@@ -4,11 +4,9 @@ import {
   ajustar,
   calcularEstado,
   cambiarModo,
-  excede,
   sincronizar,
   type Parametros,
 } from "../../fisica/capacitorPlacas";
-import { ESCENARIOS } from "./escenarios";
 import {
   porcentaje,
   quienLimita,
@@ -107,50 +105,5 @@ describe("textos de la estación 08", () => {
     expect(textoFuerza(calcularEstado(base()))).toBeNull();
     expect(textoFuerza(calcularEstado(base({ materialId: "pyrex", f: 0.5 })))).toContain("F = ");
     expect(textoFuerza(calcularEstado(base({ materialId: "pyrex", f: 1 })))).toBeNull();
-  });
-});
-
-describe("escenarios rápidos", () => {
-  it("son 5 y todos dan parámetros válidos (sin exceder rigidez ni tensión)", () => {
-    expect(ESCENARIOS).toHaveLength(5);
-    for (const s of ESCENARIOS) {
-      const { p } = s.construir();
-      expect(excede(p)).toBe(false);
-    }
-  });
-
-  it("vidrio con batería: C ×κ, V y E iguales a la referencia", () => {
-    const { p, referencia } = ESCENARIOS[0].construir();
-    const e = calcularEstado(p);
-    expect(e.C / referencia.estado.C).toBeCloseTo(5.6 / KAPPA_AIRE, 9);
-    expect(e.V).toBe(referencia.estado.V);
-    expect(e.E).toBeCloseTo(referencia.estado.E, 9);
-  });
-
-  it("cargar, desconectar y meter vidrio: Q igual y V ÷κ", () => {
-    const { p, referencia } = ESCENARIOS[1].construir();
-    const e = calcularEstado(p);
-    expect(p.modo).toBe("aislado");
-    expect(e.Q).toBeCloseTo(referencia.estado.Q, 20);
-    expect(referencia.estado.V / e.V).toBeCloseTo(5.6 / KAPPA_AIRE, 9);
-  });
-
-  it("separar aislado: E igual y V ×5 con la referencia fijada", () => {
-    const { p, referencia } = ESCENARIOS[2].construir();
-    const e = calcularEstado(p);
-    expect(referencia.fijada).toBe(true);
-    expect(e.E).toBeCloseTo(referencia.estado.E, 9);
-    expect(e.V / referencia.estado.V).toBeCloseTo(5, 9);
-    expect(e.U / referencia.estado.U).toBeCloseTo(5, 9);
-  });
-
-  it("cerca de la ruptura del aire: 93 % de la rigidez", () => {
-    const e = calcularEstado(ESCENARIOS[3].construir().p);
-    expect(e.ratioRigidez).toBeCloseTo(2800 / 3000, 6);
-  });
-
-  it("titanato: C ×233 con la misma batería", () => {
-    const { p, referencia } = ESCENARIOS[4].construir();
-    expect(calcularEstado(p).C / referencia.estado.C).toBeCloseTo(233 / KAPPA_AIRE, 6);
   });
 });

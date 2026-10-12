@@ -196,3 +196,9 @@ interface Estado { C: number; Q: number; V: number; E: number; U: number; uAire:
   límite de rigidez; el de d es fijo (0,1–10 mm) y el límite lo aplica `ajustar` con un aviso, con la separación mínima en la ayuda.
 - El selector de dieléctrico es un grupo de radios nativos con κ y E máx en cada opción; el uso real va para lectores de pantalla.
 - Rótulo de trabajo: calcula el caso «si las separas al doble (o al medio, si ya está en el tope)» con los números actuales.
+
+## 14. Escenarios rápidos retirados (petición del usuario, tras la fase 6)
+
+- Se quitó la sección «Escenarios rápidos» de la estación (§9 y §13 quedan como historia): botones, `ui/capacitorPlacas/escenarios.ts`,
+  sus tests y las comprobaciones del e2e. El visitante llega a los mismos estados con el interruptor, el selector y los controles.
+- «Volver a empezar» sigue en el panel de referencia.
