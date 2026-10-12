@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "preview": "vite preview",
     "e2e:gauss": "node e2e/gauss.e2e.mjs",
-    "test:e2e:circuitos": "node e2e/circuitos.e2e.mjs"
+    "test:e2e:circuitos": "node e2e/circuitos.e2e.mjs",
+    "test:e2e:capacitor": "node e2e/capacitor-placas.e2e.mjs"
   },
   "dependencies": {
     "react": "^19.2.8",
