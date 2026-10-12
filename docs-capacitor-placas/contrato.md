@@ -145,7 +145,7 @@ interface Estado { C: number; Q: number; V: number; E: number; U: number; uAire:
   «Aislado: la carga no cambia, el campo baja ×1/κ»; «Estás al 85 % de la rigidez del aire»;
   leyenda: qué es un capacitor, qué hace el dieléctrico (se polariza y debilita el campo dentro), qué es κ y qué es la rigidez.
 - Escenarios (5): «Meter vidrio con la batería conectada», «Cargar, desconectar y meter vidrio», «Separar placas aislado»,
-  «Cerca de la ruptura del aire» (V = 280 V, d = 1 mm → 93 %), **«Titanato: κ = 233»** (sustituye al escenario del agua).
+  «Cerca de la ruptura del aire» (V = 2800 V, d = 1 mm → 93 %), **«Titanato: κ = 233»** (sustituye al escenario del agua).
 - Fuera de alcance (por decisión del usuario): «¿Qué crees que pasará?», aplicaciones reales, forzar la ruptura.
 - Pendiente de confirmar: mini gráfica `C`/`U` vs `f` o vs `d`, y mostrar `F`.
 
@@ -186,3 +186,13 @@ interface Estado { C: number; Q: number; V: number; E: number; U: number; uAire:
 - `cambiarModo(p, modo)` y `sincronizar(p)` mantienen Q y V coherentes en `Parametros`.
 - Tests en 5 archivos (modelo, dielectricos+rigidez, limites, referencia, trabajo): 41 casos.
 - Valores del catálogo siguen **sin verificar contra el libro** (ver §5).
+
+## 13. Fase 3 (panel y textos): decisiones y correcciones
+
+- Corrección: el escenario «Cerca de la ruptura del aire» usa **2800 V** a 1 mm (E = 2,8 MV/m = 93 %). El contrato decía 280 V,
+  que son 0,28 MV/m (9,3 %); lo detectó el test del escenario.
+- Se muestra la fuerza `F = ½V²·dC/dx` (una línea, solo si hay lámina que pueda entrar). **No** se hizo la mini gráfica de C o U.
+- Controles reutilizan `EditorValor` de E6/E7 (log para d, V y Q; lineal para A y f). El rango de V y de Q se recorta según el
+  límite de rigidez; el de d es fijo (0,1–10 mm) y el límite lo aplica `ajustar` con un aviso, con la separación mínima en la ayuda.
+- El selector de dieléctrico es un grupo de radios nativos con κ y E máx en cada opción; el uso real va para lectores de pantalla.
+- Rótulo de trabajo: calcula el caso «si las separas al doble (o al medio, si ya está en el tope)» con los números actuales.
