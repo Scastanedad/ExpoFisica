@@ -68,6 +68,14 @@ const ESTACIONES: Estacion[] = [
       "Arma redes de hasta seis capacitores, cárgalas con una batería y mira cómo se llenan de carga con el tiempo: voltaje, corriente y energía de cada uno.",
     ruta: "/capacitores",
   },
+  {
+    numero: "08",
+    etiqueta: "Mete un aislante",
+    titulo: "Capacitor de placas",
+    descripcion:
+      "Un solo capacitor por dentro: acerca las placas y mete distintos aislantes para ver cómo cambian la carga, el campo y la energía, hasta el límite en que salta la chispa.",
+    ruta: "/capacitor-de-placas",
+  },
 ];
 
 /**
